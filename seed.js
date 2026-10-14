@@ -98,7 +98,7 @@ const THREADS = [
 ];
 
 const EVENTS = [
-  { title: 'Косплей-конкурс на аниме-фестивале', days: 10, city: 'Алматы', place: 'Уточняется', type: 'contest' },
+  { title: 'Косплей-шоу на аниме-фестивале', days: 10, city: 'Алматы', place: 'Уточняется', type: 'contest' },
   { title: 'Встреча косплееров в парке', days: 17, city: 'Астана', place: 'Центральный парк', type: 'meetup' },
   { title: 'Мастер-класс по EVA', days: 24, city: 'Актобе', place: 'Коворкинг', type: 'workshop' },
   { title: 'Фестиваль поп-культуры', days: 31, city: 'Шымкент', place: 'Уточняется', type: 'festival' },
@@ -161,7 +161,7 @@ async function seedDb({ query, exec }) {
     await query(
       'INSERT INTO events (id, title, date, city, place, type, link, note, demo, created_at) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,TRUE,$9)',
       [id(), e.title, new Date(t + e.days * D).toISOString().slice(0, 10), e.city, e.place, e.type, '',
-        'Пример события. Замените на настоящее с датой и ссылкой организатора.', t]
+        'Пример мероприятия. Замените на настоящее с датой и ссылкой организатора.', t]
     );
   for (const [room, msgs] of Object.entries(CHAT))
     for (const [i, [w, text]] of msgs.entries())

@@ -46,6 +46,8 @@ async function main() {
   const q = db.query;
   const one = async (sql, p) => (await q(sql, p))[0] || null;
   if (await seedDb(db)) console.log('Демо-данные загружены');
+  await q("UPDATE events SET title = 'Косплей-шоу на аниме-фестивале' WHERE demo = TRUE AND title = 'Косплей-конкурс на аниме-фестивале'");
+  await q("UPDATE events SET note = 'Пример мероприятия. Замените на настоящее с датой и ссылкой организатора.' WHERE demo = TRUE AND note LIKE 'Пример события%'");
   console.log(`База: ${db.kind}`);
 
   // ---------- картинки ----------
@@ -113,6 +115,8 @@ async function main() {
 
   async function notify(userId, actorId, type, extra = {}) {
     if (!userId || userId === actorId) return;
+    if (type === 'like' || type === 'follow')
+      await q('DELETE FROM notifications WHERE user_id = $1 AND actor_id = $2 AND type = $3 AND post_id IS NOT DISTINCT FROM $4', [userId, actorId, type, extra.postId || null]);
     await q(
       'INSERT INTO notifications (id, user_id, actor_id, type, post_id, thread_id, created_at) VALUES ($1,$2,$3,$4,$5,$6,$7)',
       [newId(), userId, actorId, type, extra.postId || null, extra.threadId || null, now()]
@@ -128,7 +132,10 @@ async function main() {
     res.setHeader('Referrer-Policy', 'same-origin');
     next();
   });
-  app.use(express.static(path.join(__dirname, 'public'), { maxAge: '1h' }));
+  app.use(express.static(path.join(__dirname, 'public'), {
+    maxAge: '1h',
+    setHeaders: (res, file) => { if (file.endsWith('.html')) res.setHeader('Cache-Control', 'no-cache'); },
+  }));
 
   app.get('/img/:id', wrap(async (req, res) => {
     const r = await one('SELECT mime, data FROM images WHERE id = $1', [req.params.id]);
@@ -270,7 +277,11 @@ async function main() {
     const p = await one('SELECT author_id FROM posts WHERE id = $1', [req.params.id]);
     if (!p) throw new HttpError(404, 'Публикация не найдена');
     if (p.author_id !== req.user.id && !isAdmin(req)) throw new HttpError(403, 'Удалить можно только свою публикацию');
+    const imgs = await q('SELECT image_id FROM post_images WHERE post_id = $1', [req.params.id]);
     await q('DELETE FROM posts WHERE id = $1', [req.params.id]);
+    const own = imgs.map((r) => r.image_id).filter((x) => !x.startsWith('/'));
+    if (own.length) await q('DELETE FROM images WHERE id = ANY($1)', [own]);
+    await q('DELETE FROM notifications WHERE post_id = $1', [req.params.id]);
     res.json({ ok: true });
   }));
 
@@ -430,7 +441,7 @@ async function main() {
     res.json({ ok: true });
   }));
 
-  // ----- календарь -----
+  // ----- мероприятия -----
   app.get('/api/events', wrap(async (_req, res) => {
     const rows = await q('SELECT * FROM events ORDER BY date');
     res.json({ events: rows.map((e) => ({ ...e, authorId: e.author_id })) });
@@ -438,7 +449,7 @@ async function main() {
   app.post('/api/events', auth, wrap(async (req, res) => {
     const title = clean(req.body.title, 120);
     const date = clean(req.body.date, 10);
-    if (!title || !/^\d{4}-\d{2}-\d{2}$/.test(date)) throw new HttpError(400, 'Укажите название и дату');
+    if (!title || !/^\d{4}-\d{2}-\d{2}$/.test(date) || isNaN(Date.parse(date))) throw new HttpError(400, 'Укажите название и дату мероприятия');
     const type = ['contest', 'festival', 'meetup', 'workshop'].includes(req.body.type) ? req.body.type : 'festival';
     const link = /^https?:\/\//.test(req.body.link || '') ? clean(req.body.link, 300) : '';
     await q(
@@ -449,8 +460,8 @@ async function main() {
   }));
   app.delete('/api/events/:id', auth, wrap(async (req, res) => {
     const e = await one('SELECT author_id FROM events WHERE id = $1', [req.params.id]);
-    if (!e) throw new HttpError(404, 'Событие не найдено');
-    if (e.author_id !== req.user.id && !isAdmin(req)) throw new HttpError(403, 'Удалить можно только своё событие');
+    if (!e) throw new HttpError(404, 'Мероприятие не найдено');
+    if (e.author_id !== req.user.id && !isAdmin(req)) throw new HttpError(403, 'Удалить можно только своё мероприятие');
     await q('DELETE FROM events WHERE id = $1', [req.params.id]);
     res.json({ ok: true });
   }));
@@ -520,7 +531,7 @@ async function main() {
     res.json({ users: users.map((r) => userView(r)), posts });
   }));
 
-  // ----- конкурс месяца -----
+  // ----- костюм месяца -----
   app.get('/api/contest', wrap(async (req, res) => {
     const d = new Date();
     const from = new Date(d.getFullYear(), d.getMonth(), 1).getTime();
@@ -572,7 +583,7 @@ async function main() {
 
   app.get('/healthz', (_req, res) => res.send('ok'));
   app.use('/api', (_req, _res, next) => next(new HttpError(404, 'Нет такого адреса API')));
-  app.get(/^\/(?!api\/|img\/).*/, (_req, res) => res.sendFile(path.join(__dirname, 'public', 'index.html')));
+  app.get(/^\/(?!api\/|img\/|demo\/).*/, (_req, res) => { res.setHeader('Cache-Control', 'no-cache'); res.sendFile(path.join(__dirname, 'public', 'index.html')); });
 
   app.use((err, _req, res, _next) => {
     const status = err.status || (err.type === 'entity.too.large' ? 413 : 500);

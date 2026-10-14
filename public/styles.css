@@ -187,7 +187,8 @@ a.chip:hover { color: var(--gold); border-color: var(--gold); }
 .chip.on { border-style: solid; border-color: var(--gold); color: var(--gold); background: var(--gold-soft); }
 .tag { display: inline-flex; align-items: center; gap: 4px; padding: 3px 9px; border-radius: 8px; font-size: .74rem; font-weight: 600; backdrop-filter: blur(8px); }
 .tag.process { background: var(--gold); color: var(--on-gold); }
-.tag.demo { background: var(--glass); color: var(--ink); }
+.tag.demo { background: var(--surface-2); color: var(--muted); }
+.card .tag.demo { background: rgba(13, 14, 28, .55); color: #fff; }
 .tag.admin { background: var(--lapis-soft); color: var(--lapis); }
 
 /* ---------- аватары ---------- */
@@ -471,6 +472,10 @@ a.item:hover, button.item:hover { background: var(--surface-2); }
 .menu a, .menu button { display: flex; width: 100%; gap: 12px; align-items: center; padding: 10px 12px; border: 0; background: none; border-radius: 10px; font-weight: 400; text-align: left; }
 .menu a:hover, .menu button:hover { background: var(--surface-2); }
 .menu svg { width: 19px; height: 19px; color: var(--muted); }
+.menu .mobile-only { display: none; }
+@media (max-width: 980px) { .menu .mobile-only { display: block; } }
+.btn.vote.liked { color: var(--garnet); border-color: var(--garnet); }
+.btn.vote.liked svg { fill: var(--garnet); }
 .menu hr { border: 0; border-top: 1px dashed var(--line); margin: 6px 0; }
 .stat-tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 12px; margin-bottom: 20px; }
 .stat-tiles div { padding: 16px 18px; }
