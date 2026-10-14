@@ -14,6 +14,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - name: Установить Pillow
+        run: pip install --quiet pillow
       - name: Скачать и сжать фото
         run: |
           mkdir -p public/demo
@@ -22,7 +24,7 @@ jobs:
             [ -z "$name" ] && continue
             if [ -f "public/demo/$name.jpg" ]; then continue; fi
             if curl -fsSL --retry 3 -o "/tmp/$name.jpg" "https://www.figma.com/api/mcp/asset/$id.jpg"; then
-              convert "/tmp/$name.jpg" -resize '1200x1200>' -strip -interlace Plane -quality 82 "public/demo/$name.jpg"
+              python3 -c "import sys; from PIL import Image; im=Image.open(sys.argv[1]).convert('RGB'); im.thumbnail((1200,1200)); im.save(sys.argv[2],'JPEG',quality=82,optimize=True,progressive=True)" "/tmp/$name.jpg" "public/demo/$name.jpg"
               ok=$((ok+1))
             else
               echo "::warning::Не удалось скачать $name ($id)"
