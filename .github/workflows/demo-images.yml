@@ -1,0 +1,40 @@
+name: Скачать демо-фото
+
+on:
+  push:
+    paths:
+      - .github/demo-images.txt
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  download:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Скачать и сжать фото
+        run: |
+          mkdir -p public/demo
+          ok=0; fail=0
+          while read -r name id; do
+            [ -z "$name" ] && continue
+            if [ -f "public/demo/$name.jpg" ]; then continue; fi
+            if curl -fsSL --retry 3 -o "/tmp/$name.jpg" "https://www.figma.com/api/mcp/asset/$id.jpg"; then
+              convert "/tmp/$name.jpg" -resize '1200x1200>' -strip -interlace Plane -quality 82 "public/demo/$name.jpg"
+              ok=$((ok+1))
+            else
+              echo "::warning::Не удалось скачать $name ($id)"
+              fail=$((fail+1))
+            fi
+          done < .github/demo-images.txt
+          echo "Скачано: $ok, ошибок: $fail"
+          ls -la public/demo
+      - name: Сохранить в репозиторий
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898283+github-actions[bot]@users.noreply.github.com"
+          git add public/demo
+          git diff --cached --quiet || git commit -m "Демо-фото для Cosplaygram"
+          git push
