@@ -57,7 +57,7 @@ async function main() {
     await q('INSERT INTO images (id, mime, data, owner_id, created_at) VALUES ($1,$2,$3,$4,$5)', [id, m[1], m[2], ownerId, now()]);
     return id;
   }
-  const imgUrl = (id) => (id ? `/img/${id}` : null);
+  const imgUrl = (id) => (!id ? null : id.startsWith('/') ? id : `/img/${id}`);
 
   // ---------- представления ----------
   const userCols = 'u.id, u.username, u.name, u.city, u.specialty, u.bio, u.avatar_id, u.color, u.role, u.demo, u.created_at';
@@ -150,6 +150,9 @@ async function main() {
     next();
   }));
   const auth = (req, _res, next) => (req.user ? next() : next(new HttpError(401, 'Войдите, чтобы продолжить')));
+  // сайт закрыт для гостей: без входа доступны только регистрация, вход и проверка сессии
+  const OPEN = new Set(['/register', '/login', '/logout', '/me']);
+  app.use('/api', (req, _res, next) => (OPEN.has(req.path) || req.user ? next() : next(new HttpError(401, 'Зарегистрируйтесь или войдите, чтобы пользоваться Cosplaygram'))));
   const admin = (req, _res, next) => (req.user?.role === 'admin' ? next() : next(new HttpError(403, 'Только для модераторов')));
   const isAdmin = (req) => req.user?.role === 'admin';
 

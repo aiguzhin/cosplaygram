@@ -1,241 +1,179 @@
-// Демо-данные Cosplaygram: чтобы новая платформа не выглядела пустой.
-// Все демо-профили и события помечены demo: true — их можно удалить, когда придут настоящие косплееры.
+// Демо-данные Cosplaygram, чтобы новая платформа не выглядела пустой.
+// Все образы оригинальные, фото сгенерированы для демонстрации и лежат в public/demo.
+// Демо-профили помечены demo = TRUE; модератор может удалить их одной кнопкой.
 const crypto = require('crypto');
 
-const PALETTES = [
-  ['#16245E', '#2440B8', '#F0A202'],
-  ['#08363A', '#0E9F9A', '#F6E7B0'],
-  ['#3A0E1C', '#B3264B', '#F0A202'],
-  ['#1B1F3B', '#5A48C8', '#9FE3DD'],
-  ['#0F2A44', '#2B7BB9', '#FFD37A'],
-  ['#2A1338', '#8A3FA8', '#F7B6C8'],
-  ['#14302A', '#3C8A5C', '#F2D06B'],
-  ['#2B1A0C', '#C46A12', '#FBE3B4'],
+const SEED_VERSION = 2;
+const id = () => crypto.randomBytes(8).toString('hex');
+const photo = (name) => `/demo/${name}.jpg`;
+
+const USERS = [
+  { username: 'aru.cos', name: 'Аружан', city: 'Алматы', specialty: 'Шитьё и вышивка', color: 'lapis', avatar: 'tomyris',
+    bio: 'Шью костюмы по мотивам казахских легенд. Люблю ручную вышивку золотой нитью.' },
+  { username: 'dias_props', name: 'Диас', city: 'Астана', specialty: 'Броня и реквизит из EVA', color: 'garnet', avatar: 'hunter',
+    bio: 'Делаю броню, мечи и шлемы. Помогаю с выкройками из EVA.' },
+  { username: 'kamila.wigs', name: 'Камила', city: 'Шымкент', specialty: 'Парики и стайлинг', color: 'violet', avatar: 'moon',
+    bio: 'Укладываю парики любой сложности. Отвечаю на форуме про термостойкие волокна.' },
+  { username: 'timur.photo', name: 'Тимур', city: 'Караганда', specialty: 'Фотограф косплея', color: 'saffron', avatar: 'wanderer',
+    bio: 'Снимаю косплей на локациях Казахстана: каньоны, степь, горы.' },
+  { username: 'madi.craft', name: 'Мади', city: 'Актобе', specialty: '3D-печать и sci-fi броня', color: 'turquoise', avatar: 'spacehunter',
+    bio: 'Печатаю шлемы на 3D-принтере и довожу до идеала шпаклёвкой и аэрографом.' },
+  { username: 'aisha.sews', name: 'Айша', city: 'Ташкент', specialty: 'Исторический костюм', color: 'jade', avatar: 'silkroad',
+    bio: 'Исторический крой, икат и украшения в духе Шёлкового пути.' },
 ];
 
-// Рисуем «эскиз костюма»: силуэт, плащ, строчка шва и бирка с материалом.
-function art(seed, label, sub = '') {
-  let h = 0;
-  for (const ch of seed) h = (h * 31 + ch.charCodeAt(0)) >>> 0;
-  const r = (n) => ((h = (Math.imul(h, 1103515245) + 12345) >>> 0) >>> 16) % n;
-  const [a, b, c] = PALETTES[r(PALETTES.length)];
-  const cape = 30 + r(40);
-  const crown = r(3);
-  const head =
-    crown === 0
-      ? `<path d="M270 205 l18 -40 l22 30 l22 -30 l18 40z" fill="${c}"/>`
-      : crown === 1
-      ? `<path d="M262 215 q48 -90 96 0" fill="none" stroke="${c}" stroke-width="10"/>`
-      : `<circle cx="310" cy="175" r="16" fill="${c}"/>`;
-  const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 620 775">
-<defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="${a}"/><stop offset="1" stop-color="${b}"/></linearGradient>
-<pattern id="p" width="28" height="28" patternUnits="userSpaceOnUse" patternTransform="rotate(${r(90)})"><path d="M0 14h28" stroke="${c}" stroke-opacity=".08" stroke-width="2"/></pattern></defs>
-<rect width="620" height="775" fill="url(#g)"/><rect width="620" height="775" fill="url(#p)"/>
-<circle cx="${120 + r(380)}" cy="${120 + r(200)}" r="${90 + r(80)}" fill="${c}" fill-opacity=".12"/>
-<path d="M310 250 L${310 - 150 - cape} 690 Q310 ${640 - r(40)} ${310 + 150 + cape} 690Z" fill="${a}" fill-opacity=".85"/>
-<path d="M310 250 L${310 - 150 - cape} 690 Q310 ${640 - r(40)} ${310 + 150 + cape} 690Z" fill="none" stroke="${c}" stroke-width="3" stroke-dasharray="10 9"/>
-<rect x="262" y="250" width="96" height="250" rx="40" fill="${b}"/>
-<circle cx="310" cy="215" r="44" fill="${c}" fill-opacity=".92"/>${head}
-<g font-family="Manrope, Arial, sans-serif"><rect x="36" y="660" width="${Math.min(548, 40 + label.length * 17)}" height="76" rx="10" fill="#000" fill-opacity=".35"/>
-<text x="56" y="698" fill="#fff" font-size="28" font-weight="700">${label}</text>
-<text x="56" y="724" fill="#fff" fill-opacity=".75" font-size="18">${sub}</text></g></svg>`;
-  return 'data:image/svg+xml;base64,' + Buffer.from(svg).toString('base64');
-}
+const H = 60 * 60 * 1000;
+const D = 24 * H;
 
-function seed() {
-  const id = () => crypto.randomBytes(8).toString('hex');
+const POSTS = [
+  { who: 'aru.cos', kind: 'costume', character: 'Томирис, царица саков', fandom: 'Ориджинал', hours: 120, ago: 3 * H, likes: 6,
+    caption: 'Мой главный проект этого года. Бархатный кафтан, войлочные наплечники и головной убор из латуни. Вышивка полностью ручная.',
+    materials: ['бархат', 'войлок', 'металлизированная нить', 'латунь'], photos: ['tomyris'],
+    comments: [['aisha.sews', 'Вышивка невероятная! Какой нитью шила?'], ['aru.cos', 'Металлизированная нить в два сложения, игла №9.']] },
+  { who: 'dias_props', kind: 'costume', character: 'Рыцарь Северной заставы', fandom: 'Ориджинал', hours: 90, ago: 9 * H, likes: 5,
+    caption: 'Полный доспех из EVA 10 мм. Покраска аэрографом, потёртости сухой кистью. Плащ — двойной габардин.',
+    materials: ['EVA 10 мм', 'пластидип', 'акрил', 'габардин'], photos: ['knight'],
+    comments: [['madi.craft', 'Какое давление ставишь на аэрографе?']] },
+  { who: 'kamila.wigs', kind: 'costume', character: 'Лунная волшебница', fandom: 'Ориджинал', hours: 28, ago: 20 * H, likes: 4,
+    caption: 'Укладка на термобигуди, косы на каркасе. Украшения-полумесяцы из термопластика.',
+    materials: ['термостойкий парик', 'термопластик', 'лак сильной фиксации'], photos: ['moon'], comments: [] },
+  { who: 'timur.photo', kind: 'costume', character: 'Странник пустыни', fandom: 'Фотосет', hours: 6, ago: 30 * H, likes: 6,
+    caption: 'Закат на Чарыне. Ехали четыре часа ради двадцати минут золотого света, и оно того стоило.',
+    materials: ['локация', 'отражатель'], photos: ['wanderer'], comments: [] },
+  { who: 'madi.craft', kind: 'costume', character: 'Космический охотник', fandom: 'Ориджинал', hours: 70, ago: 2 * D, likes: 5,
+    caption: 'Шлем напечатан PLA за 31 час, затем шпаклёвка, шлифовка и покраска. Подсветка — светодиодная лента.',
+    materials: ['PLA', 'шпаклёвка', 'акрил', 'LED-лента'], photos: ['spacehunter'], comments: [] },
+  { who: 'aisha.sews', kind: 'costume', character: 'Принцесса Шёлкового пути', fandom: 'Ориджинал', hours: 140, ago: 3 * D, likes: 6,
+    caption: 'Икат, бархатный жилет с вышивкой и головной убор с монетками. Каждую подвеску собирала вручную.',
+    materials: ['икат', 'бархат', 'бисер', 'латунь'], photos: ['silkroad'], comments: [] },
+  { who: 'aru.cos', kind: 'costume', character: 'Лиса-хранительница', fandom: 'Ориджинал', hours: 45, ago: 5 * D, likes: 4,
+    caption: 'Кимоно из хлопка с трафаретной росписью, хвост из искусственного меха на каркасе.',
+    materials: ['хлопок', 'трафарет', 'искусственный мех'], photos: ['kitsune'], comments: [] },
+  { who: 'dias_props', kind: 'costume', character: 'Охотник на чудовищ', fandom: 'Ориджинал', hours: 60, ago: 7 * D, likes: 4,
+    caption: 'Кожаная куртка, амулет и два меча из EVA с деревянными рукоятями.',
+    materials: ['кожзам', 'EVA 5 мм', 'дерево'], photos: ['hunter'], comments: [] },
+  { who: 'kamila.wigs', kind: 'costume', character: 'Певица неонового города', fandom: 'Ориджинал', hours: 22, ago: 9 * D, likes: 3,
+    caption: 'Хвосты по 90 см с проволочным каркасом внутри, вставки в костюме со светодиодами.',
+    materials: ['парик', 'проволока', 'LED-лента'], photos: ['neon'], comments: [] },
+  { who: 'aru.cos', kind: 'process', character: 'Как я шила кафтан Томирис', fandom: 'Туториал', hours: 120, ago: 4 * D, likes: 6,
+    caption: 'От бумажной выкройки до готового кафтана: четыре главных этапа.',
+    materials: ['бархат', 'войлок', 'нить'], comments: [],
+    photos: ['step-pattern', 'step-cut', 'step-embroidery', 'step-kaftan'],
+    captions: [
+      'Снимаю мерки, строю выкройку и шью макет из бязи, чтобы проверить посадку.',
+      'Кроим бархат по долевой. Войлок — для вставок на плечах.',
+      'Вышиваю орнамент золотой нитью. Самый долгий этап, около 60 часов.',
+      'Собираю, пришиваю подклад и тесьму по краю. Готово!',
+    ] },
+  { who: 'dias_props', kind: 'process', character: 'Наплечник из EVA за вечер', fandom: 'Туториал', hours: 5, ago: 6 * D, likes: 4,
+    caption: 'Самый простой способ сделать броню по фигуре.',
+    materials: ['EVA 5 мм', 'строительный фен', 'контактный клей'], comments: [],
+    photos: ['eva-template', 'eva-heat', 'eva-paint'],
+    captions: [
+      'Обматываю плечо плёнкой и малярным скотчем, рисую линии и снимаю шаблон.',
+      'Прогреваю EVA феном и формую по изгибу.',
+      'Три слоя грунта, затем акрил, патина и заклёпки.',
+    ] },
+];
+
+const STORIES = [
+  { who: 'kamila.wigs', photo: 'wip-wigs', text: 'Три парика к фестивалю', ago: 2 * H },
+  { who: 'madi.craft', photo: 'wip-printer', text: 'Принтер работает 14-й час', ago: 5 * H },
+  { who: 'aru.cos', photo: 'step-embroidery', text: 'Вышивка, день 6', ago: 7 * H },
+  { who: 'dias_props', photo: 'eva-paint', text: 'Крашу новый наплечник', ago: 11 * H },
+];
+
+const THREADS = [
+  { who: 'madi.craft', category: 'materials', city: 'Актобе', title: 'Где в Актобе купить EVA 10 мм?',
+    body: 'Ищу листы EVA 10 мм и 5 мм. В строительных только тонкий. Может, кто-то заказывает оптом?',
+    replies: [['dias_props', 'В Астане беру на маркетплейсе, доставка 3–4 дня. Скину ссылку в чат.']] },
+  { who: 'aisha.sews', category: 'sewing', city: '', title: 'Бархат ползёт при втачивании рукава',
+    body: 'Какие лапки и иглы используете для бархата?',
+    replies: [['aru.cos', 'Лапка с верхним транспортёром и игла 90 для стрейча. Смётывай обязательно!']] },
+  { who: 'kamila.wigs', category: 'wigs', city: 'Шымкент', title: 'Ищу модель для съёмки укладки',
+    body: 'Нужна модель на 2 часа в Шымкенте для фото укладки парика.', replies: [] },
+  { who: 'timur.photo', category: 'photo', city: 'Караганда', title: 'Совместная фотопрогулка в октябре',
+    body: 'Предлагаю собраться на фотосет в парке. Кто хочет — отпишитесь, согласуем дату.',
+    replies: [['madi.craft', 'Я бы приехал в броне!']] },
+];
+
+const EVENTS = [
+  { title: 'Косплей-конкурс на аниме-фестивале', days: 10, city: 'Алматы', place: 'Уточняется', type: 'contest' },
+  { title: 'Встреча косплееров в парке', days: 17, city: 'Астана', place: 'Центральный парк', type: 'meetup' },
+  { title: 'Мастер-класс по EVA', days: 24, city: 'Актобе', place: 'Коворкинг', type: 'workshop' },
+  { title: 'Фестиваль поп-культуры', days: 31, city: 'Шымкент', place: 'Уточняется', type: 'festival' },
+  { title: 'Зимнее косплей-дефиле', days: 55, city: 'Караганда', place: 'Уточняется', type: 'contest' },
+];
+
+const CHAT = {
+  general: [['aru.cos', 'Всем привет! Кто едет на фестиваль в Алматы?'], ['dias_props', 'Я! Везу новую броню'], ['kamila.wigs', 'Могу помочь с париками прямо на месте']],
+  help: [['madi.craft', 'Кто знает, чем лучше шпаклевать PLA?']],
+};
+
+async function seedDb({ query, exec }) {
+  await exec('CREATE TABLE IF NOT EXISTS meta (key TEXT PRIMARY KEY, value TEXT NOT NULL)');
+  const v = await query("SELECT value FROM meta WHERE key = 'seed_version'");
+  const current = v.length ? Number(v[0].value) : 0;
+  if (current >= SEED_VERSION) return false;
+
+  // убираем прежние демо-данные; настоящие участники и их публикации остаются
+  await query('DELETE FROM events WHERE demo = TRUE');
+  await query('DELETE FROM users WHERE demo = TRUE');
+  await query("DELETE FROM images WHERE mime = 'image/svg+xml'");
+
   const t = Date.now();
-  const H = 60 * 60 * 1000;
-  const D = 24 * H;
-
-  const users = [
-    { username: 'aru.cos', name: 'Аружан', city: 'Алматы', specialty: 'Пошив платьев, вышивка', bio: 'Шью костюмы из аниме и казахских легенд. Люблю сложную вышивку.', hue: 330 },
-    { username: 'dias_props', name: 'Диас', city: 'Астана', specialty: 'Броня и реквизит из EVA', bio: 'Делаю броню, мечи и шлемы. Помогу с выкройками из EVA.', hue: 210 },
-    { username: 'kamila.wigs', name: 'Камила', city: 'Шымкент', specialty: 'Парики и стайлинг', bio: 'Укладываю парики любой сложности. Отвечаю в форуме про термостойкие волокна.', hue: 280 },
-    { username: 'timur.photo', name: 'Тимур', city: 'Караганда', specialty: 'Фотограф косплея', bio: 'Снимаю косплей на локациях Казахстана.', hue: 160 },
-    { username: 'madi.craft', name: 'Мади', city: 'Актобе', specialty: 'Worbla, 3D-печать', bio: 'Печатаю детали на 3D-принтере и дорабатываю worbla.', hue: 30 },
-    { username: 'aisha.sews', name: 'Айша', city: 'Ташкент', specialty: 'Исторический костюм', bio: 'Из Центральной Азии с любовью к историческому крою.', hue: 10 },
-  ].map((u, i) => ({ id: id(), password: null, avatar: null, createdAt: t - (40 - i) * D, demo: true, ...u }));
-  const U = Object.fromEntries(users.map((u) => [u.username, u.id]));
-  const ids = users.map((u) => u.id);
-  const someLikes = (n) => [...ids].sort(() => Math.random() - 0.5).slice(0, n);
-
-  const costume = (who, character, fandom, caption, materials, hours, ago, likes) => ({
-    id: id(),
-    authorId: U[who],
-    kind: 'costume',
-    character,
-    fandom,
-    caption,
-    materials,
-    hours,
-    slides: [{ image: art(character + who, character, fandom), caption: '' }],
-    likes: someLikes(likes),
-    comments: [],
-    createdAt: t - ago,
-    demo: true,
-  });
-
-  const posts = [
-    costume('aru.cos', 'Томирис', 'Ориджинал', 'Образ царицы саков: кафтан с ручной вышивкой и войлочные вставки.', ['войлок', 'бархат', 'золотая тесьма'], 120, 3 * H, 6),
-    costume('dias_props', 'Рыцарь Бездны', 'Genshin Impact', 'Полная броня из EVA 10 мм, покраска аэрографом.', ['EVA 10 мм', 'пластидип', 'акрил'], 90, 9 * H, 5),
-    costume('kamila.wigs', 'Фрирен', 'Sousou no Frieren', 'Парик с хвостиками, уложен на термобигуди. Посох в процессе.', ['термостойкий парик', 'лак Got2b'], 25, 20 * H, 4),
-    costume('timur.photo', 'Странник', 'Ориджинал', 'Съёмка на Чарынском каньоне на закате. Модель: aru.cos.', ['локация', 'отражатель'], 6, 30 * H, 6),
-    costume('madi.craft', 'Мандалорец', 'Star Wars', 'Шлем напечатан PLA, шлифовка и хромовая краска.', ['PLA', 'шпатлёвка', 'хром'], 70, 2 * D, 5),
-    costume('aisha.sews', 'Принцесса Шелкового пути', 'Ориджинал', 'Икат, ручная вышивка, головной убор с подвесками.', ['икат', 'бисер', 'латунь'], 140, 3 * D, 6),
-    costume('aru.cos', 'Нэдзуко', 'Kimetsu no Yaiba', 'Кимоно из хлопка с трафаретной печатью узора асаноха.', ['хлопок', 'трафарет', 'краска по ткани'], 35, 5 * D, 3),
-    costume('dias_props', 'Ведьмак', 'The Witcher', 'Кожаная куртка, медальон и два меча из EVA.', ['кожзам', 'EVA 5 мм', 'термоклей'], 60, 7 * D, 4),
-    costume('kamila.wigs', 'Мику', 'Vocaloid', 'Хвосты по 90 см, каркас из проволоки внутри.', ['парик', 'проволока', 'фетр'], 18, 9 * D, 2),
-  ];
-
-  posts.push({
-    id: id(),
-    authorId: U['aru.cos'],
-    kind: 'process',
-    character: 'Томирис',
-    fandom: 'Ориджинал',
-    caption: 'Как я шила кафтан Томирис: от выкройки до вышивки.',
-    materials: ['войлок', 'бархат', 'тесьма'],
-    hours: 120,
-    slides: [
-      { image: art('tom1', 'Шаг 1 · Выкройка', 'Крафт-бумага, макет из бязи'), caption: 'Снимаю мерки и делаю макет из бязи, чтобы проверить посадку.' },
-      { image: art('tom2', 'Шаг 2 · Раскрой', 'Бархат + войлок'), caption: 'Кроим бархат по долевой, войлок — для вставок на плечах.' },
-      { image: art('tom3', 'Шаг 3 · Вышивка', '≈60 часов вручную'), caption: 'Вышиваю орнамент золотой нитью. Самый долгий этап.' },
-      { image: art('tom4', 'Шаг 4 · Сборка', 'Подклад и отделка'), caption: 'Собираю, пришиваю подклад и тесьму по краю.' },
-    ],
-    likes: someLikes(6),
-    comments: [],
-    createdAt: t - 4 * D,
-    demo: true,
-  });
-  posts.push({
-    id: id(),
-    authorId: U['dias_props'],
-    kind: 'process',
-    character: 'Наплечник из EVA',
-    fandom: 'Туториал',
-    caption: 'Наплечник за вечер: выкройка, нагрев, грунт.',
-    materials: ['EVA 5 мм', 'фен', 'контактный клей'],
-    hours: 5,
-    slides: [
-      { image: art('eva1', 'Шаг 1 · Шаблон', 'Скотч + плёнка'), caption: 'Обматываю плечо плёнкой и скотчем, рисую линии и снимаю шаблон.' },
-      { image: art('eva2', 'Шаг 2 · Нагрев', 'Строительный фен'), caption: 'Прогреваю EVA и формую по изгибу.' },
-      { image: art('eva3', 'Шаг 3 · Грунт', 'Пластидип, 3 слоя'), caption: 'Три слоя грунта, потом акрил и патина.' },
-    ],
-    likes: someLikes(4),
-    comments: [],
-    createdAt: t - 6 * D,
-    demo: true,
-  });
-
-  posts[0].comments.push(
-    { id: id(), authorId: U['aisha.sews'], text: 'Вышивка невероятная! Какой нитью шила?', createdAt: t - 2 * H },
-    { id: id(), authorId: U['aru.cos'], text: 'Металлизированная нить, в два сложения.', createdAt: t - 1 * H }
-  );
-  posts[1].comments.push({ id: id(), authorId: U['madi.craft'], text: 'Какое давление на аэрографе?', createdAt: t - 5 * H });
-
-  const stories = [
-    { who: 'dias_props', text: 'Крашу шлем 🔧', label: 'WIP шлем', ago: 2 * H },
-    { who: 'kamila.wigs', text: 'Новая партия париков', label: 'Парики', ago: 5 * H },
-    { who: 'aru.cos', text: 'Вышивка, день 6', label: 'Вышивка', ago: 7 * H },
-    { who: 'madi.craft', text: 'Принтер работает 14 часов', label: '3D-печать', ago: 11 * H },
-  ].map((s) => ({ id: id(), authorId: U[s.who], image: art('story' + s.who, s.label, s.text), text: s.text, createdAt: t - s.ago, demo: true }));
-
-  const threads = [
-    { who: 'madi.craft', category: 'materials', city: 'Актобе', title: 'Где в Актобе купить EVA 10 мм?', body: 'Ищу листы EVA 10 мм и 5 мм. В строительных только тонкий. Может, кто-то заказывает оптом?', replies: [['dias_props', 'В Астане беру на маркетплейсе, доставка 3–4 дня. Могу скинуть ссылку в чат.']] },
-    { who: 'aisha.sews', category: 'sewing', city: '', title: 'Нужна помощь: втачной рукав на бархате', body: 'Бархат ползёт при втачивании рукава. Какие лапки и иглы используете?', replies: [['aru.cos', 'Лапка с верхним транспортёром и игла 90 для стрейча. Смётывай обязательно!']] },
-    { who: 'kamila.wigs', category: 'wigs', city: 'Шымкент', title: 'Ищу модель для съёмки укладки', body: 'Нужна модель на 2 часа в Шымкенте для фото укладки парика Фрирен.', replies: [] },
-    { who: 'timur.photo', category: 'photo', city: 'Караганда', title: 'Совместная фотопрогулка в октябре', body: 'Предлагаю собраться на фотосет в парке. Кто хочет — отпишитесь, согласуем дату.', replies: [['madi.craft', 'Я бы приехал в Мандалорце!']] },
-  ].map((x, i) => ({
-    id: id(),
-    authorId: U[x.who],
-    category: x.category,
-    city: x.city,
-    title: x.title,
-    body: x.body,
-    replies: x.replies.map(([w, text], j) => ({ id: id(), authorId: U[w], text, createdAt: t - (i + 1) * D + (j + 1) * H })),
-    createdAt: t - (i + 2) * D,
-    demo: true,
-  }));
-
-  const d = (days) => new Date(t + days * D).toISOString().slice(0, 10);
-  const events = [
-    { title: 'Косплей-конкурс на аниме-фестивале', date: d(10), city: 'Алматы', place: 'Уточняется', type: 'contest' },
-    { title: 'Встреча косплееров в парке', date: d(17), city: 'Астана', place: 'Центральный парк', type: 'meetup' },
-    { title: 'Фестиваль поп-культуры', date: d(31), city: 'Шымкент', place: 'Уточняется', type: 'festival' },
-    { title: 'Мастер-класс по EVA', date: d(24), city: 'Актобе', place: 'Коворкинг', type: 'meetup' },
-    { title: 'Зимний косплей-дефиле', date: d(55), city: 'Караганда', place: 'Уточняется', type: 'contest' },
-  ].map((e) => ({ id: id(), link: '', note: 'Пример события. Замените на реальное с датой и ссылкой организатора.', authorId: null, demo: true, ...e }));
-
-  const chat = {
-    general: [
-      ['aru.cos', 'Всем привет! Кто едет на фестиваль в Алматы?'],
-      ['dias_props', 'Я! Везу новую броню 💪'],
-      ['kamila.wigs', 'Могу помочь с париками прямо на месте'],
-    ].map(([w, text], i) => ({ id: id(), authorId: U[w], text, createdAt: t - (3 - i) * H })),
-    help: [['madi.craft', 'Кто знает, чем лучше шпатлевать PLA?']].map(([w, text]) => ({ id: id(), authorId: U[w], text, createdAt: t - 4 * H })),
-  };
-
-  return { users, posts, stories, threads, events, chat, sessions: {} };
-}
-
-const COLORS = ['lapis', 'turquoise', 'garnet', 'saffron', 'violet', 'jade'];
-
-// Заливает демо-данные в пустую базу.
-async function seedDb({ query }) {
-  const [{ n }] = await query('SELECT count(*)::int AS n FROM users');
-  if (n > 0) return false;
-  const d = seed();
-  const imgId = () => crypto.randomBytes(8).toString('hex');
-  async function img(dataUri) {
-    const m = /^data:([^;]+);base64,(.*)$/.exec(dataUri);
-    const id = imgId();
-    await query('INSERT INTO images (id, mime, data, created_at) VALUES ($1,$2,$3,$4)', [id, m[1], m[2], Date.now()]);
-    return id;
-  }
-  for (const [i, u] of d.users.entries()) {
+  const U = {};
+  for (const [i, u] of USERS.entries()) {
+    U[u.username] = id();
     await query(
-      `INSERT INTO users (id, username, password, name, city, specialty, bio, color, demo, created_at)
-       VALUES ($1,$2,NULL,$3,$4,$5,$6,$7,TRUE,$8)`,
-      [u.id, u.username, u.name, u.city, u.specialty, u.bio, COLORS[i % COLORS.length], u.createdAt]
+      `INSERT INTO users (id, username, password, name, city, specialty, bio, avatar_id, color, demo, created_at)
+       VALUES ($1,$2,NULL,$3,$4,$5,$6,$7,$8,TRUE,$9)`,
+      [U[u.username], u.username, u.name, u.city, u.specialty, u.bio, photo(u.avatar), u.color, t - (40 - i) * D]
     );
   }
-  for (const p of d.posts) {
+  const ids = Object.values(U);
+  const pick = (k) => [...ids].sort(() => Math.random() - 0.5).slice(0, k);
+
+  for (const p of POSTS) {
+    const pid = id();
+    const created = t - p.ago;
     await query(
       `INSERT INTO posts (id, author_id, kind, character, fandom, caption, materials, hours, demo, created_at)
        VALUES ($1,$2,$3,$4,$5,$6,$7,$8,TRUE,$9)`,
-      [p.id, p.authorId, p.kind, p.character, p.fandom, p.caption, JSON.stringify(p.materials), p.hours, p.createdAt]
+      [pid, U[p.who], p.kind, p.character, p.fandom, p.caption, JSON.stringify(p.materials), p.hours, created]
     );
-    for (const [idx, sl] of p.slides.entries()) {
-      await query('INSERT INTO post_images (post_id, idx, image_id, caption) VALUES ($1,$2,$3,$4)', [p.id, idx, await img(sl.image), sl.caption]);
-    }
-    for (const uid of p.likes) await query('INSERT INTO likes (post_id, user_id, created_at) VALUES ($1,$2,$3)', [p.id, uid, p.createdAt]);
-    for (const c of p.comments)
-      await query('INSERT INTO comments (id, post_id, author_id, text, created_at) VALUES ($1,$2,$3,$4,$5)', [c.id, p.id, c.authorId, c.text, c.createdAt]);
+    for (const [i, ph] of p.photos.entries())
+      await query('INSERT INTO post_images (post_id, idx, image_id, caption) VALUES ($1,$2,$3,$4)', [pid, i, photo(ph), p.captions?.[i] || '']);
+    for (const uid of pick(p.likes)) await query('INSERT INTO likes (post_id, user_id, created_at) VALUES ($1,$2,$3)', [pid, uid, t - p.ago / 2]);
+    for (const [j, [w, text]] of p.comments.entries())
+      await query('INSERT INTO comments (id, post_id, author_id, text, created_at) VALUES ($1,$2,$3,$4,$5)', [id(), pid, U[w], text, created + (j + 1) * 20 * 60 * 1000]);
   }
-  for (const s of d.stories)
-    await query('INSERT INTO stories (id, author_id, image_id, text, created_at) VALUES ($1,$2,$3,$4,$5)', [s.id, s.authorId, await img(s.image), s.text, s.createdAt]);
-  for (const t of d.threads) {
-    await query(
-      'INSERT INTO threads (id, author_id, category, city, title, body, demo, created_at) VALUES ($1,$2,$3,$4,$5,$6,TRUE,$7)',
-      [t.id, t.authorId, t.category, t.city, t.title, t.body, t.createdAt]
-    );
-    for (const r of t.replies)
-      await query('INSERT INTO replies (id, thread_id, author_id, text, created_at) VALUES ($1,$2,$3,$4,$5)', [r.id, t.id, r.authorId, r.text, r.createdAt]);
+  for (const s of STORIES)
+    await query('INSERT INTO stories (id, author_id, image_id, text, created_at) VALUES ($1,$2,$3,$4,$5)', [id(), U[s.who], photo(s.photo), s.text, t - s.ago]);
+  for (const [i, th] of THREADS.entries()) {
+    const tid = id();
+    await query('INSERT INTO threads (id, author_id, category, city, title, body, demo, created_at) VALUES ($1,$2,$3,$4,$5,$6,TRUE,$7)',
+      [tid, U[th.who], th.category, th.city, th.title, th.body, t - (i + 2) * D]);
+    for (const [j, [w, text]] of th.replies.entries())
+      await query('INSERT INTO replies (id, thread_id, author_id, text, created_at) VALUES ($1,$2,$3,$4,$5)', [id(), tid, U[w], text, t - (i + 1) * D + j * H]);
   }
-  for (const e of d.events)
+  for (const e of EVENTS)
     await query(
       'INSERT INTO events (id, title, date, city, place, type, link, note, demo, created_at) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,TRUE,$9)',
-      [e.id, e.title, e.date, e.city, e.place, e.type, e.link, e.note, Date.now()]
+      [id(), e.title, new Date(t + e.days * D).toISOString().slice(0, 10), e.city, e.place, e.type, '',
+        'Пример события. Замените на настоящее с датой и ссылкой организатора.', t]
     );
-  for (const [room, msgs] of Object.entries(d.chat))
-    for (const m of msgs)
-      await query('INSERT INTO messages (id, room, author_id, text, created_at) VALUES ($1,$2,$3,$4,$5)', [m.id, room, m.authorId, m.text, m.createdAt]);
-  // пара демо-подписок
-  const ids = d.users.map((u) => u.id);
+  for (const [room, msgs] of Object.entries(CHAT))
+    for (const [i, [w, text]] of msgs.entries())
+      await query('INSERT INTO messages (id, room, author_id, text, created_at) VALUES ($1,$2,$3,$4,$5)', [id(), room, U[w], text, t - (msgs.length - i) * H]);
   for (let i = 0; i < ids.length; i++)
-    await query('INSERT INTO follows (follower_id, followee_id, created_at) VALUES ($1,$2,$3)', [ids[i], ids[(i + 1) % ids.length], Date.now()]);
+    await query('INSERT INTO follows (follower_id, followee_id, created_at) VALUES ($1,$2,$3)', [ids[i], ids[(i + 1) % ids.length], t]);
+
+  await query(
+    "INSERT INTO meta (key, value) VALUES ('seed_version', $1) ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value",
+    [String(SEED_VERSION)]
+  );
   return true;
 }
 
-module.exports = { seed, seedDb, art };
+module.exports = { seedDb };

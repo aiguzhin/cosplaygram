@@ -70,6 +70,8 @@ const ic = {
   gear: I('<circle cx="12" cy="12" r="3"/><path d="M19 12a7 7 0 0 0-.1-1.2l2-1.6-2-3.4-2.4 1a7 7 0 0 0-2-1.2L14 3h-4l-.5 2.6a7 7 0 0 0-2 1.2l-2.4-1-2 3.4 2 1.6a7 7 0 0 0 0 2.4l-2 1.6 2 3.4 2.4-1a7 7 0 0 0 2 1.2L10 21h4l.5-2.6a7 7 0 0 0 2-1.2l2.4 1 2-3.4-2-1.6c.07-.4.1-.8.1-1.2z"/>'),
   shield: I('<path d="M12 3 4.5 6v6c0 4.5 3.2 7.8 7.5 9 4.3-1.2 7.5-4.5 7.5-9V6z"/>'),
   logout: I('<path d="M15 4h4a1 1 0 0 1 1 1v14a1 1 0 0 1-1 1h-4M10 16l-4-4 4-4M6 12h10"/>'),
+  chevron: I('<path d="m6 9 6 6 6-6"/>'),
+  edit: I('<path d="M4 20h4L19 9l-4-4L4 16z"/><path d="m13.5 6.5 4 4"/>'),
   trophy: I('<path d="M8 4h8v5a4 4 0 0 1-8 0zM8 6H4.5a3 3 0 0 0 3.5 4M16 6h3.5a3 3 0 0 1-3.5 4M12 13v4M8 21h8M9 17h6"/>'),
 };
 
@@ -94,24 +96,26 @@ const NAV = [
 
 function renderChrome() {
   const p = (location.hash.slice(2).split(/[/?]/)[0]) || '';
-  $('#topNav').innerHTML = NAV.map((n) => `<a href="${n.href}" class="${n.match(p) ? 'active' : ''}">${n.label}</a>`).join('');
   const me = state.me;
-  $('#headerActions').innerHTML = `
-    <a class="iconbtn" href="#/search" aria-label="Поиск">${ic.search}</a>
-    ${me ? `<a class="iconbtn" href="#/notifications" aria-label="Уведомления">${ic.bell}${state.unread ? `<span class="dot num">${state.unread > 9 ? '9+' : state.unread}</span>` : ''}</a>` : ''}
-    <button class="btn primary sm hide-mobile" data-act="create">${ic.plus}Опубликовать</button>
-    ${me
-      ? `<div style="position:relative"><button class="iconbtn" id="meBtn" aria-haspopup="true" aria-expanded="false" aria-label="Мой профиль">${ava(me, 32)}</button>
-          <div class="menu" id="meMenu" hidden>
-            <a href="${userLink(me)}">${ic.user}Мой профиль</a>
-            <a href="#/saved">${ic.save}Сохранённое</a>
-            <a href="#/settings">${ic.gear}Настройки</a>
-            ${me.role === 'admin' ? `<a href="#/admin">${ic.shield}Модерация</a>` : ''}
-            <button data-act="theme">${ic.moon}Сменить тему</button>
-            <hr><button data-act="logout">${ic.logout}Выйти</button>
-          </div></div>`
-      : `<button class="btn sm" data-act="login">Войти</button>`}`;
-  $('#bottomNav').innerHTML = [NAV[0], NAV[1]]
+  $('#topNav').innerHTML = me ? NAV.map((n) => `<a href="${n.href}" class="${n.match(p) ? 'active' : ''}">${n.label}</a>`).join('') : '';
+  $('#headerActions').innerHTML = me
+    ? `<a class="iconbtn" href="#/search" aria-label="Поиск">${ic.search}</a>
+       <a class="iconbtn" href="#/notifications" aria-label="Уведомления">${ic.bell}${state.unread ? `<span class="dot num">${state.unread > 9 ? '9+' : state.unread}</span>` : ''}</a>
+       <button class="btn primary sm hide-mobile" data-act="create">${ic.plus}Опубликовать</button>
+       <div style="position:relative">
+         <button class="me-chip" id="meBtn" aria-haspopup="true" aria-expanded="false" aria-label="Мой профиль и настройки">${ava(me, 34)}<span class="nm">${esc(me.name || me.username)}</span>${ic.chevron}</button>
+         <div class="menu" id="meMenu" hidden>
+           <div class="menu-head">${ava(me, 44)}<div style="min-width:0"><b>${esc(me.name)}</b><span>@${esc(me.username)}</span></div></div>
+           <a href="${userLink(me)}">${ic.user}Мой профиль</a>
+           <a href="#/settings">${ic.edit}Настроить профиль и фото</a>
+           <a href="#/saved">${ic.save}Сохранённое</a>
+           ${me.role === 'admin' ? `<a href="#/admin">${ic.shield}Модерация</a>` : ''}
+           <button data-act="theme">${ic.moon}Светлая / тёмная тема</button>
+           <hr><button data-act="logout">${ic.logout}Выйти</button>
+         </div></div>`
+    : `<button class="btn ghost sm" data-act="login">Войти</button><button class="btn primary sm" data-act="register">Регистрация</button>`;
+  $('#bottomNav').hidden = !me;
+  $('#bottomNav').innerHTML = !me ? '' : [NAV[0], NAV[1]]
     .map((n) => `<a href="${n.href}" class="${n.match(p) ? 'active' : ''}">${ic[n.icon]}${n.label}</a>`)
     .join('') +
     `<button class="create" data-act="create">${ic.plus}Создать</button>` +
@@ -180,7 +184,7 @@ function requireAuth(fn) {
 function openAuth(mode = 'login', after) {
   const reg = mode === 'register';
   const o = openOverlay(`<div class="modal" role="dialog" aria-modal="true" aria-labelledby="authT">
-    <div class="modal-head"><h1 id="authT" style="font-size:1.5rem">${reg ? 'Создать профиль' : 'Вход в Cosplaygram'}</h1>
+    <div class="modal-head"><h1 id="authT" style="font-size:2rem">${reg ? 'Создать профиль' : 'Вход в Cosplaygram'}</h1>
       <p class="muted" style="margin-top:6px">${reg ? 'Показывайте костюмы, делитесь процессом и находите мастеров рядом.' : 'Введите ник и пароль.'}</p></div>
     <div class="modal-body">
       <form class="form" id="authForm" novalidate>
@@ -264,21 +268,20 @@ function card(p) {
   return `<article class="card" data-post="${p.id}">
     <button class="card-media" data-open="${p.id}" aria-label="Открыть: ${esc(p.character || 'публикация')}">
       <img src="${esc(p.slides[0]?.image)}" alt="" loading="lazy">
-      <span class="badges">${p.kind === 'process' ? '<span class="tag process">Процесс</span>' : ''}${p.demo ? '<span class="tag demo">Демо</span>' : ''}</span>
-      ${p.slides.length > 1 ? `<span class="count num">${p.slides.length} ${p.kind === 'process' ? plural(p.slides.length, 'шаг', 'шага', 'шагов') : 'фото'}</span>` : ''}
     </button>
-    <div class="card-body">
-      ${byline(a, ago(p.createdAt))}
-      ${p.character ? `<div><div class="card-title">${esc(p.character)}</div>${p.fandom ? `<div class="card-sub">${esc(p.fandom)}</div>` : ''}</div>` : ''}
-      ${p.caption ? `<p class="caption">${esc(p.caption.length > 180 ? p.caption.slice(0, 180) + '…' : p.caption)}</p>` : ''}
-      ${p.materials?.length ? `<div class="chips">${p.materials.map((m) => `<a class="chip" href="#/search?q=${encodeURIComponent(m)}">${esc(m)}</a>`).join('')}</div>` : ''}
-      ${p.hours ? `<div class="facts"><span><b>${p.hours}</b> ${plural(p.hours, 'час', 'часа', 'часов')} работы</span></div>` : ''}
-    </div>
-    <div class="actions">
-      ${likeBtn(p)}
-      <button class="act" data-open="${p.id}" aria-label="Комментарии">${ic.comment}<span class="num">${p.commentCount}</span></button>
-      <span class="grow"></span>
-      ${saveBtn(p)}
+    <span class="badges">${p.kind === 'process' ? '<span class="tag process">Процесс</span>' : ''}${p.demo ? '<span class="tag demo">Демо</span>' : ''}</span>
+    ${p.slides.length > 1 ? `<span class="count num">${p.slides.length} ${p.kind === 'process' ? plural(p.slides.length, 'шаг', 'шага', 'шагов') : 'фото'}</span>` : ''}
+    <div class="over">
+      <div><div class="t">${esc(p.character || 'Без названия')}</div>
+        <div class="f">${esc([p.fandom, p.hours ? `${p.hours} ${plural(p.hours, 'час', 'часа', 'часов')} работы` : ''].filter(Boolean).join(' · '))}</div></div>
+      <div class="meta-row">
+        <a class="who" href="${userLink(a)}">${ava(a, 28)}<span>${esc(a.username)}</span></a>
+        <span class="acts">
+          <button class="glass ${p.liked ? 'liked' : ''}" data-like="${p.id}" aria-pressed="${p.liked}" aria-label="Нравится">${ic.heart}<span class="num" data-likes="${p.id}">${p.likeCount}</span></button>
+          <button class="glass" data-open="${p.id}" aria-label="Комментарии">${ic.comment}<span class="num">${p.commentCount}</span></button>
+          <button class="glass ${p.saved ? 'saved' : ''}" data-save="${p.id}" aria-pressed="${p.saved}" aria-label="${p.saved ? 'Убрать из сохранённого' : 'Сохранить'}">${ic.save}</button>
+        </span>
+      </div>
     </div>
   </article>`;
 }
@@ -288,7 +291,7 @@ const saveBtn = (p) =>
   `<button class="act ${p.saved ? 'saved' : ''}" data-save="${p.id}" aria-pressed="${p.saved}" aria-label="${p.saved ? 'Убрать из сохранённого' : 'Сохранить'}">${ic.save}</button>`;
 const tile = (p) =>
   `<button class="tile" data-open="${p.id}" aria-label="${esc(p.character || 'Публикация')}"><img src="${esc(p.slides[0]?.image)}" alt="" loading="lazy">
-   <span class="tile-meta">${esc(p.character || '')}<br><span class="num">♥ ${p.likeCount} · ${p.commentCount} комм.</span></span></button>`;
+   <span class="tile-meta"><b>${esc(p.character || '')}</b><span class="num">♥ ${p.likeCount} · ${p.commentCount} комм.</span></span></button>`;
 
 function bindCards(root) {
   $$('[data-open]', root).forEach((b) => (b.onclick = () => openPost(b.dataset.open)));
@@ -320,7 +323,7 @@ function carousel(p) {
   const n = p.slides.length;
   return `<div class="carousel" data-i="0" data-n="${n}">
     <div class="track">${p.slides.map((s, i) => `<div class="slide"><img src="${esc(s.image)}" alt="${esc(p.character || 'Фото')} — ${i + 1}">${
-      s.caption ? `<div class="step">${p.kind === 'process' ? `<b>Шаг ${i + 1}</b>` : ''}${esc(s.caption)}</div>` : ''}</div>`).join('')}</div>
+      s.caption ? `<div class="step">${p.kind === 'process' ? `<b>Шаг ${i + 1} из ${n}</b>` : ''}${esc(s.caption)}</div>` : ''}</div>`).join('')}</div>
     ${n > 1 ? `<button class="nav prev" aria-label="Предыдущее фото" hidden>‹</button><button class="nav next" aria-label="Следующее фото">›</button>
       <div class="pager">${p.slides.map((_, i) => `<i class="${i ? '' : 'on'}"></i>`).join('')}</div>` : ''}
   </div>`;
@@ -366,7 +369,7 @@ async function openPost(id) {
           <span style="display:flex">
           ${state.me && !mine ? `<button class="iconbtn" data-report="post:${p.id}" aria-label="Пожаловаться">${ic.flag}</button>` : ''}
           ${mine ? `<button class="iconbtn" id="delPost" aria-label="Удалить публикацию">${ic.trash}</button>` : ''}</span></div>
-        ${p.character ? `<div><h2 style="font-size:1.3rem">${esc(p.character)}</h2>${p.fandom ? `<div class="muted">${esc(p.fandom)}</div>` : ''}</div>` : ''}
+        ${p.character ? `<div><h2 class="serif">${esc(p.character)}</h2>${p.fandom ? `<div class="muted">${esc(p.fandom)}</div>` : ''}</div>` : ''}
         ${p.caption ? `<p class="caption" style="white-space:pre-wrap">${esc(p.caption)}</p>` : ''}
         ${p.materials.length ? `<div><div class="label" style="margin-bottom:6px">Материалы</div><div class="chips">${p.materials.map((m) => `<a class="chip" href="#/search?q=${encodeURIComponent(m)}">${esc(m)}</a>`).join('')}</div></div>` : ''}
         ${p.hours ? `<div class="facts"><span><b>${p.hours}</b> ${plural(p.hours, 'час', 'часа', 'часов')} работы</span></div>` : ''}
@@ -540,10 +543,10 @@ async function wipStrip() {
   state.groups = groups;
   const seen = seenMap();
   if (!groups.length && !state.me) return '';
-  return `<div class="section-title"><h2>Сейчас в мастерской</h2><span class="small muted">Исчезает через 24 часа</span></div>
+  return `<div class="section-title"><h2>Сейчас в мастерской</h2><span class="small muted">Работа в процессе, исчезает через 24 часа</span></div>
     <div class="wip">${state.me ? `<button class="wip-card add" data-act="create-story">+ Показать, над чем работаете</button>` : ''}
     ${groups.map((g, i) => `<button class="wip-card ${seen[g.author.id] === g.items.at(-1).id ? 'seen' : ''}" data-story="${i}" aria-label="Работа в процессе: ${esc(g.author.username)}">
-      <img src="${esc(g.items.at(-1).image)}" alt="" loading="lazy">${ava(g.author, 30)}<span class="who">${esc(g.author.username)}</span></button>`).join('')}</div>`;
+      <img class="bg" src="${esc(g.items.at(-1).image)}" alt="" loading="lazy">${ava(g.author, 30)}<span class="who">${esc(g.author.username)}</span></button>`).join('')}</div>`;
 }
 function bindStories(root) { $$('[data-story]', root).forEach((b) => (b.onclick = () => openStory(+b.dataset.story))); }
 function openStory(gi, ii = 0) {
@@ -580,31 +583,53 @@ async function aside() {
   const today = new Date().toISOString().slice(0, 10);
   const next = events.filter((e) => e.date >= today).slice(0, 4);
   return `<aside class="aside">
-    <section class="panel pad"><div class="section-title"><h2 style="display:flex;gap:8px;align-items:center"><span style="color:var(--saffron);display:inline-flex;width:20px">${ic.trophy}</span>Конкурс месяца</h2></div>
+    <section class="panel pad"><div class="section-title"><h2>Рейтинг месяца</h2></div>
       <p class="small muted" style="margin:-6px 0 8px;text-transform:capitalize">${esc(month)}</p>
       ${top.map((p, i) => `<button class="contest-row" data-open="${p.id}"><span class="place num">${i + 1}</span><img src="${esc(p.slides[0]?.image)}" alt="">
         <span class="t"><b>${esc(p.character || 'Костюм')}</b><span>@${esc(p.author?.username)}</span></span><span class="small muted num">♥ ${p.score}</span></button>`).join('') || '<p class="small muted">Отметьте понравившиеся костюмы — здесь появится рейтинг.</p>'}
       <p class="small muted" style="margin-top:8px">Места считаются по отметкам «нравится» за текущий месяц.</p></section>
-    <section class="panel pad"><div class="section-title"><h2>Ближайшие события</h2><a class="small" style="color:var(--lapis);font-weight:600" href="#/events">Все</a></div>
+    <section class="panel pad"><div class="section-title"><h2>Ближайшие события</h2><a class="link" href="#/events">Все</a></div>
       ${next.map((e) => { const [, m, d] = e.date.split('-'); return `<a class="mini-event" href="#/events"><b>${+d} ${MONTHS[+m - 1]}</b><span>${esc(e.title)}<br><span class="muted small">${esc(e.city)}</span></span></a>`; }).join('') || '<p class="small muted">Пока ничего не запланировано.</p>'}</section>
-    <section class="panel pad"><div class="section-title"><h2>Мастера</h2><a class="small" style="color:var(--lapis);font-weight:600" href="#/people">Все</a></div>
+    <section class="panel pad"><div class="section-title"><h2>Мастера</h2><a class="link" href="#/people">Все</a></div>
       ${users.filter((u) => !state.me || u.id !== state.me.id).slice(0, 5).map((u) => `<a class="person" href="${userLink(u)}">${ava(u, 36)}<span class="t"><b>${esc(u.name)}</b><span>${esc(u.specialty || u.city || '@' + u.username)}</span></span></a>`).join('')}</section>
   </aside>`;
 }
 
 // ---------- страницы ----------
+function spotlight(top, month) {
+  const p = top[0];
+  if (!p) return '';
+  const a = p.author || {};
+  return `<section class="spotlight" aria-label="Костюм месяца">
+    <button class="pic" data-open="${p.id}" aria-label="Открыть: ${esc(p.character)}"><img src="${esc(p.slides[0]?.image)}" alt="${esc(p.character)}"></button>
+    <div class="body">
+      <span class="kicker">${ic.trophy}Костюм месяца · <span style="text-transform:capitalize">${esc(month)}</span></span>
+      <h1>${esc(p.character)}</h1>
+      ${byline(a, a.city)}
+      ${p.caption ? `<p class="quote">${esc(p.caption.length > 220 ? p.caption.slice(0, 220) + '…' : p.caption)}</p>` : ''}
+      <div class="facts">
+        <div><b class="num">${p.score}</b><span>${plural(p.score, 'голос', 'голоса', 'голосов')} в этом месяце</span></div>
+        ${p.hours ? `<div><b class="num">${p.hours}</b><span>${plural(p.hours, 'час', 'часа', 'часов')} работы</span></div>` : ''}
+        ${p.materials.length ? `<div><b class="num">${p.materials.length}</b><span>${plural(p.materials.length, 'материал', 'материала', 'материалов')}</span></div>` : ''}
+      </div>
+      <div class="acts"><button class="btn primary" data-open="${p.id}">Смотреть работу</button>
+        <button class="btn ${p.liked ? '' : ''}" data-like="${p.id}" aria-pressed="${p.liked}">${ic.heart}Голосовать · <span class="num" data-likes="${p.id}">${p.likeCount}</span></button></div>
+    </div>
+  </section>`;
+}
+
 async function pageFeed(params) {
-  const mode = state.me && params.get('mode') === 'following' ? 'following' : 'all';
-  view().innerHTML = '<div class="skeleton" style="height:420px"></div>';
-  const [strip, { posts }, side] = await Promise.all([wipStrip(), api('/feed' + (mode === 'following' ? '?mode=following' : '')), aside()]);
+  const mode = params.get('mode') === 'following' ? 'following' : 'all';
+  view().innerHTML = '<div class="skeleton" style="height:440px;margin-bottom:24px"></div><div class="skeleton" style="height:300px"></div>';
+  const [strip, { posts }, contest, side] = await Promise.all([
+    wipStrip(), api('/feed' + (mode === 'following' ? '?mode=following' : '')), api('/contest'), aside(),
+  ]);
   view().innerHTML = `
-    ${state.me ? '' : `<section class="hero"><div><h1>Мастерская косплееров Казахстана</h1>
-      <p>Показывайте костюмы и процесс их создания, спрашивайте про материалы, находите мастеров и конкурсы в своём городе.</p></div>
-      <button class="btn" data-act="register">Создать профиль</button></section>`}
+    ${mode === 'all' ? spotlight(contest.top, contest.month) : ''}
     <div class="layout"><div style="min-width:0">
       ${strip}
       <div class="section-title"><h2>${mode === 'following' ? 'Ваши подписки' : 'Новые работы'}</h2>
-        ${state.me ? `<div class="seg"><a href="#/" class="${mode === 'all' ? 'on' : ''}">Все</a><a href="#/?mode=following" class="${mode === 'following' ? 'on' : ''}">Подписки</a></div>` : ''}</div>
+        <div class="seg"><a href="#/" class="${mode === 'all' ? 'on' : ''}">Все</a><a href="#/?mode=following" class="${mode === 'following' ? 'on' : ''}">Подписки</a></div></div>
       ${posts.length ? `<div class="cards" id="cards">${posts.map(card).join('')}</div>${posts.length >= 20 ? '<div style="text-align:center"><button class="btn" id="more">Показать ещё</button></div>' : ''}`
         : `<div class="empty panel"><h2>${mode === 'following' ? 'Здесь появятся работы тех, на кого вы подписаны' : 'Пока нет публикаций'}</h2>
            <p>${mode === 'following' ? 'Загляните в раздел «Мастера» и подпишитесь на интересных косплееров.' : 'Покажите первый костюм.'}</p>
@@ -614,9 +639,8 @@ async function pageFeed(params) {
   bindCards(view());
   const more = $('#more');
   if (more) more.onclick = async () => {
-    const last = $$('#cards .card').length ? posts.at(-1).createdAt : Date.now();
     more.disabled = true;
-    const r = await api(`/feed?before=${last}${mode === 'following' ? '&mode=following' : ''}`);
+    const r = await api(`/feed?before=${posts.at(-1).createdAt}${mode === 'following' ? '&mode=following' : ''}`);
     posts.push(...r.posts);
     const wrap = document.createElement('div');
     wrap.innerHTML = r.posts.map(card).join('');
@@ -626,6 +650,25 @@ async function pageFeed(params) {
   };
 }
 
+function pageLanding() {
+  const shots = [
+    ['tomyris', 'Томирис · aru.cos'], ['knight', 'Рыцарь · dias_props'], ['moon', 'Лунная волшебница'],
+    ['silkroad', 'Шёлковый путь'], ['spacehunter', 'Космический охотник'], ['kitsune', 'Лиса-хранительница'],
+  ];
+  view().innerHTML = `<section class="landing">
+    <div>
+      <h1>Мастерская косплееров <span class="thread">Казахстана</span> и Центральной Азии</h1>
+      <p class="lead">Показывайте костюмы и то, как вы их сделали. Спрашивайте про материалы, находите мастеров в своём городе и не пропускайте конкурсы.</p>
+      <div class="cta"><button class="btn primary lg" data-act="register">Зарегистрироваться</button><button class="btn lg" data-act="login">Войти</button></div>
+      <div class="perks">
+        <div><b>Процесс по шагам</b><span>От выкройки до готового образа</span></div>
+        <div><b>Форум и чат</b><span>Материалы, пошив, фотосеты</span></div>
+        <div><b>Конкурс месяца</b><span>Голосование отметками</span></div>
+      </div>
+    </div>
+    <div class="collage" aria-hidden="true">${shots.map(([f, c]) => `<figure><img src="/demo/${f}.jpg" alt=""><figcaption>${c}</figcaption></figure>`).join('')}</div>
+  </section>`;
+}
 async function pageProcess() {
   view().innerHTML = '<div class="skeleton" style="height:420px"></div>';
   const { posts } = await api('/feed?kind=process');
@@ -729,12 +772,13 @@ async function pageSettings() {
   const u = state.me;
   let avatar = null;
   let color = u.color;
-  view().innerHTML = `<div class="page-head"><div><h1>Настройки</h1></div></div>
+  view().innerHTML = `<div class="page-head"><div><h1>Настройки профиля</h1><p class="muted">Фото, имя, город и цвет обложки — так вас увидят другие косплееры.</p></div><a class="btn" href="${userLink(u)}">Открыть мой профиль</a></div>
     <div class="stack" style="max-width:680px">
     <section class="panel pad"><h2 style="margin-bottom:14px">Профиль</h2>
       <form class="form" id="pf">
-        <div style="display:flex;gap:16px;align-items:center;flex-wrap:wrap"><span id="avP">${ava(u, 80)}</span>
-          <label class="btn sm" for="avF">Загрузить фото</label><input type="file" id="avF" accept="image/*" hidden></div>
+        <div class="avatar-edit"><span id="avP">${ava(u, 96)}</span>
+          <div><label class="btn" for="avF">${ic.plus}${u.avatar ? 'Сменить фото' : 'Загрузить фото профиля'}</label><input type="file" id="avF" accept="image/*" hidden>
+          <p class="hint" style="margin-top:8px">JPG или PNG, лучше квадратное. Фото сохранится после нажатия «Сохранить профиль».</p></div></div>
         <div class="field"><span class="label" id="clrL">Цвет профиля</span><div class="swatches" role="radiogroup" aria-labelledby="clrL">${Object.entries(COLORS)
           .map(([k, v]) => `<button type="button" class="swatch ${k === color ? 'on' : ''}" data-color="${k}" data-sw="${k}" role="radio" aria-checked="${k === color}" aria-label="${v}" title="${v}"></button>`).join('')}</div></div>
         <div class="field"><label for="s-n">Имя</label><input class="input" id="s-n" name="name" value="${esc(u.name)}" maxlength="60"></div>
@@ -758,7 +802,7 @@ async function pageSettings() {
   $('#avF').onchange = async (e) => {
     try {
       avatar = await readImage(e.target.files[0], 480);
-      $('#avP').innerHTML = `<span class="ava" style="--s:80px"><img src="${avatar}" alt=""></span>`;
+      $('#avP').innerHTML = `<span class="ava" style="--s:96px"><img src="${avatar}" alt=""></span>`;
     } catch (err) { toast(err.message); }
   };
   $('#pf').onsubmit = async (e) => {
@@ -985,6 +1029,11 @@ async function route() {
   const parts = path.split('/').filter(Boolean);
   renderChrome();
   window.scrollTo(0, 0);
+  if (!state.me) {
+    pageLanding();
+    document.title = 'Cosplaygram — мастерская косплееров';
+    return;
+  }
   const pages = {
     '': () => pageFeed(params), process: pageProcess, search: () => pageSearch(params), people: () => pagePeople(params),
     u: () => pageProfile(decodeURIComponent(parts[1] || '')), saved: pageSaved, settings: pageSettings,
