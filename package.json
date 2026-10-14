@@ -12,6 +12,8 @@
     "node": ">=18"
   },
   "dependencies": {
-    "express": "^4.21.2"
+    "@electric-sql/pglite": "^0.2.17",
+    "express": "^4.21.2",
+    "pg": "^8.23.1"
   }
 }

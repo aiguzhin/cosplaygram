@@ -3,14 +3,14 @@
 const crypto = require('crypto');
 
 const PALETTES = [
-  ['#2B1B5A', '#C84B9E', '#F7C948'],
-  ['#0E3B43', '#2FA39B', '#F4E3B1'],
-  ['#3A0F14', '#C2362F', '#F2B134'],
-  ['#14213D', '#3D6CB9', '#E5E5E5'],
-  ['#1F2A1C', '#6A994E', '#F2E8CF'],
-  ['#2D1E2F', '#7D5BA6', '#F6BD60'],
-  ['#102A2F', '#E07A5F', '#F4F1DE'],
-  ['#231942', '#5E548E', '#E0B1CB'],
+  ['#16245E', '#2440B8', '#F0A202'],
+  ['#08363A', '#0E9F9A', '#F6E7B0'],
+  ['#3A0E1C', '#B3264B', '#F0A202'],
+  ['#1B1F3B', '#5A48C8', '#9FE3DD'],
+  ['#0F2A44', '#2B7BB9', '#FFD37A'],
+  ['#2A1338', '#8A3FA8', '#F7B6C8'],
+  ['#14302A', '#3C8A5C', '#F2D06B'],
+  ['#2B1A0C', '#C46A12', '#FBE3B4'],
 ];
 
 // Рисуем «эскиз костюма»: силуэт, плащ, строчка шва и бирка с материалом.
@@ -179,4 +179,63 @@ function seed() {
   return { users, posts, stories, threads, events, chat, sessions: {} };
 }
 
-module.exports = { seed, art };
+const COLORS = ['lapis', 'turquoise', 'garnet', 'saffron', 'violet', 'jade'];
+
+// Заливает демо-данные в пустую базу.
+async function seedDb({ query }) {
+  const [{ n }] = await query('SELECT count(*)::int AS n FROM users');
+  if (n > 0) return false;
+  const d = seed();
+  const imgId = () => crypto.randomBytes(8).toString('hex');
+  async function img(dataUri) {
+    const m = /^data:([^;]+);base64,(.*)$/.exec(dataUri);
+    const id = imgId();
+    await query('INSERT INTO images (id, mime, data, created_at) VALUES ($1,$2,$3,$4)', [id, m[1], m[2], Date.now()]);
+    return id;
+  }
+  for (const [i, u] of d.users.entries()) {
+    await query(
+      `INSERT INTO users (id, username, password, name, city, specialty, bio, color, demo, created_at)
+       VALUES ($1,$2,NULL,$3,$4,$5,$6,$7,TRUE,$8)`,
+      [u.id, u.username, u.name, u.city, u.specialty, u.bio, COLORS[i % COLORS.length], u.createdAt]
+    );
+  }
+  for (const p of d.posts) {
+    await query(
+      `INSERT INTO posts (id, author_id, kind, character, fandom, caption, materials, hours, demo, created_at)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,TRUE,$9)`,
+      [p.id, p.authorId, p.kind, p.character, p.fandom, p.caption, JSON.stringify(p.materials), p.hours, p.createdAt]
+    );
+    for (const [idx, sl] of p.slides.entries()) {
+      await query('INSERT INTO post_images (post_id, idx, image_id, caption) VALUES ($1,$2,$3,$4)', [p.id, idx, await img(sl.image), sl.caption]);
+    }
+    for (const uid of p.likes) await query('INSERT INTO likes (post_id, user_id, created_at) VALUES ($1,$2,$3)', [p.id, uid, p.createdAt]);
+    for (const c of p.comments)
+      await query('INSERT INTO comments (id, post_id, author_id, text, created_at) VALUES ($1,$2,$3,$4,$5)', [c.id, p.id, c.authorId, c.text, c.createdAt]);
+  }
+  for (const s of d.stories)
+    await query('INSERT INTO stories (id, author_id, image_id, text, created_at) VALUES ($1,$2,$3,$4,$5)', [s.id, s.authorId, await img(s.image), s.text, s.createdAt]);
+  for (const t of d.threads) {
+    await query(
+      'INSERT INTO threads (id, author_id, category, city, title, body, demo, created_at) VALUES ($1,$2,$3,$4,$5,$6,TRUE,$7)',
+      [t.id, t.authorId, t.category, t.city, t.title, t.body, t.createdAt]
+    );
+    for (const r of t.replies)
+      await query('INSERT INTO replies (id, thread_id, author_id, text, created_at) VALUES ($1,$2,$3,$4,$5)', [r.id, t.id, r.authorId, r.text, r.createdAt]);
+  }
+  for (const e of d.events)
+    await query(
+      'INSERT INTO events (id, title, date, city, place, type, link, note, demo, created_at) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,TRUE,$9)',
+      [e.id, e.title, e.date, e.city, e.place, e.type, e.link, e.note, Date.now()]
+    );
+  for (const [room, msgs] of Object.entries(d.chat))
+    for (const m of msgs)
+      await query('INSERT INTO messages (id, room, author_id, text, created_at) VALUES ($1,$2,$3,$4,$5)', [m.id, room, m.authorId, m.text, m.createdAt]);
+  // пара демо-подписок
+  const ids = d.users.map((u) => u.id);
+  for (let i = 0; i < ids.length; i++)
+    await query('INSERT INTO follows (follower_id, followee_id, created_at) VALUES ($1,$2,$3)', [ids[i], ids[(i + 1) % ids.length], Date.now()]);
+  return true;
+}
+
+module.exports = { seed, seedDb, art };
