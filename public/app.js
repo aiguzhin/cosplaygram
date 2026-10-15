@@ -142,6 +142,7 @@ const ic = {
   right: I('<path d="m9 5 7 7-7 7"/>'),
   up: I('<path d="m6 15 6-6 6 6"/>'),
   check: I('<path d="m5 12.5 4.5 4.5L19 7.5"/>'),
+  globe: I('<circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c2.5 2.6 3.8 5.6 3.8 9s-1.3 6.4-3.8 9c-2.5-2.6-3.8-5.6-3.8-9S9.5 5.6 12 3z"/>'),
   palette: I('<path d="M12 3a9 9 0 1 0 0 18c1.1 0 1.6-.8 1.6-1.6 0-1.3-1-1.6-1-2.7 0-1 .8-1.7 1.8-1.7H17a4 4 0 0 0 4-4C21 6.6 17 3 12 3z"/><circle cx="7.5" cy="11" r="1"/><circle cx="10" cy="7" r="1"/><circle cx="15" cy="7" r="1"/>'),
   phone: I('<rect x="6.5" y="2.5" width="11" height="19" rx="2.5"/><path d="M11 18.5h2"/>'),
   image: I('<rect x="3" y="4" width="18" height="16" rx="3"/><circle cx="9" cy="10" r="2"/><path d="m21 16-5-5-9 9"/>'),
@@ -338,12 +339,12 @@ function renderChrome() {
   const me = state.me;
   $('#topNav').innerHTML = me ? NAV.map((n) => `<a href="${n.href}" class="${n.k === k ? 'active' : ''}">${n.label}</a>`).join('') : '';
   $('#headerActions').innerHTML = me
-    ? `<a class="iconbtn" href="#/search" aria-label="Поиск">${ic.search}</a>
+    ? `<button class="iconbtn lang-btn" data-act="lang" aria-label="Язык: ${esc(CGLang.name(CGLang.current()))}">${ic.globe}<span class="lang-code notranslate" translate="no">${CGLang.current().split('-')[0].toUpperCase()}</span></button><a class="iconbtn" href="#/search" aria-label="Поиск">${ic.search}</a>
        <a class="iconbtn desk-only" href="#/messages" aria-label="Сообщения">${ic.mail}${badge(state.unreadDm)}</a>
        <a class="iconbtn" href="#/notifications" aria-label="Уведомления">${ic.bell}${badge(state.unread)}</a>
        <button class="iconbtn plus desk-only" data-act="create" aria-label="Опубликовать">${ic.plus}</button>
        <button class="me-btn" id="meBtn" aria-haspopup="true" aria-label="Меню профиля">${ava(me, 32)}</button>`
-    : `<button class="btn ghost sm" data-act="login">Войти</button><button class="btn primary sm" data-act="register">Регистрация</button>`;
+    : `<button class="iconbtn lang-btn" data-act="lang" aria-label="Язык: ${esc(CGLang.name(CGLang.current()))}">${ic.globe}<span class="lang-code notranslate" translate="no">${CGLang.current().split('-')[0].toUpperCase()}</span></button><button class="btn ghost sm" data-act="login">Войти</button><button class="btn primary sm" data-act="register">Регистрация</button>`;
   const bn = $('#bottomNav');
   bn.hidden = !me;
   bn.innerHTML = !me ? '' : `
@@ -377,6 +378,7 @@ function openMenu() {
     <div class="sep"></div>
     <button class="mi" data-act="picker">${ic.palette}Сменить персонажа<span class="r">${esc(t.name)}</span></button>
     <a href="#/settings">${ic.gear}Настройки профиля</a>
+    <button class="mi" data-act="lang">${ic.globe}Язык<span class="r notranslate" translate="no">${esc(CGLang.name(CGLang.current()))}</span></button>
     ${canInstall ? `<button class="mi" data-act="install">${ic.phone}Установить приложение</button>` : ''}
     ${me.role === 'admin' ? `<a href="#/admin">${ic.shield}Модерация</a>` : ''}
     <div class="sep"></div>
@@ -399,7 +401,19 @@ document.addEventListener('click', (e) => {
   if (a === 'logout') logout();
   if (a === 'picker') openPicker();
   if (a === 'install') install();
+  if (a === 'lang') openLang();
 });
+
+/* ================= язык ================= */
+function openLang() {
+  const cur = CGLang.current();
+  const o = openOverlay(sheet('Язык', `<p class="muted" style="margin-bottom:12px">Сайт переводится автоматически. Публикации и сообщения тоже показываются на выбранном языке.</p>
+    <input class="input" id="lgQ" type="search" placeholder="Найти язык" aria-label="Найти язык" style="margin-bottom:10px">
+    <div class="lang-list notranslate" translate="no" id="lgL">${CGLang.LANGS.map(([c, n, r]) => `<button type="button" class="lang-item ${c === cur ? 'on' : ''}" data-lang="${c}" data-s="${esc((n + ' ' + r + ' ' + c).toLowerCase())}"><b>${esc(n)}</b><span>${esc(r)}</span>${c === cur ? ic.check : ''}</button>`).join('')}</div>`));
+  $('#lgQ', o).oninput = (e) => { const t = e.target.value.trim().toLowerCase(); $$('.lang-item', o).forEach((b) => (b.hidden = !!t && !b.dataset.s.includes(t))); };
+  $$('.lang-item', o).forEach((b) => (b.onclick = () => { if (b.dataset.lang !== cur) CGLang.set(b.dataset.lang); else closeOverlay(); }));
+  if (!isMobile()) setTimeout(() => $('#lgQ', o)?.focus(), 80);
+}
 
 async function install() {
   if (state.installEvt) {
@@ -1445,6 +1459,9 @@ async function pageSettings() {
         <div class="row"><div class="field"><label for="pw-c">Текущий пароль</label>${pwField('pw-c', 'current', 'current-password', '')}</div>
           <div class="field"><label for="pw-n">Новый пароль</label>${pwField('pw-n', 'next', 'new-password', 'Не короче 8 символов')}</div></div>
         <button class="btn" style="align-self:flex-start">Сменить пароль</button></form></section>
+    <section class="section"><h2 style="margin-bottom:6px">Язык</h2>
+      <p class="muted" style="margin-bottom:10px">Сейчас: <b class="notranslate" translate="no" style="color:var(--ink)">${esc(CGLang.name(CGLang.current()))}</b>. Доступно ${CGLang.LANGS.length} языков, перевод автоматический.</p>
+      <button class="btn" data-act="lang">${ic.globe}Выбрать язык</button></section>
     <section class="section"><h2 style="margin-bottom:6px">Приложение на телефоне</h2>
       <p class="muted" style="margin-bottom:10px">${isStandalone() ? 'Cosplaygram уже установлен на этом устройстве.' : 'Добавьте Cosplaygram на экран телефона — он будет открываться как обычное приложение.'}</p>
       ${isStandalone() ? '' : `<button class="btn" data-act="install">${ic.phone}Установить</button>`}</section>

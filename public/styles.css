@@ -514,3 +514,19 @@ select.input { background-image: linear-gradient(45deg, transparent 50%, var(--m
 .cur-char .char { pointer-events: none; }
 
 @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation: none !important; transition: none !important; } }
+
+/* ---------- язык ---------- */
+.lang-btn { width: auto; padding: 0 8px; gap: 4px; }
+.lang-code { font-size: .72rem; font-weight: 700; letter-spacing: .04em; }
+.lang-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 6px; max-height: 58vh; overflow-y: auto; }
+.lang-item { display: flex; align-items: center; gap: 8px; text-align: start; padding: 10px 12px; border-radius: 12px; background: var(--surface-2); color: var(--ink); border: 1px solid transparent; }
+.lang-item b { font-weight: 600; }
+.lang-item span { color: var(--muted); font-size: .82rem; flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.lang-item svg { width: 18px; height: 18px; color: var(--accent); flex: none; }
+.lang-item.on { border-color: var(--accent); background: var(--accent-soft); }
+.lang-item[hidden] { display: none; }
+@media (max-width: 520px) { .lang-code { display: none; } .lang-btn { padding: 0; width: 40px; } .lang-list { grid-template-columns: 1fr; } }
+/* панель Google Переводчика прячем: язык выбирается в самом сайте */
+body > .skiptranslate, iframe.skiptranslate, .goog-te-banner-frame, #goog-gt-tt, .goog-te-balloon-frame, .goog-tooltip, .VIpgJd-ZVi9od-ORHb-OEVmcd, .VIpgJd-ZVi9od-aZ2wEe-wOHMyf { display: none !important; }
+body { top: 0 !important; }
+.goog-text-highlight, font[style] { background: none !important; box-shadow: none !important; }
