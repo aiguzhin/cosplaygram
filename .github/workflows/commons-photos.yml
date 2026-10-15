@@ -1,4 +1,4 @@
-name: Фото персонажей (Wikimedia Commons и Openverse)
+name: Фото персонажей с Wikimedia Commons
 
 on:
   push:

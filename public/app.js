@@ -167,7 +167,7 @@ const userLink = (u) => `#/u/${encodeURIComponent(u?.username || '')}`;
 const who = (u, sub, size = 36) =>
   `<a class="who" href="${userLink(u)}">${ava(u, size)}<span class="t"><b>${esc(u?.name || u?.username)}</b><span>@${esc(u?.username)}${sub ? ' · ' + esc(sub) : ''}</span></span></a>`;
 
-// Фото персонажа: обложка модератора → лучший косплей участников → свободное фото (Commons, Openverse) → эмблема
+// Фото персонажа: обложка модератора → лучший косплей участников → свободное фото с Wikimedia Commons → эмблема
 const charData = { site: {}, commons: {}, loaded: false };
 async function loadChars(force) {
   if (charData.loaded && !force) return charData;
@@ -932,7 +932,7 @@ function pageLanding() {
       <div><b>Весь мир</b><span>Косплееры из ${C.LIST.length} стран: лента и чат вашей страны, мероприятия по всему миру.</span></div>
       <div><b>Мероприятия</b><span>Фестивали, косплей-шоу и встречи — с отметкой «Пойду».</span></div>
     </div>
-    <p class="hint">Фото на карточках — косплей участников и свободные фото с Wikimedia Commons и Flickr. <a class="link" href="#/credits">Авторы фото</a></p>
+    <p class="hint">Фото на карточках — косплей участников и свободные фото с Wikimedia Commons. <a class="link" href="#/credits">Авторы фото</a></p>
   </section>`;
   bindCharPicker($('#land'), (t) => { CG.store(t.id); $('#lnN').textContent = t.name; });
 }
@@ -1527,7 +1527,7 @@ async function pageCredits() {
   await loadChars(true);
   const rows = Object.entries(charData.commons).filter(([id]) => CG.get(id).id === id);
   view().innerHTML = `<div class="narrow"><div class="page-head"><div><h1>Авторы фото</h1>
-    <p class="muted">Фото косплея на карточках персонажей взяты с Wikimedia Commons и Flickr (через Openverse) под свободными лицензиями. Спасибо фотографам и косплеерам! Официальные изображения персонажей мы не используем.</p></div></div>
+    <p class="muted">Фото косплея на карточках персонажей взяты с Wikimedia Commons под свободными лицензиями. Спасибо фотографам и косплеерам! Официальные изображения персонажей мы не используем.</p></div></div>
     <div class="list">${rows.map(([id, c]) => `<a class="item" href="${esc(c.page)}" target="_blank" rel="noopener"><img class="thumb" src="/chars/${id}.jpg" alt="">
       <span style="min-width:0"><h3>${esc(CG.get(id).name)}</h3><span class="meta">${esc(c.author)} · ${esc(c.license)}</span></span><span class="muted" style="width:18px;display:inline-flex">${ic.right}</span></a>`).join('') || '<div class="empty"><p>Фото пока не загружены.</p></div>'}</div>
     <p class="hint" style="margin-top:16px">Если вы автор фото и хотите его убрать, напишите модератору в чате «Срочная помощь».</p></div>`;

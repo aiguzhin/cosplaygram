@@ -1,5 +1,6 @@
-"""Подбирает фото косплея для каждого персонажа: сначала Wikimedia Commons, затем Openverse
-(открытый каталог Flickr и других фотобанков со свободными лицензиями).
+"""Подбирает фото косплея для каждого персонажа с Wikimedia Commons: по названию файла и по категориям
+(«Cosplay of …»). Функция openverse() оставлена на будущее: анонимно Openverse не пускает запросы
+с серверов GitHub Actions (Cloudflare 429), нужен ключ API.
 
 Берём только файлы со свободной лицензией (CC0, PD, CC BY, CC BY-SA) и сохраняем автора и лицензию,
 чтобы показать подпись на сайте. Запускается в GitHub Actions (там есть доступ в интернет).
@@ -149,9 +150,6 @@ def main():
         must, skip = [m.lower() for m in spec.get("must", [])], set(spec.get("skip", []))
         cands = candidates(spec["q"], must, skip)
         log(f"  commons: {len(cands)} подходящих")
-        if not cands:
-            time.sleep(3)  # Openverse ограничивает частоту анонимных запросов
-            cands = openverse(spec["q"], must, skip)
         for c in cands[:8]:
             try:
                 req = urllib.request.Request(c["thumb"], headers={"User-Agent": UA})
