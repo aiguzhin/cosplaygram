@@ -27,7 +27,7 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898283+github-actions[bot]@users.noreply.github.com"
-          git add public/chars
+          git add public/chars scripts/photo_log.txt
           git diff --cached --quiet || git commit -m "Фото персонажей со свободной лицензией"
           git pull --rebase
           git push

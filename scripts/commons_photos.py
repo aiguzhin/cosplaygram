@@ -34,6 +34,14 @@ def get(params):
     return {}
 
 
+LOG = []
+
+
+def log(msg):
+    print(msg)
+    LOG.append(msg)
+
+
 def has_word(text, word):
     """Слово целиком: «ash» не должно находиться внутри «flash», «rey» — внутри «grey»."""
     return re.search(r"(?<![a-z0-9])" + re.escape(word) + r"(?![a-z0-9])", text) is not None
@@ -47,14 +55,16 @@ def candidates(q, must, skip):
     res = get({"action": "query", "list": "search", "srsearch": q, "srnamespace": 6, "srlimit": 40})
     titles = [h["title"] for h in res.get("query", {}).get("search", [])]
     titles = [t for t in titles if re.search(r"\.(jpe?g|png)$", t, re.I) and t not in skip]
-    if must:
-        titles = [t for t in titles if any(has_word(t.lower(), m) for m in must)]
-    titles = [t for t in titles if "cosplay" in t.lower()]  # только фото косплея, не статуи, картины и игрушки
     out = []
     for i in range(0, len(titles), 20):
-        info = get({"action": "query", "titles": "|".join(titles[i:i + 20]), "prop": "imageinfo",
-                    "iiprop": "url|size|mime|extmetadata", "iiurlwidth": 720})
+        info = get({"action": "query", "titles": "|".join(titles[i:i + 20]), "prop": "imageinfo|categories",
+                    "iiprop": "url|size|mime|extmetadata", "iiurlwidth": 720, "cllimit": "max", "clshow": "!hidden"})
         for page in info.get("query", {}).get("pages", []):
+            cats = " ".join(c["title"] for c in page.get("categories", [])).lower()
+            text = page["title"].lower() + " " + cats
+            # только фото косплея (в названии или в категории), не статуи, картины и игрушки
+            if "cosplay" not in text or (must and not any(has_word(text, m) for m in must)):
+                continue
             ii = (page.get("imageinfo") or [{}])[0]
             meta = ii.get("extmetadata", {})
             lic = strip(meta.get("LicenseShortName", {}).get("value"))
@@ -81,7 +91,8 @@ def candidates(q, must, skip):
 def openverse(q, must, skip):
     """Фото из Openverse: Flickr и другие источники со свободной лицензией."""
     params = {"q": q, "license": "by,by-sa,cc0,pdm", "page_size": 40, "mature": "false"}
-    req = urllib.request.Request(OPENVERSE + "?" + urllib.parse.urlencode(params), headers={"User-Agent": UA})
+    req = urllib.request.Request(OPENVERSE + "?" + urllib.parse.urlencode(params),
+                                 headers={"User-Agent": UA, "Accept": "application/json"})
     data = {}
     for i in range(3):
         try:
@@ -89,8 +100,10 @@ def openverse(q, must, skip):
                 data = json.load(r)
             break
         except Exception as e:  # noqa: BLE001
-            print("  openverse повтор:", e)
+            body = getattr(e, "read", lambda: b"")()[:200]
+            log(f"  openverse ошибка: {e} {body!r}")
             time.sleep(5 + i * 10)
+    log(f"  openverse: найдено {data.get('result_count', 0)}, получено {len(data.get('results', []))}")
     out = []
     for it in data.get("results", []):
         tags = " ".join(t.get("name", "") for t in (it.get("tags") or []))
@@ -131,10 +144,11 @@ def main():
             continue
         if not only and cid in credits and os.path.exists(os.path.join(OUT, f"{cid}.jpg")):
             continue
-        print(f"{cid}: {spec['q']}")
+        log(f"{cid}: {spec['q']}")
         found = False
         must, skip = [m.lower() for m in spec.get("must", [])], set(spec.get("skip", []))
         cands = candidates(spec["q"], must, skip)
+        log(f"  commons: {len(cands)} подходящих")
         if not cands:
             time.sleep(3)  # Openverse ограничивает частоту анонимных запросов
             cands = openverse(spec["q"], must, skip)
@@ -153,16 +167,17 @@ def main():
                 im.thumbnail((720, 900))
                 im.save(os.path.join(OUT, f"{cid}.jpg"), "JPEG", quality=82, optimize=True, progressive=True)
                 credits[cid] = {k: c[k] for k in ("title", "page", "author", "license")}
-                print(f"  ✓ {c['title']} — {c['license']}")
+                log(f"  ✓ {c['title']} — {c['license']}")
                 found = True
                 break
             except Exception as e:  # noqa: BLE001
-                print("  ошибка загрузки:", e)
+                log(f"  ошибка загрузки: {e}")
         if not found:
-            print("  — подходящего свободного фото нет")
+            log("  — подходящего свободного фото нет")
             credits.pop(cid, None)
         time.sleep(0.5)
     json.dump(credits, open(credits_path, "w", encoding="utf-8"), ensure_ascii=False, indent=1, sort_keys=True)
+    open("scripts/photo_log.txt", "w", encoding="utf-8").write("\n".join(LOG) + "\n")
 
 
 if __name__ == "__main__":
