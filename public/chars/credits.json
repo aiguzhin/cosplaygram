@@ -1,4 +1,10 @@
 {
+ "2b": {
+  "author": "Miguel Discart",
+  "license": "CC BY-SA 2.0",
+  "page": "https://commons.wikimedia.org/wiki/File:Cosplay_of_2B_and_9S_from_NieR-_Automata_at_Made_in_Asia_2019_(2019-03-10_13-25-43_ILCE-6500_DSC08024_(46446674725).jpg",
+  "title": "File:Cosplay of 2B and 9S from NieR- Automata at Made in Asia 2019 (2019-03-10 13-25-43 ILCE-6500 DSC08024 (46446674725).jpg"
+ },
  "aang": {
   "author": "Abzeronow",
   "license": "CC BY-SA 4.0",
@@ -58,6 +64,12 @@
   "license": "CC BY-SA 4.0",
   "page": "https://commons.wikimedia.org/wiki/File:Anime_Boston_2023_Hitori_%22Bocchi%22_Got%C5%8D_cosplay_04-08-2023_245PM.jpg",
   "title": "File:Anime Boston 2023 Hitori \"Bocchi\" Gotō cosplay 04-08-2023 245PM.jpg"
+ },
+ "chihiro": {
+  "author": "Carla Lidia",
+  "license": "CC BY-SA 4.0",
+  "page": "https://commons.wikimedia.org/wiki/File:Kaonashi.jpg",
+  "title": "File:Kaonashi.jpg"
  },
  "cloud": {
   "author": "Michael Mol",
@@ -191,6 +203,12 @@
   "page": "https://commons.wikimedia.org/wiki/File:Harry_Potter_robes.jpg",
   "title": "File:Harry Potter robes.jpg"
  },
+ "hinata": {
+  "author": "Farhan Ahmad Tajuddin",
+  "license": "CC BY 2.0",
+  "page": "https://commons.wikimedia.org/wiki/File:Cosplay_of_Naruto_Uzumaki_and_Hinata_Hyuuga_from_The_Last-_Naruto_The_Movie_at_Animax_Carnival_Malaysia_2015,_Day_2_003_(20150329).jpg",
+  "title": "File:Cosplay of Naruto Uzumaki and Hinata Hyuuga from The Last- Naruto The Movie at Animax Carnival Malaysia 2015, Day 2 003 (20150329).jpg"
+ },
  "historia": {
   "author": "Racillian Photos",
   "license": "CC BY-SA 2.0",
@@ -233,11 +251,23 @@
   "page": "https://commons.wikimedia.org/wiki/File:Captain_jack_sparrow_cosplay_(14233143201).jpg",
   "title": "File:Captain jack sparrow cosplay (14233143201).jpg"
  },
+ "jinx": {
+  "author": "John Manard for Galaxy Con",
+  "license": "CC BY 4.0",
+  "page": "https://commons.wikimedia.org/wiki/File:Jinx_at_Animate!_Columbus_2025_-_03.jpg",
+  "title": "File:Jinx at Animate! Columbus 2025 - 03.jpg"
+ },
  "joker": {
   "author": "Super Festivals from Ft. Lauderdale, USA",
   "license": "CC BY 2.0",
   "page": "https://commons.wikimedia.org/wiki/File:Cosplay_of_Batman_and_Joker_at_Florida_Supercon_2013_(9358428519).jpg",
   "title": "File:Cosplay of Batman and Joker at Florida Supercon 2013 (9358428519).jpg"
+ },
+ "kafka": {
+  "author": "玄史生",
+  "license": "CC0",
+  "page": "https://commons.wikimedia.org/wiki/File:Miu_as_Kafka_standing,_front_view_(53095864154).jpg",
+  "title": "File:Miu as Kafka standing, front view (53095864154).jpg"
  },
  "kagura": {
   "author": "玄史生",
@@ -281,11 +311,23 @@
   "page": "https://commons.wikimedia.org/wiki/File:Cosplay_of_Levi_Ackerman_from_Attack_on_Titan_at_Yukicon_2014_-_matiast1_(20140119125021IMG_5926).jpg",
   "title": "File:Cosplay of Levi Ackerman from Attack on Titan at Yukicon 2014 - matiast1 (20140119125021IMG 5926).jpg"
  },
+ "lightyagami": {
+  "author": "Farhan Ahmad Tajuddin",
+  "license": "CC BY 2.0",
+  "page": "https://commons.wikimedia.org/wiki/File:Cosplayer_of_Light_Yagami,_Death_Note_at_Kuantan_CosWalk_20170319.jpg",
+  "title": "File:Cosplayer of Light Yagami, Death Note at Kuantan CosWalk 20170319.jpg"
+ },
  "link": {
   "author": "Daniel Benavides from Austin, TX",
   "license": "CC BY 2.0",
   "page": "https://commons.wikimedia.org/wiki/File:RTX_2017_-_Legend_of_Zelda_cosplay_(35757004331).jpg",
   "title": "File:RTX 2017 - Legend of Zelda cosplay (35757004331).jpg"
+ },
+ "loki": {
+  "author": "William Tung from USA",
+  "license": "CC BY-SA 2.0",
+  "page": "https://commons.wikimedia.org/wiki/File:WonderCon_2015_-_Loki_cosplay_(16427144544)_(cropped).jpg",
+  "title": "File:WonderCon 2015 - Loki cosplay (16427144544) (cropped).jpg"
  },
  "luffy": {
   "author": "玄史生",
@@ -359,6 +401,12 @@
   "page": "https://commons.wikimedia.org/wiki/File:Fa_Mulan_(8270731832).jpg",
   "title": "File:Fa Mulan (8270731832).jpg"
  },
+ "nami": {
+  "author": "玄史生",
+  "license": "CC0",
+  "page": "https://commons.wikimedia.org/wiki/File:Cosplayer_of_Nami,_One_Piece_at_FF26_20150830a.jpg",
+  "title": "File:Cosplayer of Nami, One Piece at FF26 20150830a.jpg"
+ },
  "nana": {
   "author": "Lee Burton from Lorton, VA, USA",
   "license": "CC BY-SA 2.0",
@@ -395,6 +443,12 @@
   "page": "https://commons.wikimedia.org/wiki/File:Cosplay_of_Raiden_Shogun_at_Made_in_Asia_2022_(52106490344).jpg",
   "title": "File:Cosplay of Raiden Shogun at Made in Asia 2022 (52106490344).jpg"
  },
+ "rapunzel": {
+  "author": "RightCowLeftCoast",
+  "license": "CC BY-SA 4.0",
+  "page": "https://commons.wikimedia.org/wiki/File:Rapunzel_WonderCon_2018.jpg",
+  "title": "File:Rapunzel WonderCon 2018.jpg"
+ },
  "reiayanami": {
   "author": "kxz Chen",
   "license": "CC BY-SA 2.0",
@@ -419,11 +473,35 @@
   "page": "https://commons.wikimedia.org/wiki/File:Sasuke_Uchiha_cosplayer_at_FanimeCon_2010-05-30.JPG",
   "title": "File:Sasuke Uchiha cosplayer at FanimeCon 2010-05-30.JPG"
  },
+ "shinobu": {
+  "author": "Solomon203",
+  "license": "CC BY-SA 4.0",
+  "page": "https://commons.wikimedia.org/wiki/File:Yuki_as_Shinobu_Koch%C5%8D_sitting_20210502a.jpg",
+  "title": "File:Yuki as Shinobu Kochō sitting 20210502a.jpg"
+ },
  "spiderman": {
   "author": "Miguel Discart",
   "license": "CC BY-SA 2.0",
   "page": "https://commons.wikimedia.org/wiki/File:Cosplay_of_Spider-Man_at_Brussels_Comic_Con_2019_(46385757425).jpg",
   "title": "File:Cosplay of Spider-Man at Brussels Comic Con 2019 (46385757425).jpg"
+ },
+ "tanjiro": {
+  "author": "Chongkian",
+  "license": "CC BY-SA 4.0",
+  "page": "https://commons.wikimedia.org/wiki/File:Cosplay_of_Tanjiro_Kamado_at_Collector%27s_Hub_Arena_Cosplay_2022.jpg",
+  "title": "File:Cosplay of Tanjiro Kamado at Collector's Hub Arena Cosplay 2022.jpg"
+ },
+ "tifa": {
+  "author": "othree",
+  "license": "CC BY 2.0",
+  "page": "https://commons.wikimedia.org/wiki/File:Cosplayer_of_Tifa_Lockhart_at_FF21_20130216a.jpg",
+  "title": "File:Cosplayer of Tifa Lockhart at FF21 20130216a.jpg"
+ },
+ "todoroki": {
+  "author": "Klarqa",
+  "license": "CC BY-SA 4.0",
+  "page": "https://commons.wikimedia.org/wiki/File:Pyrkon_2019_Cosplay_Shoto_Todoroki.jpg",
+  "title": "File:Pyrkon 2019 Cosplay Shoto Todoroki.jpg"
  },
  "usagi": {
   "author": "BrokenSphere",
@@ -496,6 +574,12 @@
   "license": "CC BY 2.0",
   "page": "https://commons.wikimedia.org/wiki/File:Cosplay_of_Zero_Two_from_Darling_in_the_Franxx_at_FanimeCon_2018_349_(40640218840).jpg",
   "title": "File:Cosplay of Zero Two from Darling in the Franxx at FanimeCon 2018 349 (40640218840).jpg"
+ },
+ "zhongli": {
+  "author": "Leiem",
+  "license": "CC BY-SA 4.0",
+  "page": "https://commons.wikimedia.org/wiki/File:Cosplay_of_Genshin_characters_-_16th_NJ_Comic_Dawn.jpg",
+  "title": "File:Cosplay of Genshin characters - 16th NJ Comic Dawn.jpg"
  },
  "zoro": {
   "author": "BrokenSphere",
