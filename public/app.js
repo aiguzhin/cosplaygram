@@ -324,7 +324,7 @@ const sheet = (title, body, cls = '') =>
 
 /* ================= шапка, меню, навигация ================= */
 const NAV = [
-  { k: '', href: '#/', label: 'Лента' },
+  { k: '', href: '#/', label: 'Главная' },
   { k: 'process', href: '#/process', label: 'Мастерская' },
   { k: 'events', href: '#/events', label: 'Мероприятия' },
   { k: 'forum', href: '#/forum', label: 'Форум' },
@@ -348,7 +348,7 @@ function renderChrome() {
   const bn = $('#bottomNav');
   bn.hidden = !me;
   bn.innerHTML = !me ? '' : `
-    <a href="#/" class="${k === '' ? 'active' : ''}">${ic.home}Лента</a>
+    <a href="#/" class="${k === '' ? 'active' : ''}">${ic.home}Главная</a>
     <a href="#/process" class="${k === 'process' ? 'active' : ''}">${ic.needle}Мастерская</a>
     <button class="create" data-act="create" aria-label="Опубликовать"><span class="pl">${ic.plus}</span></button>
     <a href="#/events" class="${k === 'events' ? 'active' : ''}">${ic.calendar}Мероприятия</a>
