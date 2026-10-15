@@ -80,6 +80,8 @@ def main():
     for cid, spec in chars.items():
         if only and cid not in only:
             continue
+        if spec.get("off") and cid not in only:  # фото проверено вручную и отклонено
+            continue
         if not only and cid in credits and os.path.exists(os.path.join(OUT, f"{cid}.jpg")):
             continue
         print(f"{cid}: {spec['q']}")

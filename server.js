@@ -10,6 +10,8 @@ const ADMINS = (process.env.ADMIN_USERNAMES || '').split(',').map((s) => s.trim(
 const DAY = 24 * 60 * 60 * 1000;
 const COLORS = ['lapis', 'turquoise', 'garnet', 'saffron', 'violet', 'jade'];
 const CATEGORIES = ['materials', 'sewing', 'props', 'wigs', 'photo', 'other'];
+const SOURCES = ['anime', 'manga', 'drama', 'film', 'game', 'original'];
+const themeId = (t) => (/^[a-z0-9-]{2,24}$/.test(String(t || '')) ? String(t) : '');
 const ROOMS = ['general', 'almaty', 'astana', 'shymkent', 'aktobe', 'karaganda', 'help'];
 
 const newId = () => crypto.randomBytes(8).toString('hex');
@@ -26,15 +28,18 @@ function checkPassword(pw, stored) {
   return crypto.timingSafeEqual(test, Buffer.from(hash, 'hex'));
 }
 
-// простой лимит попыток входа: 10 за 10 минут с одного IP
+// Защита от подбора: считаем только неудачные входы (10 за 10 минут на IP+ник)
+// и регистрации (30 за час на IP — на фестивалях много людей сидят в одной сети).
 const attempts = new Map();
-function tooMany(ip) {
+function hits(key, windowMs) {
   const t = now();
-  const list = (attempts.get(ip) || []).filter((x) => t - x < 10 * 60 * 1000);
-  list.push(t);
-  attempts.set(ip, list);
-  return list.length > 10;
+  const list = (attempts.get(key) || []).filter((x) => t - x < windowMs);
+  attempts.set(key, list);
+  return list;
 }
+const tooMany = (key, max, windowMs) => hits(key, windowMs).length >= max;
+const remember = (key) => { (attempts.get(key) || attempts.set(key, []).get(key)).push(now()); };
+setInterval(() => { for (const [k, v] of attempts) if (!v.length || now() - v.at(-1) > 3600e3) attempts.delete(k); }, 600e3).unref();
 
 class HttpError extends Error {
   constructor(status, message) { super(message); this.status = status; }
@@ -46,6 +51,9 @@ async function main() {
   const q = db.query;
   const one = async (sql, p) => (await q(sql, p))[0] || null;
   if (await seedDb(db)) console.log('Демо-данные загружены');
+  await q("UPDATE posts SET source = 'original' WHERE demo = TRUE AND source = ''");
+  for (const [u, t] of [['aru.cos', 'frieren'], ['dias_props', 'guts'], ['kamila.wigs', 'usagi'], ['timur.photo', 'paul'], ['madi.craft', 'vader'], ['aisha.sews', 'wei']])
+    await q("UPDATE users SET theme = $2 WHERE demo = TRUE AND username = $1 AND theme = ''", [u, t]);
   await q("UPDATE events SET title = 'Косплей-шоу на аниме-фестивале' WHERE demo = TRUE AND title = 'Косплей-конкурс на аниме-фестивале'");
   await q("UPDATE events SET note = 'Пример мероприятия. Замените на настоящее с датой и ссылкой организатора.' WHERE demo = TRUE AND note LIKE 'Пример события%'");
   console.log(`База: ${db.kind}`);
@@ -62,18 +70,18 @@ async function main() {
   const imgUrl = (id) => (!id ? null : id.startsWith('/') ? id : `/img/${id}`);
 
   // ---------- представления ----------
-  const userCols = 'u.id, u.username, u.name, u.city, u.specialty, u.bio, u.avatar_id, u.color, u.role, u.demo, u.created_at';
+  const userCols = 'u.id, u.username, u.name, u.city, u.specialty, u.bio, u.avatar_id, u.color, u.role, u.demo, u.created_at, u.theme';
   const userView = (r, prefix = '') => {
     const g = (k) => r[prefix + k];
     if (!g('id')) return null;
     return {
       id: g('id'), username: g('username'), name: g('name'), city: g('city'), specialty: g('specialty'),
       bio: g('bio'), avatar: imgUrl(g('avatar_id')), color: g('color'), role: g('role'), demo: g('demo'),
-      createdAt: g('created_at'),
+      createdAt: g('created_at'), theme: g('theme') || '',
     };
   };
   const authorCols = (a = 'u', p = 'a_') =>
-    ['id', 'username', 'name', 'city', 'specialty', 'bio', 'avatar_id', 'color', 'role', 'demo', 'created_at']
+    ['id', 'username', 'name', 'city', 'specialty', 'bio', 'avatar_id', 'color', 'role', 'demo', 'created_at', 'theme']
       .map((c) => `${a}.${c} AS ${p}${c}`).join(', ');
 
   async function loadPosts(where, params, meId, { limit = 30, comments = 2 } = {}) {
@@ -102,7 +110,7 @@ async function main() {
       const all = cms.filter((c) => c.post_id === r.id);
       return {
         id: r.id, authorId: r.author_id, kind: r.kind, character: r.character, fandom: r.fandom,
-        caption: r.caption, materials: JSON.parse(r.materials || '[]'), hours: r.hours, demo: r.demo,
+        caption: r.caption, materials: JSON.parse(r.materials || '[]'), hours: r.hours, demo: r.demo, source: r.source || '', charId: r.char_id || '',
         createdAt: r.created_at, author: userView(r, 'a_'),
         likeCount: r.like_count, commentCount: r.comment_count, liked: r.liked, saved: r.saved,
         slides: slides.filter((s) => s.post_id === r.id).map((s) => ({ image: imgUrl(s.image_id), caption: s.caption })),
@@ -134,7 +142,7 @@ async function main() {
   });
   app.use(express.static(path.join(__dirname, 'public'), {
     maxAge: '1h',
-    setHeaders: (res, file) => { if (file.endsWith('.html')) res.setHeader('Cache-Control', 'no-cache'); },
+    setHeaders: (res, file) => { if (/\.(html|webmanifest)$|sw\.js$/.test(file)) res.setHeader('Cache-Control', 'no-cache'); },
   }));
 
   app.get('/img/:id', wrap(async (req, res) => {
@@ -158,7 +166,7 @@ async function main() {
   }));
   const auth = (req, _res, next) => (req.user ? next() : next(new HttpError(401, 'Войдите, чтобы продолжить')));
   // сайт закрыт для гостей: без входа доступны только регистрация, вход и проверка сессии
-  const OPEN = new Set(['/register', '/login', '/logout', '/me']);
+  const OPEN = new Set(['/register', '/login', '/logout', '/me', '/characters']);
   app.use('/api', (req, _res, next) => (OPEN.has(req.path) || req.user ? next() : next(new HttpError(401, 'Зарегистрируйтесь или войдите, чтобы пользоваться Cosplaygram'))));
   const admin = (req, _res, next) => (req.user?.role === 'admin' ? next() : next(new HttpError(403, 'Только для модераторов')));
   const isAdmin = (req) => req.user?.role === 'admin';
@@ -173,7 +181,7 @@ async function main() {
 
   // ----- аккаунт -----
   app.post('/api/register', wrap(async (req, res) => {
-    if (tooMany(req.ip)) throw new HttpError(429, 'Слишком много попыток. Подождите 10 минут.');
+    if (tooMany('reg:' + req.ip, 30, 3600e3)) throw new HttpError(429, 'Слишком много регистраций из этой сети. Попробуйте через час.');
     const username = clean(req.body.username, 30).toLowerCase();
     const password = String(req.body.password || '');
     if (!/^[a-z0-9_.]{3,30}$/.test(username)) throw new HttpError(400, 'Ник: от 3 до 30 символов — латиница, цифры, точка или _');
@@ -183,19 +191,22 @@ async function main() {
     const role = ADMINS.includes(username) || real.n === 0 ? 'admin' : 'user';
     const id = newId();
     await q(
-      `INSERT INTO users (id, username, password, name, city, specialty, color, role, created_at)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)`,
+      `INSERT INTO users (id, username, password, name, city, specialty, color, role, created_at, theme)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)`,
       [id, username, hashPassword(password), clean(req.body.name, 60) || username, clean(req.body.city, 40),
-        clean(req.body.specialty, 60), COLORS[Math.floor(Math.random() * COLORS.length)], role, now()]
+        clean(req.body.specialty, 60), COLORS[Math.floor(Math.random() * COLORS.length)], role, now(), themeId(req.body.theme)]
     );
+    remember('reg:' + req.ip);
     await startSession(req, res, id);
     res.json({ user: await meView(id) });
   }));
 
   app.post('/api/login', wrap(async (req, res) => {
-    if (tooMany(req.ip)) throw new HttpError(429, 'Слишком много попыток. Подождите 10 минут.');
-    const u = await one('SELECT id, password FROM users WHERE username = $1', [clean(req.body.username, 30).toLowerCase()]);
-    if (!u || !checkPassword(String(req.body.password || ''), u.password)) throw new HttpError(401, 'Неверный ник или пароль');
+    const name = clean(req.body.username, 30).toLowerCase().replace(/^@/, '');
+    const key = `login:${req.ip}:${name}`;
+    if (tooMany(key, 10, 600e3)) throw new HttpError(429, 'Слишком много неудачных попыток. Подождите 10 минут.');
+    const u = await one('SELECT id, password FROM users WHERE username = $1', [name]);
+    if (!u || !checkPassword(String(req.body.password || ''), u.password)) { remember(key); throw new HttpError(401, 'Неверный ник или пароль'); }
     await startSession(req, res, u.id);
     res.json({ user: await meView(u.id) });
   }));
@@ -208,9 +219,11 @@ async function main() {
   }));
 
   app.get('/api/me', wrap(async (req, res) => {
-    if (!req.user) return res.json({ user: null, unread: 0 });
-    const r = await one('SELECT count(*)::int AS n FROM notifications WHERE user_id = $1 AND read = FALSE', [req.user.id]);
-    res.json({ user: req.user, unread: r.n });
+    if (!req.user) return res.json({ user: null, unread: 0, unreadDm: 0 });
+    const r = await one(
+      `SELECT (SELECT count(*)::int FROM notifications WHERE user_id = $1 AND read = FALSE) AS n,
+              (SELECT count(*)::int FROM dms WHERE to_id = $1 AND read = FALSE) AS d`, [req.user.id]);
+    res.json({ user: req.user, unread: r.n, unreadDm: r.d });
   }));
 
   app.patch('/api/me', auth, wrap(async (req, res) => {
@@ -218,9 +231,9 @@ async function main() {
     const u = req.user;
     const avatarId = b.avatar ? await saveImage(b.avatar, u.id) : null;
     await q(
-      `UPDATE users SET name = $2, city = $3, specialty = $4, bio = $5, color = $6, avatar_id = COALESCE($7, avatar_id) WHERE id = $1`,
-      [u.id, clean(b.name ?? u.name, 60), clean(b.city ?? u.city, 40), clean(b.specialty ?? u.specialty, 60),
-        clean(b.bio ?? u.bio, 300), COLORS.includes(b.color) ? b.color : u.color, avatarId]
+      `UPDATE users SET name = $2, city = $3, specialty = $4, bio = $5, color = $6, avatar_id = COALESCE($7, avatar_id), theme = $8 WHERE id = $1`,
+      [u.id, clean(b.name ?? u.name, 60) || u.username, clean(b.city ?? u.city, 40), clean(b.specialty ?? u.specialty, 60),
+        clean(b.bio ?? u.bio, 300), COLORS.includes(b.color) ? b.color : u.color, avatarId, 'theme' in b ? themeId(b.theme) : u.theme]
     );
     res.json({ user: await meView(u.id) });
   }));
@@ -238,6 +251,8 @@ async function main() {
     const conds = [];
     const params = [];
     if (req.query.kind === 'process' || req.query.kind === 'costume') { params.push(req.query.kind); conds.push(`p.kind = $${params.length}`); }
+    if (themeId(req.query.char)) { params.push(themeId(req.query.char)); conds.push(`p.char_id = $${params.length}`); }
+    if (SOURCES.includes(req.query.source)) { params.push(req.query.source); conds.push(`p.source = $${params.length}`); }
     if (req.query.mode === 'following' && req.user) {
       params.push(req.user.id);
       conds.push(`(p.author_id IN (SELECT followee_id FROM follows WHERE follower_id = $${params.length}) OR p.author_id = $${params.length})`);
@@ -261,15 +276,37 @@ async function main() {
     const imageIds = [];
     for (const s of slides) imageIds.push(await saveImage(s.image, req.user.id));
     await q(
-      `INSERT INTO posts (id, author_id, kind, character, fandom, caption, materials, hours, created_at)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)`,
+      `INSERT INTO posts (id, author_id, kind, character, fandom, caption, materials, hours, created_at, source, char_id)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)`,
       [id, req.user.id, req.body.kind === 'process' ? 'process' : 'costume', clean(req.body.character, 80),
         clean(req.body.fandom, 80), clean(req.body.caption, 2200), JSON.stringify(materials),
-        Math.max(0, Math.min(5000, parseInt(req.body.hours, 10) || 0)), now()]
+        Math.max(0, Math.min(5000, parseInt(req.body.hours, 10) || 0)), now(), SOURCES.includes(req.body.source) ? req.body.source : '', themeId(req.body.charId)]
     );
     for (const [i, imgId] of imageIds.entries())
       await q('INSERT INTO post_images (post_id, idx, image_id, caption) VALUES ($1,$2,$3,$4)', [id, i, imgId, clean(slides[i].caption, 300)]);
     const [post] = await loadPosts('WHERE p.id = $1', [id], req.user.id, { limit: 1 });
+    res.json({ post });
+  }));
+
+  app.patch('/api/posts/:id', auth, wrap(async (req, res) => {
+    const p = await one('SELECT * FROM posts WHERE id = $1', [req.params.id]);
+    if (!p) throw new HttpError(404, 'Публикация не найдена');
+    if (p.author_id !== req.user.id && !isAdmin(req)) throw new HttpError(403, 'Изменить можно только свою публикацию');
+    const b = req.body;
+    const materials = 'materials' in b
+      ? JSON.stringify(clean(b.materials, 300).split(',').map((x) => x.trim()).filter(Boolean).slice(0, 12))
+      : p.materials;
+    await q(
+      `UPDATE posts SET character = $2, fandom = $3, caption = $4, materials = $5, hours = $6, source = $7, char_id = $8 WHERE id = $1`,
+      [p.id, clean(b.character ?? p.character, 80), clean(b.fandom ?? p.fandom, 80), clean(b.caption ?? p.caption, 2200), materials,
+        'hours' in b ? Math.max(0, Math.min(5000, parseInt(b.hours, 10) || 0)) : p.hours,
+        'source' in b ? (SOURCES.includes(b.source) ? b.source : '') : p.source,
+        'charId' in b ? themeId(b.charId) : p.char_id]
+    );
+    if (Array.isArray(b.captions))
+      for (const [i, c] of b.captions.slice(0, 10).entries())
+        await q('UPDATE post_images SET caption = $3 WHERE post_id = $1 AND idx = $2', [p.id, i, clean(c, 300)]);
+    const [post] = await loadPosts('WHERE p.id = $1', [p.id], req.user.id, { limit: 1, comments: 0 });
     res.json({ post });
   }));
 
@@ -442,9 +479,19 @@ async function main() {
   }));
 
   // ----- мероприятия -----
-  app.get('/api/events', wrap(async (_req, res) => {
-    const rows = await q('SELECT * FROM events ORDER BY date');
-    res.json({ events: rows.map((e) => ({ ...e, authorId: e.author_id })) });
+  app.get('/api/events', wrap(async (req, res) => {
+    const rows = await q(
+      `SELECT e.*, (SELECT count(*)::int FROM event_going g WHERE g.event_id = e.id) AS going_count,
+         EXISTS (SELECT 1 FROM event_going g WHERE g.event_id = e.id AND g.user_id = $1) AS going
+       FROM events e ORDER BY e.date`, [req.user?.id || '']);
+    res.json({ events: rows.map((e) => ({ ...e, authorId: e.author_id, goingCount: e.going_count })) });
+  }));
+  app.post('/api/events/:id/going', auth, wrap(async (req, res) => {
+    if (!(await one('SELECT 1 FROM events WHERE id = $1', [req.params.id]))) throw new HttpError(404, 'Мероприятие не найдено');
+    const del = await q('DELETE FROM event_going WHERE event_id = $1 AND user_id = $2 RETURNING 1', [req.params.id, req.user.id]);
+    if (!del.length) await q('INSERT INTO event_going (event_id, user_id, created_at) VALUES ($1,$2,$3)', [req.params.id, req.user.id, now()]);
+    const { n } = await one('SELECT count(*)::int AS n FROM event_going WHERE event_id = $1', [req.params.id]);
+    res.json({ going: !del.length, goingCount: n });
   }));
   app.post('/api/events', auth, wrap(async (req, res) => {
     const title = clean(req.body.title, 120);
@@ -464,6 +511,77 @@ async function main() {
     if (e.author_id !== req.user.id && !isAdmin(req)) throw new HttpError(403, 'Удалить можно только своё мероприятие');
     await q('DELETE FROM events WHERE id = $1', [req.params.id]);
     res.json({ ok: true });
+  }));
+
+  // ----- персонажи: фото косплея от участников и обложки модератора -----
+  app.get('/api/characters', wrap(async (_req, res) => {
+    const best = await q(
+      `SELECT DISTINCT ON (p.char_id) p.char_id, pi.image_id, p.id AS post_id, u.username,
+         (SELECT count(*)::int FROM likes l WHERE l.post_id = p.id) AS lk
+       FROM posts p JOIN post_images pi ON pi.post_id = p.id AND pi.idx = 0 JOIN users u ON u.id = p.author_id
+       WHERE p.char_id <> '' ORDER BY p.char_id, lk DESC, p.created_at DESC`);
+    const counts = await q("SELECT char_id, count(*)::int AS n FROM posts WHERE char_id <> '' GROUP BY char_id");
+    const fans = await q("SELECT theme, count(*)::int AS n FROM users WHERE theme <> '' GROUP BY theme");
+    const covers = await q('SELECT char_id, image_id FROM char_covers');
+    const out = {};
+    const slot = (id) => (out[id] ||= { photo: null, by: null, postId: null, cosplays: 0, fans: 0, cover: false });
+    for (const r of best) Object.assign(slot(r.char_id), { photo: imgUrl(r.image_id), by: r.username, postId: r.post_id });
+    for (const r of covers) Object.assign(slot(r.char_id), { photo: imgUrl(r.image_id), by: null, postId: null, cover: true });
+    for (const r of counts) slot(r.char_id).cosplays = r.n;
+    for (const r of fans) slot(r.theme).fans = r.n;
+    res.setHeader('Cache-Control', 'no-cache');
+    res.json({ characters: out });
+  }));
+  app.post('/api/admin/characters/:id/photo', auth, admin, wrap(async (req, res) => {
+    const cid = themeId(req.params.id);
+    if (!cid) throw new HttpError(400, 'Неизвестный персонаж');
+    const imageId = await saveImage(req.body.image, req.user.id);
+    await q(`INSERT INTO char_covers (char_id, image_id, updated_at) VALUES ($1,$2,$3)
+      ON CONFLICT (char_id) DO UPDATE SET image_id = EXCLUDED.image_id, updated_at = EXCLUDED.updated_at`, [cid, imageId, now()]);
+    res.json({ ok: true, photo: imgUrl(imageId) });
+  }));
+  app.delete('/api/admin/characters/:id/photo', auth, admin, wrap(async (req, res) => {
+    await q('DELETE FROM char_covers WHERE char_id = $1', [themeId(req.params.id)]);
+    res.json({ ok: true });
+  }));
+
+  // ----- личные сообщения -----
+  app.get('/api/dm', auth, wrap(async (req, res) => {
+    const me = req.user.id;
+    const rows = await q(
+      `SELECT x.other_id, x.text, x.created_at, x.from_id, ${authorCols()},
+         (SELECT count(*)::int FROM dms d WHERE d.from_id = x.other_id AND d.to_id = $1 AND d.read = FALSE) AS unread
+       FROM (
+         SELECT DISTINCT ON (other_id) other_id, text, created_at, from_id FROM (
+           SELECT CASE WHEN from_id = $1 THEN to_id ELSE from_id END AS other_id, text, created_at, from_id
+           FROM dms WHERE from_id = $1 OR to_id = $1
+         ) t ORDER BY other_id, created_at DESC
+       ) x JOIN users u ON u.id = x.other_id
+       ORDER BY x.created_at DESC LIMIT 100`, [me]);
+    res.json({
+      conversations: rows.map((r) => ({ user: userView(r, 'a_'), last: r.text, mine: r.from_id === me, createdAt: r.created_at, unread: r.unread })),
+    });
+  }));
+  app.get('/api/dm/:username', auth, wrap(async (req, res) => {
+    const other = await one(`SELECT ${userCols} FROM users u WHERE u.username = $1`, [req.params.username.toLowerCase()]);
+    if (!other) throw new HttpError(404, 'Косплеер не найден');
+    const me = req.user.id;
+    const rows = await q(
+      `SELECT * FROM (SELECT * FROM dms WHERE ((from_id = $1 AND to_id = $2) OR (from_id = $2 AND to_id = $1)) AND created_at > $3
+         ORDER BY created_at DESC LIMIT 200) x ORDER BY created_at`,
+      [me, other.id, Number(req.query.after) || 0]);
+    await q('UPDATE dms SET read = TRUE WHERE from_id = $1 AND to_id = $2 AND read = FALSE', [other.id, me]);
+    res.json({ user: userView(other), messages: rows.map((m) => ({ id: m.id, text: m.text, createdAt: m.created_at, mine: m.from_id === me })) });
+  }));
+  app.post('/api/dm/:username', auth, wrap(async (req, res) => {
+    const other = await one('SELECT id, demo FROM users WHERE username = $1', [req.params.username.toLowerCase()]);
+    if (!other) throw new HttpError(404, 'Косплеер не найден');
+    if (other.id === req.user.id) throw new HttpError(400, 'Нельзя написать самому себе');
+    const text = clean(req.body.text, 2000);
+    if (!text) throw new HttpError(400, 'Сообщение пустое');
+    const m = { id: newId(), text, createdAt: now(), mine: true };
+    await q('INSERT INTO dms (id, from_id, to_id, text, created_at) VALUES ($1,$2,$3,$4,$5)', [m.id, req.user.id, other.id, text, m.createdAt]);
+    res.json({ message: m });
   }));
 
   // ----- чат -----
@@ -583,7 +701,7 @@ async function main() {
 
   app.get('/healthz', (_req, res) => res.send('ok'));
   app.use('/api', (_req, _res, next) => next(new HttpError(404, 'Нет такого адреса API')));
-  app.get(/^\/(?!api\/|img\/|demo\/).*/, (_req, res) => { res.setHeader('Cache-Control', 'no-cache'); res.sendFile(path.join(__dirname, 'public', 'index.html')); });
+  app.get(/^\/(?!api\/|img\/|demo\/|chars\/).*/, (_req, res) => { res.setHeader('Cache-Control', 'no-cache'); res.sendFile(path.join(__dirname, 'public', 'index.html')); });
 
   app.use((err, _req, res, _next) => {
     const status = err.status || (err.type === 'entity.too.large' ? 413 : 500);

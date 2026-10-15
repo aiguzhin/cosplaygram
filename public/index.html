@@ -4,19 +4,26 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <title>Cosplaygram</title>
-  <meta name="description" content="Cosplaygram — мастерская косплееров Казахстана и Центральной Азии: костюмы, процесс шитья, форум, мероприятия и чат.">
+  <meta name="description" content="Cosplaygram — платформа косплееров Казахстана и Центральной Азии: костюмы, процесс создания, мастера, мероприятия, форум и чат.">
   <meta name="theme-color" content="#0D0E1C">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Cosplaygram">
+  <link rel="manifest" href="/manifest.webmanifest">
   <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="/icon-192.png">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Yeseva+One&family=Geologica:wght@300..700&display=swap">
-  <link rel="stylesheet" href="/styles.css?v=4">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geologica:wght@300..700&family=Yeseva+One&family=Unbounded:wght@500;600&family=Comfortaa:wght@500;700&family=Cormorant+Garamond:wght@500;600;700&family=JetBrains+Mono:wght@500;600&display=swap">
+  <link rel="stylesheet" href="/styles.css?v=6">
+  <script src="/themes.js?v=6"></script>
 </head>
 <body>
   <header class="header">
     <div class="header-in">
       <a href="#/" class="logo" aria-label="Cosplaygram — на главную">
-        <svg class="logo-mark" viewBox="0 0 40 40" aria-hidden="true"><rect width="40" height="40" rx="12" fill="var(--gold)"/><path d="M27 13a10 10 0 1 0 0 14" fill="none" stroke="var(--on-gold)" stroke-width="4.5" stroke-linecap="round"/><path d="M8 34 34 6" stroke="var(--on-gold)" stroke-opacity=".55" stroke-width="2" stroke-dasharray="3 3"/></svg>
+        <svg class="logo-mark" viewBox="0 0 40 40" aria-hidden="true"><rect width="40" height="40" rx="12" fill="var(--accent)"/><path d="M27 13a10 10 0 1 0 0 14" fill="none" stroke="var(--on-accent)" stroke-width="4.5" stroke-linecap="round"/><path d="M8 34 34 6" stroke="var(--on-accent)" stroke-opacity=".55" stroke-width="2" stroke-dasharray="3 3"/></svg>
         <span>Cosplaygram</span>
       </a>
       <nav class="topnav" id="topNav" aria-label="Разделы"></nav>
@@ -26,11 +33,12 @@
 
   <main class="main" id="view" tabindex="-1"></main>
 
-  <nav class="bottombar" id="bottomNav" aria-label="Разделы"></nav>
+  <nav class="bottombar" id="bottomNav" aria-label="Разделы" hidden></nav>
 
+  <div id="menuRoot"></div>
   <div class="overlay" id="overlay" hidden></div>
   <div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
 
-  <script src="/app.js?v=4"></script>
+  <script src="/app.js?v=6"></script>
 </body>
 </html>

@@ -304,8 +304,10 @@
    "barbie"
   ],
   "skip": [
-   "File:Barbie - Modezauber in Paris (8104748847).jpg"
-  ]
+   "File:Barbie - Modezauber in Paris (8104748847).jpg",
+   "File:Cosplay of Barbie (2023 film) in London (September 2023).JPG"
+  ],
+  "off": true
  },
  "vader": {
   "q": "Darth Vader cosplay",
@@ -387,8 +389,10 @@
    "nier"
   ],
   "skip": [
-   "File:Cosplay of 2B and 9S from NieR- Automata at Made in Asia 2019 (2019-03-10 13-25-15 ILCE-6500 DSC08017 (46446651155).jpg"
-  ]
+   "File:Cosplay of 2B and 9S from NieR- Automata at Made in Asia 2019 (2019-03-10 13-25-15 ILCE-6500 DSC08017 (46446651155).jpg",
+   "File:Cosplay of 2B and 9S from NieR- Automata at Made in Asia 2019 (2019-03-10 13-25-13 ILCE-6500 DSC08016 (46446657235).jpg"
+  ],
+  "off": true
  },
  "jinx": {
   "q": "Jinx League of Legends Arcane cosplay",
@@ -396,8 +400,10 @@
    "jinx"
   ],
   "skip": [
-   "File:Anime Expo 2015 - Jinx.jpg"
-  ]
+   "File:Anime Expo 2015 - Jinx.jpg",
+   "File:Japan Expo 2024 - Cosplay of Jinx 2.jpg"
+  ],
+  "off": true
  },
  "link": {
   "q": "Link Legend of Zelda cosplay",
