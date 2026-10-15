@@ -1,60 +1,415 @@
 {
-  "chuya": {"q": "Chuya Nakahara cosplay", "must": ["chuya", "chūya"]},
-  "gojo": {"q": "Gojo Satoru cosplay", "must": ["gojo", "gojou"]},
-  "miku": {"q": "Hatsune Miku cosplay", "must": ["miku"]},
-  "dazai": {"q": "Dazai Osamu cosplay", "must": ["dazai"]},
-  "maomao": {"q": "Maomao cosplay apothecary", "must": ["maomao"]},
-  "shinobu": {"q": "Shinobu Kocho cosplay", "must": ["shinobu", "kocho", "kochou"]},
-  "nezuko": {"q": "Nezuko cosplay", "must": ["nezuko"]},
-  "marin": {"q": "Marin Kitagawa cosplay", "must": ["marin", "kitagawa"]},
-  "frieren": {"q": "Frieren cosplay", "must": ["frieren"]},
-  "hanako": {"q": "Hanako-kun cosplay", "must": ["hanako"]},
-  "levi": {"q": "Levi Ackerman cosplay", "must": ["levi", "rivaille", "ackerman"]},
-  "historia": {"q": "Historia Reiss cosplay", "must": ["historia", "krista"]},
-  "makima": {"q": "Makima cosplay", "must": ["makima"]},
-  "yor": {"q": "Yor Forger cosplay", "must": ["yor"]},
-  "anya": {"q": "Anya Forger cosplay", "must": ["anya"]},
-  "rem": {"q": "Rem Re Zero cosplay", "must": ["rem"]},
-  "zerotwo": {"q": "Zero Two cosplay Darling", "must": ["zero two", "zero_two", "002"]},
-  "usagi": {"q": "Sailor Moon cosplay", "must": ["sailor moon", "usagi"]},
-  "chihiro": {"q": "Chihiro Spirited Away cosplay", "must": ["chihiro", "spirited"]},
-  "kagura": {"q": "Kagura Gintama cosplay", "must": ["kagura"]},
-  "gintoki": {"q": "Gintoki cosplay", "must": ["gintoki", "gintama"]},
-  "katsura": {"q": "Katsura Kotaro cosplay", "must": ["katsura"]},
-  "luffy": {"q": "Luffy cosplay One Piece", "must": ["luffy"]},
-  "naruto": {"q": "Naruto Uzumaki cosplay", "must": ["naruto"]},
-  "guts": {"q": "Guts Berserk cosplay", "must": ["guts"]},
-  "edward": {"q": "Edward Elric cosplay", "must": ["edward", "elric"]},
-  "lawliet": {"q": "L Lawliet Death Note cosplay", "must": ["lawliet", "death note"]},
-  "nana": {"q": "Nana Osaki cosplay", "must": ["nana"]},
-  "vermouth": {"q": "Vermouth Detective Conan cosplay", "must": ["vermouth"]},
-  "gihun": {"q": "Squid Game cosplay", "must": ["squid game"]},
-  "wei": {"q": "Wei Wuxian cosplay", "must": ["wei wuxian", "wuxian", "mo dao"]},
-  "lan": {"q": "Lan Wangji cosplay", "must": ["lan wangji", "wangji"]},
-  "dongfang": {"q": "Dongfang Qingcang cosplay", "must": ["dongfang"]},
-  "kimshin": {"q": "Goblin Kim Shin cosplay", "must": ["kim shin", "goblin"]},
-  "haein": {"q": "Queen of Tears Hong Hae-in cosplay", "must": ["hae-in", "queen of tears"]},
-  "seri": {"q": "Crash Landing on You cosplay", "must": ["crash landing"]},
-  "donguen": {"q": "The Glory Moon Dong-eun cosplay", "must": ["dong-eun", "the glory"]},
-  "wednesday": {"q": "Wednesday Addams cosplay", "must": ["wednesday"]},
-  "harry": {"q": "Harry Potter cosplay", "must": ["harry potter"]},
-  "miles": {"q": "Miles Morales cosplay", "must": ["miles morales"]},
-  "elsa": {"q": "Elsa Frozen cosplay", "must": ["elsa"]},
-  "neo": {"q": "Neo Matrix cosplay", "must": ["neo", "matrix"]},
-  "paul": {"q": "Paul Atreides cosplay", "must": ["atreides", "dune"]},
-  "barbie": {"q": "Barbie cosplay", "must": ["barbie"]},
-  "vader": {"q": "Darth Vader cosplay", "must": ["vader"]},
-  "jack": {"q": "Jack Sparrow cosplay", "must": ["sparrow"]},
-  "gandalf": {"q": "Gandalf cosplay", "must": ["gandalf"]},
-  "mulan": {"q": "Mulan cosplay", "must": ["mulan"]},
-  "wanderer": {"q": "Scaramouche Wanderer Genshin cosplay", "must": ["scaramouche", "wanderer", "kunikuzushi"]},
-  "raiden": {"q": "Raiden Shogun cosplay", "must": ["raiden"]},
-  "hutao": {"q": "Hu Tao cosplay", "must": ["hu tao", "hutao"]},
-  "kafka": {"q": "Kafka Honkai Star Rail cosplay", "must": ["kafka"]},
-  "acheron": {"q": "Acheron Honkai Star Rail cosplay", "must": ["acheron"]},
-  "ace": {"q": "Ace Trappola Twisted Wonderland cosplay", "must": ["ace", "trappola"]},
-  "2b": {"q": "2B NieR Automata cosplay", "must": ["2b", "nier"]},
-  "jinx": {"q": "Jinx League of Legends Arcane cosplay", "must": ["jinx"]},
-  "link": {"q": "Link Legend of Zelda cosplay", "must": ["link", "zelda"]},
-  "geralt": {"q": "Geralt of Rivia cosplay", "must": ["geralt"]}
+ "chuya": {
+  "q": "Chuya Nakahara cosplay",
+  "must": [
+   "chuya",
+   "chūya"
+  ]
+ },
+ "gojo": {
+  "q": "Gojo Satoru cosplay",
+  "must": [
+   "gojo",
+   "gojou"
+  ],
+  "skip": [
+   "File:Fanmade Gojo Satoru memorial at Comic Fiesta 2023.jpg"
+  ]
+ },
+ "miku": {
+  "q": "Hatsune Miku cosplay",
+  "must": [
+   "miku"
+  ]
+ },
+ "dazai": {
+  "q": "Dazai Osamu cosplay",
+  "must": [
+   "dazai"
+  ],
+  "skip": [
+   "File:Cosplay de Dazai de Bongou Stray Dogs.jpg"
+  ]
+ },
+ "maomao": {
+  "q": "Maomao cosplay apothecary",
+  "must": [
+   "maomao"
+  ]
+ },
+ "shinobu": {
+  "q": "Shinobu Kocho cosplay",
+  "must": [
+   "shinobu",
+   "kocho",
+   "kochou"
+  ],
+  "skip": [
+   "File:Yuki as Shinobu Kochō sitting 20210502b.jpg"
+  ]
+ },
+ "nezuko": {
+  "q": "Nezuko cosplay",
+  "must": [
+   "nezuko"
+  ]
+ },
+ "marin": {
+  "q": "Marin Kitagawa cosplay",
+  "must": [
+   "marin",
+   "kitagawa"
+  ]
+ },
+ "frieren": {
+  "q": "Frieren cosplay",
+  "must": [
+   "frieren"
+  ],
+  "skip": [
+   "File:Frieren cosplay at Comiket 107.jpg"
+  ]
+ },
+ "hanako": {
+  "q": "Hanako-kun cosplay",
+  "must": [
+   "hanako"
+  ]
+ },
+ "levi": {
+  "q": "Levi Ackerman cosplay",
+  "must": [
+   "levi",
+   "rivaille",
+   "ackerman"
+  ]
+ },
+ "historia": {
+  "q": "Historia Reiss cosplay",
+  "must": [
+   "historia",
+   "krista"
+  ]
+ },
+ "makima": {
+  "q": "Makima cosplay",
+  "must": [
+   "makima"
+  ],
+  "skip": [
+   "File:Momiko as Makima standing, front view 20221015a.jpg"
+  ]
+ },
+ "yor": {
+  "q": "Yor Forger cosplay",
+  "must": [
+   "yor"
+  ]
+ },
+ "anya": {
+  "q": "Anya Forger cosplay",
+  "must": [
+   "anya"
+  ]
+ },
+ "rem": {
+  "q": "Rem Re Zero cosplay",
+  "must": [
+   "rem"
+  ]
+ },
+ "zerotwo": {
+  "q": "Zero Two cosplay Darling",
+  "must": [
+   "zero two",
+   "zero_two",
+   "002"
+  ]
+ },
+ "usagi": {
+  "q": "Sailor Moon cosplay",
+  "must": [
+   "sailor moon",
+   "usagi"
+  ]
+ },
+ "chihiro": {
+  "q": "Chihiro Spirited Away cosplay",
+  "must": [
+   "chihiro",
+   "spirited"
+  ]
+ },
+ "kagura": {
+  "q": "Kagura Gintama cosplay",
+  "must": [
+   "kagura"
+  ]
+ },
+ "gintoki": {
+  "q": "Gintoki cosplay",
+  "must": [
+   "gintoki",
+   "gintama"
+  ]
+ },
+ "katsura": {
+  "q": "Katsura Kotaro cosplay",
+  "must": [
+   "katsura"
+  ]
+ },
+ "luffy": {
+  "q": "Luffy cosplay One Piece",
+  "must": [
+   "luffy"
+  ],
+  "skip": [
+   "File:Afro Luffy cosplayer at FanimeCon 2010-05-30.JPG"
+  ]
+ },
+ "naruto": {
+  "q": "Naruto Uzumaki cosplay",
+  "must": [
+   "naruto"
+  ]
+ },
+ "guts": {
+  "q": "Guts Berserk cosplay",
+  "must": [
+   "guts"
+  ]
+ },
+ "edward": {
+  "q": "Edward Elric cosplay",
+  "must": [
+   "edward",
+   "elric"
+  ]
+ },
+ "lawliet": {
+  "q": "L Lawliet Death Note cosplay",
+  "must": [
+   "lawliet",
+   "death note"
+  ]
+ },
+ "nana": {
+  "q": "Nana Osaki cosplay",
+  "must": [
+   "nana"
+  ]
+ },
+ "vermouth": {
+  "q": "Vermouth Detective Conan cosplay",
+  "must": [
+   "vermouth"
+  ]
+ },
+ "gihun": {
+  "q": "Squid Game cosplay",
+  "must": [
+   "squid game"
+  ]
+ },
+ "wei": {
+  "q": "Wei Wuxian cosplay",
+  "must": [
+   "wei wuxian",
+   "wuxian",
+   "mo dao"
+  ]
+ },
+ "lan": {
+  "q": "Lan Wangji cosplay",
+  "must": [
+   "lan wangji",
+   "wangji"
+  ]
+ },
+ "dongfang": {
+  "q": "Dongfang Qingcang cosplay",
+  "must": [
+   "dongfang"
+  ]
+ },
+ "kimshin": {
+  "q": "Goblin Kim Shin cosplay",
+  "must": [
+   "kim shin",
+   "goblin"
+  ]
+ },
+ "haein": {
+  "q": "Queen of Tears Hong Hae-in cosplay",
+  "must": [
+   "hae-in",
+   "queen of tears"
+  ]
+ },
+ "seri": {
+  "q": "Crash Landing on You cosplay",
+  "must": [
+   "crash landing"
+  ]
+ },
+ "donguen": {
+  "q": "The Glory Moon Dong-eun cosplay",
+  "must": [
+   "dong-eun",
+   "the glory"
+  ]
+ },
+ "wednesday": {
+  "q": "Wednesday Addams cosplay",
+  "must": [
+   "wednesday"
+  ]
+ },
+ "harry": {
+  "q": "Harry Potter cosplay",
+  "must": [
+   "harry potter"
+  ]
+ },
+ "miles": {
+  "q": "Miles Morales cosplay",
+  "must": [
+   "miles morales"
+  ]
+ },
+ "elsa": {
+  "q": "Elsa Frozen cosplay",
+  "must": [
+   "elsa"
+  ]
+ },
+ "neo": {
+  "q": "Neo Matrix cosplay",
+  "must": [
+   "neo",
+   "matrix"
+  ]
+ },
+ "paul": {
+  "q": "Paul Atreides cosplay",
+  "must": [
+   "atreides",
+   "dune"
+  ]
+ },
+ "barbie": {
+  "q": "Barbie cosplay",
+  "must": [
+   "barbie"
+  ],
+  "skip": [
+   "File:Barbie - Modezauber in Paris (8104748847).jpg"
+  ]
+ },
+ "vader": {
+  "q": "Darth Vader cosplay",
+  "must": [
+   "vader"
+  ],
+  "skip": [
+   "File:Darth vader hot air balloon.jpg"
+  ]
+ },
+ "jack": {
+  "q": "Jack Sparrow cosplay",
+  "must": [
+   "sparrow"
+  ]
+ },
+ "gandalf": {
+  "q": "Gandalf cosplay",
+  "must": [
+   "gandalf"
+  ]
+ },
+ "mulan": {
+  "q": "Mulan cosplay",
+  "must": [
+   "mulan"
+  ]
+ },
+ "wanderer": {
+  "q": "Scaramouche Wanderer Genshin cosplay",
+  "must": [
+   "scaramouche",
+   "wanderer",
+   "kunikuzushi"
+  ],
+  "skip": [
+   "File:Caspar David Friedrich - Wanderer above the sea of fog.jpg"
+  ]
+ },
+ "raiden": {
+  "q": "Raiden Shogun cosplay",
+  "must": [
+   "raiden"
+  ]
+ },
+ "hutao": {
+  "q": "Hu Tao cosplay",
+  "must": [
+   "hu tao",
+   "hutao"
+  ]
+ },
+ "kafka": {
+  "q": "Kafka Honkai Star Rail cosplay",
+  "must": [
+   "kafka"
+  ],
+  "skip": [
+   "File:Kafka statue Prague.jpg"
+  ]
+ },
+ "acheron": {
+  "q": "Acheron Honkai Star Rail cosplay",
+  "must": [
+   "acheron"
+  ]
+ },
+ "ace": {
+  "q": "Ace Trappola Twisted Wonderland cosplay",
+  "must": [
+   "ace",
+   "trappola"
+  ]
+ },
+ "2b": {
+  "q": "2B NieR Automata cosplay",
+  "must": [
+   "2b",
+   "nier"
+  ],
+  "skip": [
+   "File:Cosplay of 2B and 9S from NieR- Automata at Made in Asia 2019 (2019-03-10 13-25-15 ILCE-6500 DSC08017 (46446651155).jpg"
+  ]
+ },
+ "jinx": {
+  "q": "Jinx League of Legends Arcane cosplay",
+  "must": [
+   "jinx"
+  ],
+  "skip": [
+   "File:Anime Expo 2015 - Jinx.jpg"
+  ]
+ },
+ "link": {
+  "q": "Link Legend of Zelda cosplay",
+  "must": [
+   "link",
+   "zelda"
+  ]
+ },
+ "geralt": {
+  "q": "Geralt of Rivia cosplay",
+  "must": [
+   "geralt"
+  ]
+ }
 }

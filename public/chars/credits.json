@@ -1,10 +1,4 @@
 {
- "2b": {
-  "author": "Miguel Discart",
-  "license": "CC BY-SA 2.0",
-  "page": "https://commons.wikimedia.org/wiki/File:Cosplay_of_2B_and_9S_from_NieR-_Automata_at_Made_in_Asia_2019_(2019-03-10_13-25-15_ILCE-6500_DSC08017_(46446651155).jpg",
-  "title": "File:Cosplay of 2B and 9S from NieR- Automata at Made in Asia 2019 (2019-03-10 13-25-15 ILCE-6500 DSC08017 (46446651155).jpg"
- },
  "acheron": {
   "author": "kxz Chen",
   "license": "CC BY-SA 2.0",
@@ -17,18 +11,6 @@
   "page": "https://commons.wikimedia.org/wiki/File:Cosplay_of_Anya_Forger_at_Cosmania_I.jpg",
   "title": "File:Cosplay of Anya Forger at Cosmania I.jpg"
  },
- "barbie": {
-  "author": "Stefan Schubert",
-  "license": "CC BY 2.0",
-  "page": "https://commons.wikimedia.org/wiki/File:Barbie_-_Modezauber_in_Paris_(8104748847).jpg",
-  "title": "File:Barbie - Modezauber in Paris (8104748847).jpg"
- },
- "dazai": {
-  "author": "Castorice",
-  "license": "CC BY-SA 4.0",
-  "page": "https://commons.wikimedia.org/wiki/File:Cosplay_de_Dazai_de_Bongou_Stray_Dogs.jpg",
-  "title": "File:Cosplay de Dazai de Bongou Stray Dogs.jpg"
- },
  "edward": {
   "author": "BrokenSphere",
   "license": "CC BY-SA 3.0",
@@ -40,12 +22,6 @@
   "license": "CC BY 2.0",
   "page": "https://commons.wikimedia.org/wiki/File:Frozen_cosplay,_Elsa_walking_in_the_city.jpg",
   "title": "File:Frozen cosplay, Elsa walking in the city.jpg"
- },
- "frieren": {
-  "author": "Benlisquare",
-  "license": "CC BY-SA 4.0",
-  "page": "https://commons.wikimedia.org/wiki/File:Frieren_cosplay_at_Comiket_107.jpg",
-  "title": "File:Frieren cosplay at Comiket 107.jpg"
  },
  "gandalf": {
   "author": "Michael Neel from Knoxville, TN, USA",
@@ -70,12 +46,6 @@
   "license": "CC0",
   "page": "https://commons.wikimedia.org/wiki/File:Cosplayer_of_Gintoki_Sakata_at_FFTC_20150801b.jpg",
   "title": "File:Cosplayer of Gintoki Sakata at FFTC 20150801b.jpg"
- },
- "gojo": {
-  "author": "PeaceSeekers",
-  "license": "CC BY 4.0",
-  "page": "https://commons.wikimedia.org/wiki/File:Fanmade_Gojo_Satoru_memorial_at_Comic_Fiesta_2023.jpg",
-  "title": "File:Fanmade Gojo Satoru memorial at Comic Fiesta 2023.jpg"
  },
  "guts": {
   "author": "Richie S from Brooklyn, NY, United States",
@@ -113,18 +83,6 @@
   "page": "https://commons.wikimedia.org/wiki/File:Captain_jack_sparrow_cosplay_(14233143201).jpg",
   "title": "File:Captain jack sparrow cosplay (14233143201).jpg"
  },
- "jinx": {
-  "author": "gamefan23 (Jason E.)",
-  "license": "CC BY 2.0",
-  "page": "https://commons.wikimedia.org/wiki/File:Anime_Expo_2015_-_Jinx.jpg",
-  "title": "File:Anime Expo 2015 - Jinx.jpg"
- },
- "kafka": {
-  "author": "Myrabella",
-  "license": "CC BY-SA 3.0",
-  "page": "https://commons.wikimedia.org/wiki/File:Kafka_statue_Prague.jpg",
-  "title": "File:Kafka statue Prague.jpg"
- },
  "kagura": {
   "author": "玄史生",
   "license": "CC0",
@@ -148,18 +106,6 @@
   "license": "CC BY 2.0",
   "page": "https://commons.wikimedia.org/wiki/File:RTX_2017_-_Legend_of_Zelda_cosplay_(35757004331).jpg",
   "title": "File:RTX 2017 - Legend of Zelda cosplay (35757004331).jpg"
- },
- "luffy": {
-  "author": "BrokenSphere",
-  "license": "CC BY-SA 3.0",
-  "page": "https://commons.wikimedia.org/wiki/File:Afro_Luffy_cosplayer_at_FanimeCon_2010-05-30.JPG",
-  "title": "File:Afro Luffy cosplayer at FanimeCon 2010-05-30.JPG"
- },
- "makima": {
-  "author": "Solomon203",
-  "license": "CC BY-SA 4.0",
-  "page": "https://commons.wikimedia.org/wiki/File:Momiko_as_Makima_standing,_front_view_20221015a.jpg",
-  "title": "File:Momiko as Makima standing, front view 20221015a.jpg"
  },
  "maomao": {
   "author": "Solomon203",
@@ -227,29 +173,11 @@
   "page": "https://commons.wikimedia.org/wiki/File:Cosplayer_of_Rem,_Re-Zero_20161210b.jpg",
   "title": "File:Cosplayer of Rem, Re-Zero 20161210b.jpg"
  },
- "shinobu": {
-  "author": "Solomon203",
-  "license": "CC BY-SA 4.0",
-  "page": "https://commons.wikimedia.org/wiki/File:Yuki_as_Shinobu_Koch%C5%8D_sitting_20210502b.jpg",
-  "title": "File:Yuki as Shinobu Kochō sitting 20210502b.jpg"
- },
  "usagi": {
   "author": "BrokenSphere",
   "license": "CC BY-SA 3.0",
   "page": "https://commons.wikimedia.org/wiki/File:Sailor_Moon_cosplayer_at_FanimeCon_2010-05-30_3.JPG",
   "title": "File:Sailor Moon cosplayer at FanimeCon 2010-05-30 3.JPG"
- },
- "vader": {
-  "author": "Tomas Castelazo",
-  "license": "CC BY-SA 3.0",
-  "page": "https://commons.wikimedia.org/wiki/File:Darth_vader_hot_air_balloon.jpg",
-  "title": "File:Darth vader hot air balloon.jpg"
- },
- "wanderer": {
-  "author": "Caspar David Friedrich",
-  "license": "Public domain",
-  "page": "https://commons.wikimedia.org/wiki/File:Caspar_David_Friedrich_-_Wanderer_above_the_sea_of_fog.jpg",
-  "title": "File:Caspar David Friedrich - Wanderer above the sea of fog.jpg"
  },
  "wednesday": {
   "author": "RyC - Behind The Lens from San Francisco, United States of America",

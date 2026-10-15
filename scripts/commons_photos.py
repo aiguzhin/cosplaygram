@@ -15,7 +15,7 @@ API = "https://commons.wikimedia.org/w/api.php"
 UA = "CosplaygramBot/1.0 (https://github.com/aiguzhin/cosplaygram; cosplay platform demo photos)"
 OUT = "public/chars"
 OK_LICENSES = re.compile(r"^(cc0|public domain|pd|cc by(-sa)? ?\d(\.\d)?|cc by(-sa)?)", re.I)
-BAD_WORDS = re.compile(r"nsfw|nude|lingerie|bikini|swimsuit|underwear|fetish", re.I)
+BAD_WORDS = re.compile(r"nsfw|nude|lingerie|bikini|swimsuit|underwear|fetish|sexy|lewd|boudoir|memorial", re.I)
 
 
 def get(params):
@@ -42,6 +42,7 @@ def candidates(q, must, skip):
     titles = [t for t in titles if re.search(r"\.(jpe?g|png)$", t, re.I) and t not in skip]
     if must:
         titles = [t for t in titles if any(m in t.lower() for m in must)]
+    titles = [t for t in titles if "cosplay" in t.lower()]  # только фото косплея, не статуи, картины и игрушки
     out = []
     for i in range(0, len(titles), 20):
         info = get({"action": "query", "titles": "|".join(titles[i:i + 20]), "prop": "imageinfo",
