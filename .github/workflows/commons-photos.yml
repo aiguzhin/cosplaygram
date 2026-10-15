@@ -1,4 +1,4 @@
-name: Фото персонажей с Wikimedia Commons
+name: Фото персонажей (Wikimedia Commons и Openverse)
 
 on:
   push:
@@ -28,6 +28,6 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898283+github-actions[bot]@users.noreply.github.com"
           git add public/chars
-          git diff --cached --quiet || git commit -m "Фото персонажей с Wikimedia Commons"
+          git diff --cached --quiet || git commit -m "Фото персонажей со свободной лицензией"
           git pull --rebase
           git push

@@ -47,6 +47,20 @@ const plural = (n, one, few, many) => {
   const a = Math.abs(n) % 10, b = Math.abs(n) % 100;
   return a === 1 && b !== 11 ? one : a >= 2 && a <= 4 && (b < 10 || b >= 20) ? few : many;
 };
+/* ---------- страны ---------- */
+const C = window.COUNTRIES;
+const flag = (code) => (C.valid(code) ? C.flag(code) : '');
+// «🇯🇵 Токио» / «🇯🇵 Япония» / «Токио»
+const place = (x) => { const f = flag(x?.country); const c = x?.city || (f ? C.name(x.country) : ''); return c ? (f ? f + ' ' : '') + esc(c) : ''; };
+const countryOptions = (value, empty = 'Не указана') =>
+  `<option value="">${empty}</option>` + C.sorted().map(([c, n]) => `<option value="${c}" ${c === value ? 'selected' : ''}>${C.flag(c)} ${n}</option>`).join('');
+// Ряд чипов «Весь мир · моя страна · другие страны из списка»
+function countryChips(codes, current, href) {
+  const mine = state.me?.country;
+  const list = [...new Set([mine, ...codes].filter((c) => C.valid(c)))];
+  return `<a class="chip ${!current ? 'on' : ''}" href="${href('')}">🌍 Весь мир</a>` +
+    list.map((c) => `<a class="chip ${c === current ? 'on' : ''}" href="${href(c)}">${C.flag(c)} ${C.name(c)}</a>`).join('');
+}
 const MONTHS = ['янв', 'фев', 'мар', 'апр', 'мая', 'июн', 'июл', 'авг', 'сен', 'окт', 'ноя', 'дек'];
 const todayLocal = () => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; };
 function ago(ts) {
@@ -153,7 +167,7 @@ const userLink = (u) => `#/u/${encodeURIComponent(u?.username || '')}`;
 const who = (u, sub, size = 36) =>
   `<a class="who" href="${userLink(u)}">${ava(u, size)}<span class="t"><b>${esc(u?.name || u?.username)}</b><span>@${esc(u?.username)}${sub ? ' · ' + esc(sub) : ''}</span></span></a>`;
 
-// Фото персонажа: обложка модератора → лучший косплей участников → свободное фото с Wikimedia Commons → эмблема
+// Фото персонажа: обложка модератора → лучший косплей участников → свободное фото (Commons, Openverse) → эмблема
 const charData = { site: {}, commons: {}, loaded: false };
 async function loadChars(force) {
   if (charData.loaded && !force) return charData;
@@ -425,8 +439,9 @@ function openAuth(mode = 'login', after) {
     <p class="muted" style="margin-bottom:16px">${reg ? `Ваш стиль: <b style="color:var(--accent)">${esc(t.name)}</b>. Его можно поменять потом.` : 'С возвращением! Введите ник и пароль.'}</p>
     <form class="form" id="authForm" novalidate>
       <div class="field"><label for="au-user">Ник</label><input class="input" id="au-user" name="username" autocomplete="username" autocapitalize="none" autocorrect="off" spellcheck="false" required placeholder="например, aru.cos"></div>
-      ${reg ? `<div class="row"><div class="field"><label for="au-name">Имя</label><input class="input" id="au-name" name="name" autocomplete="given-name" placeholder="Аружан"></div>
-        <div class="field"><label for="au-city">Город</label><input class="input" id="au-city" name="city" autocomplete="address-level2" placeholder="Актобе"></div></div>` : ''}
+      ${reg ? `<div class="field"><label for="au-name">Имя</label><input class="input" id="au-name" name="name" autocomplete="given-name" placeholder="Как вас называть"></div>
+        <div class="row"><div class="field"><label for="au-country">Страна</label><select class="input" id="au-country" name="country" autocomplete="country">${countryOptions(C.guess())}</select></div>
+        <div class="field"><label for="au-city">Город</label><input class="input" id="au-city" name="city" autocomplete="address-level2" placeholder="Необязательно"></div></div>` : ''}
       <div class="field"><label for="au-pass">Пароль</label>${pwField('au-pass', 'password', reg ? 'new-password' : 'current-password', reg ? 'Не короче 8 символов' : '')}</div>
       ${reg ? '<p class="hint">Ник — латиницей, от 3 символов: буквы, цифры, точка или _.</p>' : ''}
       <p class="error" id="authErr" role="alert" hidden></p>
@@ -914,20 +929,22 @@ function pageLanding() {
     <div class="perks">
       <div><b>Процесс по шагам</b><span>От выкройки до готового образа, с подписью к каждому фото.</span></div>
       <div><b>Мастера рядом</b><span>Швеи, реквизиторы, мастера париков и фотографы вашего города.</span></div>
+      <div><b>Весь мир</b><span>Косплееры из ${C.LIST.length} стран: лента и чат вашей страны, мероприятия по всему миру.</span></div>
       <div><b>Мероприятия</b><span>Фестивали, косплей-шоу и встречи — с отметкой «Пойду».</span></div>
     </div>
-    <p class="hint">Фото на карточках — косплей участников и свободные фото с Wikimedia Commons. <a class="link" href="#/credits">Авторы фото</a></p>
+    <p class="hint">Фото на карточках — косплей участников и свободные фото с Wikimedia Commons и Flickr. <a class="link" href="#/credits">Авторы фото</a></p>
   </section>`;
   bindCharPicker($('#land'), (t) => { CG.store(t.id); $('#lnN').textContent = t.name; });
 }
 
 /* ================= лента ================= */
-const FILTERS = [['', 'Все'], ['following', 'Подписки'], ['process', 'Процесс'], ['anime', 'Аниме'], ['manga', 'Манга'], ['drama', 'Дорамы'], ['film', 'Фильмы'], ['game', 'Игры'], ['original', 'Ориджинал']];
+const FILTERS = [['', 'Все'], ['following', 'Подписки'], ['near', 'Моя страна'], ['process', 'Процесс'], ['anime', 'Аниме'], ['manga', 'Манга'], ['drama', 'Дорамы'], ['film', 'Фильмы'], ['game', 'Игры'], ['original', 'Ориджинал']];
 function feedQuery(f, before) {
   const q = new URLSearchParams();
   if (f.startsWith('char:')) q.set('char', f.slice(5));
   else if (f === 'following') q.set('mode', 'following');
   else if (f === 'process') q.set('kind', 'process');
+  else if (f === 'near') q.set('country', state.me?.country || '');
   else if (f) q.set('source', f);
   if (before) q.set('before', before);
   return '/feed?' + q;
@@ -961,13 +978,14 @@ async function pageFeed(params) {
   const label = FILTERS.find(([k]) => k === f)[1];
   const empty = {
     following: ['Здесь будут работы тех, на кого вы подписаны', 'Найдите мастеров и подпишитесь.', '<a class="btn" href="#/people">Найти мастеров</a>'],
+    near: ['В вашей стране пока нет публикаций', 'Станьте первым — покажите свой костюм.', '<button class="btn primary" data-act="create">Опубликовать</button>'],
     process: ['Пока нет пошаговых публикаций', 'Покажите, как вы делали свой костюм.', '<button class="btn primary" data-act="create-process">Показать процесс</button>'],
   }[f] || [f ? `Пока нет работ в разделе «${label}»` : 'Пока нет публикаций', 'Станьте первым — покажите свой костюм.', '<button class="btn primary" data-act="create">Опубликовать</button>'];
   view().innerHTML = `
     ${wip}
     ${f ? '' : spotlight(contest.top, contest.month)}
     ${next ? `<a class="next-ev" href="#/events"><span class="muted" style="width:22px;display:inline-flex">${ic.calendar}</span><span class="d">${+next.date.slice(8)} ${MONTHS[+next.date.slice(5, 7) - 1]}</span><span class="t"><b>${esc(next.title)}</b><span>${esc(next.city)}${next.goingCount ? ` · идут ${next.goingCount}` : ''}</span></span><span class="muted" style="width:18px;display:inline-flex">${ic.right}</span></a>` : ''}
-    <div class="filters"><div class="chips" role="tablist" aria-label="Фильтр работ">${FILTERS.map(([k, v]) => `<a class="chip ${k === f ? 'on' : ''}" href="#/${k ? '?f=' + k : ''}" role="tab" aria-selected="${k === f}">${v}</a>`).join('')}</div></div>
+    <div class="filters"><div class="chips" role="tablist" aria-label="Фильтр работ">${FILTERS.filter(([k]) => k !== 'near' || C.valid(state.me?.country)).map(([k, v]) => [k, k === 'near' ? `${flag(state.me.country)} ${C.name(state.me.country)}` : v]).map(([k, v]) => `<a class="chip ${k === f ? 'on' : ''}" href="#/${k ? '?f=' + k : ''}" role="tab" aria-selected="${k === f}">${v}</a>`).join('')}</div></div>
     ${posts.length ? `<div class="grid" id="cards">${posts.map(card).join('')}</div><div class="more" id="more"></div>`
       : `<div class="empty"><h2>${empty[0]}</h2><p>${empty[1]}</p>${empty[2]}</div>`}`;
   $$('[data-story]').forEach((b) => (b.onclick = () => openStory(+b.dataset.story)));
@@ -1019,13 +1037,13 @@ async function pageProcess() {
 
 /* ================= поиск и мастера ================= */
 const personItem = (u) => `<a class="item" href="${userLink(u)}">${ava(u, 46)}<span style="min-width:0"><h3>${esc(u.name)}${u.demo ? ' <span class="pill">Демо</span>' : ''}</h3>
-  <span class="meta">@${esc(u.username)}${u.specialty ? ' · ' + esc(u.specialty) : ''}${u.city ? ' · ' + esc(u.city) : ''}</span></span>
+  <span class="meta">@${esc(u.username)}${u.specialty ? ' · ' + esc(u.specialty) : ''}${place(u) ? ' · ' + place(u) : ''}</span></span>
   ${u.followers != null ? `<span class="count-b"><b class="num">${u.followers}</b>${plural(u.followers, 'подписчик', 'подписчика', 'подписчиков')}</span>` : `<span class="muted" style="width:18px;display:inline-flex">${ic.right}</span>`}</a>`;
 
 async function pageSearch(params) {
   const q = params.get('q') || '';
-  view().innerHTML = `<div class="narrow"><form id="sF" role="search" style="margin-bottom:12px"><input class="input" id="sq" type="search" enterkeyhint="search" value="${esc(q)}" placeholder="Материал, персонаж, мастер или город" aria-label="Поиск"></form>
-    <div class="chips" style="margin-bottom:22px">${['EVA', 'парик', 'вышивка', 'бархат', 'PLA', 'worbla', 'Алматы', 'Астана'].map((t) => `<a class="chip ${t.toLowerCase() === q.toLowerCase() ? 'on' : ''}" href="#/search?q=${encodeURIComponent(t)}">${t}</a>`).join('')}</div>
+  view().innerHTML = `<div class="narrow"><form id="sF" role="search" style="margin-bottom:12px"><input class="input" id="sq" type="search" enterkeyhint="search" value="${esc(q)}" placeholder="Материал, персонаж, мастер, город или страна" aria-label="Поиск"></form>
+    <div class="chips" style="margin-bottom:22px">${['EVA', 'парик', 'вышивка', 'бархат', 'PLA', 'worbla', 'грим', 'линзы'].map((t) => `<a class="chip ${t.toLowerCase() === q.toLowerCase() ? 'on' : ''}" href="#/search?q=${encodeURIComponent(t)}">${t}</a>`).join('')}</div>
     <div id="sR"></div></div>`;
   $('#sF').onsubmit = (e) => { e.preventDefault(); const v = $('#sq').value.trim(); location.hash = '#/search' + (v ? '?q=' + encodeURIComponent(v) : ''); };
   if (!q) { if (!isMobile()) $('#sq').focus(); $('#sR').innerHTML = '<p class="muted">Введите слово или выберите подсказку.</p>'; return; }
@@ -1037,16 +1055,20 @@ async function pageSearch(params) {
 }
 
 async function pagePeople(params) {
+  const country = C.valid(params.get('country'));
   const city = params.get('city') || '';
   const { users } = await api('/users');
-  const cities = [...new Set(users.map((u) => u.city).filter(Boolean))];
+  const href = (o) => { const q = new URLSearchParams(); if (o.country) q.set('country', o.country); if (o.city) q.set('city', o.city); const s = q.toString(); return '#/people' + (s ? '?' + s : ''); };
+  const inCountry = users.filter((u) => !country || u.country === country);
+  const cities = country ? [...new Set(inCountry.map((u) => u.city).filter(Boolean))] : [];
   view().innerHTML = `<div class="narrow"><div class="page-head"><div><h1>Мастера</h1><p class="muted">Косплееры, швеи, реквизиторы, мастера париков и фотографы.</p></div></div>
     <input class="input" id="pq" type="search" placeholder="Имя, ник или специальность" aria-label="Найти мастера" style="margin-bottom:10px">
-    <div class="chips" style="margin-bottom:8px"><a class="chip ${!city ? 'on' : ''}" href="#/people">Все города</a>${cities.map((c) => `<a class="chip ${c === city ? 'on' : ''}" href="#/people?city=${encodeURIComponent(c)}">${esc(c)}</a>`).join('')}</div>
+    <div class="chips" style="margin-bottom:8px">${countryChips(users.map((u) => u.country), country, (c) => href({ country: c }))}</div>
+    ${cities.length > 1 ? `<div class="chips" style="margin-bottom:8px"><a class="chip ${!city ? 'on' : ''}" href="${href({ country })}">Все города</a>${cities.map((c) => `<a class="chip ${c === city ? 'on' : ''}" href="${href({ country, city: c })}">${esc(c)}</a>`).join('')}</div>` : ''}
     <div class="list" id="pl"></div></div>`;
   const draw = () => {
     const t = $('#pq').value.trim().toLowerCase();
-    const list = users.filter((u) => (!city || u.city === city) && (!t || [u.name, u.username, u.specialty, u.city].join(' ').toLowerCase().includes(t)));
+    const list = inCountry.filter((u) => (!city || u.city === city) && (!t || [u.name, u.username, u.specialty, u.city, C.name(u.country)].join(' ').toLowerCase().includes(t)));
     $('#pl').innerHTML = list.map(personItem).join('') || '<div class="empty"><p>Никого не нашли. Попробуйте другое слово.</p></div>';
   };
   $('#pq').oninput = draw;
@@ -1068,7 +1090,7 @@ async function pageProfile(username) {
     <div class="prof">${ava(u, 96)}<div class="nm"><h1>${esc(u.name)}</h1>
       <div class="muted">@${esc(u.username)} ${u.role === 'admin' ? '<span class="pill">Модератор</span>' : ''} ${u.demo ? '<span class="pill">Демо</span>' : ''}</div></div></div>
     <div class="prof-info">
-      ${u.specialty || u.city ? `<div style="font-weight:500">${esc([u.specialty, u.city].filter(Boolean).join(' · '))}</div>` : ''}
+      ${u.specialty || place(u) ? `<div style="font-weight:500">${[esc(u.specialty), place(u)].filter(Boolean).join(' · ')}</div>` : ''}
       ${u.bio ? `<p style="max-width:62ch">${esc(u.bio)}</p>` : ''}
       <div class="stats"><span><b class="num">${stats.posts}</b>${plural(stats.posts, 'работа', 'работы', 'работ')}</span><span id="folN"><b class="num">${stats.followers}</b>${plural(stats.followers, 'подписчик', 'подписчика', 'подписчиков')}</span><span><b class="num">${stats.following}</b>${plural(stats.following, 'подписка', 'подписки', 'подписок')}</span><span><b class="num">${stats.likes}</b>${plural(stats.likes, 'отметка', 'отметки', 'отметок')}</span></div>
     </div>
@@ -1196,17 +1218,23 @@ async function threadLoop({ load, send, mineOf, authorOf, after }) {
 }
 
 /* ================= чат ================= */
-const ROOMS = { general: 'Общий', almaty: 'Алматы', astana: 'Астана', shymkent: 'Шымкент', aktobe: 'Актобе', karaganda: 'Караганда', help: 'Срочная помощь' };
+// Комнаты: общая на весь мир, срочная помощь и по одной на каждую страну
+const ROOMS = { general: '🌍 Общий', help: 'Срочная помощь', ...Object.fromEntries(C.LIST.map(([c, n]) => [c.toLowerCase(), `${C.flag(c)} ${n}`])) };
 async function pageChat(params) {
   let room = params.get('r');
   if (!ROOMS[room]) { try { room = localStorage.getItem('cg-room'); } catch {} }
   if (!ROOMS[room]) room = 'general';
   try { localStorage.setItem('cg-room', room); } catch {}
-  view().innerHTML = `<div class="msgr chat in-thread"><nav class="rooms" aria-label="Комнаты">${Object.entries(ROOMS).map(([k, v]) => `<a class="room ${k === room ? 'on' : ''}" href="#/chat?r=${k}"># ${v}</a>`).join('')}</nav>
+  const mine = state.me?.country?.toLowerCase();
+  const shown = [...new Set(['general', mine, room].filter((k) => ROOMS[k] && k !== 'help'))];
+  const link = (k) => `<a class="room ${k === room ? 'on' : ''}" href="#/chat?r=${k}">${k === 'help' ? '# ' : ''}${ROOMS[k]}</a>`;
+  view().innerHTML = `<div class="msgr chat in-thread"><nav class="rooms" aria-label="Комнаты">${shown.map(link).join('')}
+      <select class="input room-pick" id="roomPick" aria-label="Чат другой страны"><option value="">🌐 Другая страна…</option>${C.sorted().map(([c, n]) => `<option value="${c.toLowerCase()}">${C.flag(c)} ${n}</option>`).join('')}</select>${link('help')}</nav>
     <section class="thread"><div class="msgs" id="ml" aria-live="polite"></div>
-      <form class="composer" id="mf"><textarea class="input" id="mt" rows="1" maxlength="1000" enterkeyhint="send" placeholder="Сообщение в #${ROOMS[room]}" aria-label="Сообщение"></textarea>
+      <form class="composer" id="mf"><textarea class="input" id="mt" rows="1" maxlength="1000" enterkeyhint="send" placeholder="Сообщение: ${esc(ROOMS[room].replace(/^\S+ /, ''))}" aria-label="Сообщение"></textarea>
         <button class="btn primary" aria-label="Отправить">${ic.send}</button></form></section></div>`;
   $('.room.on')?.scrollIntoView({ inline: 'center', block: 'nearest' });
+  $('#roomPick').onchange = (e) => { if (e.target.value) location.hash = '#/chat?r=' + e.target.value; };
   await threadLoop({
     load: (after) => api(`/chat/${room}?after=${after}`),
     send: (text) => api(`/chat/${room}`, { body: { text } }),
@@ -1233,13 +1261,16 @@ async function pageNotifications() {
 const CATS = { materials: 'Материалы', sewing: 'Пошив', props: 'Реквизит и броня', wigs: 'Парики и грим', photo: 'Фотосъёмка', other: 'Разное' };
 async function pageForum(params) {
   const cat = params.get('c') || '';
+  const country = C.valid(params.get('country'));
   const { threads } = await api('/forum');
-  const list = cat ? threads.filter((t) => t.category === cat) : threads;
+  const list = threads.filter((t) => (!cat || t.category === cat) && (!country || t.country === country));
+  const fq = (o) => { const q = new URLSearchParams(); if (o.cat) q.set('c', o.cat); if (o.country) q.set('country', o.country); const s = q.toString(); return '#/forum' + (s ? '?' + s : ''); };
   view().innerHTML = `<div class="narrow"><div class="page-head"><div><h1>Форум</h1><p class="muted">Где купить материалы, кто поможет с пошивом, с кем снять фотосет.</p></div>
     <button class="btn primary" id="nt">${ic.plus}Новая тема</button></div>
-    <div class="chips" style="margin-bottom:6px"><a class="chip ${!cat ? 'on' : ''}" href="#/forum">Все</a>${Object.entries(CATS).map(([k, v]) => `<a class="chip ${cat === k ? 'on' : ''}" href="#/forum?c=${k}">${v}</a>`).join('')}</div>
+    <div class="chips" style="margin-bottom:6px"><a class="chip ${!cat ? 'on' : ''}" href="${fq({ country })}">Все</a>${Object.entries(CATS).map(([k, v]) => `<a class="chip ${cat === k ? 'on' : ''}" href="${fq({ cat: k, country })}">${v}</a>`).join('')}</div>
+    <div class="chips" style="margin-bottom:6px">${countryChips(threads.map((t) => t.country), country, (c) => fq({ cat, country: c }))}</div>
     <div class="list">${list.map((t) => `<a class="item" href="#/forum/${t.id}">${ava(t.author, 40)}
-      <span style="min-width:0"><span class="cat">${CATS[t.category]}${t.city ? ` · ${esc(t.city)}` : ''}</span><h3>${esc(t.title)}</h3>
+      <span style="min-width:0"><span class="cat">${CATS[t.category]}${place(t) ? ' · ' + place(t) : ''}</span><h3>${esc(t.title)}</h3>
       <span class="meta">@${esc(t.author?.username)} · ${ago(t.lastAt)}</span></span>
       <span class="count-b"><b class="num">${t.replyCount}</b>${plural(t.replyCount, 'ответ', 'ответа', 'ответов')}</span></a>`).join('')
       || '<div class="empty"><h2>Здесь пока нет тем</h2><p>Задайте первый вопрос.</p></div>'}</div></div>`;
@@ -1248,8 +1279,9 @@ async function pageForum(params) {
 function openNewThread() {
   const o = openOverlay(sheet('Новая тема', `<form class="form" id="ntF">
     <div class="row"><div class="field"><label for="nt-c">Раздел</label><select class="input" id="nt-c" name="category">${Object.entries(CATS).map(([k, v]) => `<option value="${k}">${v}</option>`).join('')}</select></div>
-      <div class="field"><label for="nt-ci">Город</label><input class="input" id="nt-ci" name="city" value="${esc(state.me?.city || '')}" placeholder="Необязательно"></div></div>
-    <div class="field"><label for="nt-t">Вопрос</label><input class="input" id="nt-t" name="title" required maxlength="140" placeholder="Где купить worbla в Астане?"></div>
+      <div class="field"><label for="nt-co">Страна</label><select class="input" id="nt-co" name="country">${countryOptions(state.me?.country || '', 'Весь мир')}</select></div></div>
+    <div class="field"><label for="nt-ci">Город</label><input class="input" id="nt-ci" name="city" value="${esc(state.me?.city || '')}" maxlength="40" placeholder="Необязательно"></div>
+    <div class="field"><label for="nt-t">Вопрос</label><input class="input" id="nt-t" name="title" required maxlength="140" placeholder="Где купить worbla в моём городе?"></div>
     <div class="field"><label for="nt-b">Подробности</label><textarea class="input" id="nt-b" name="body" required maxlength="4000" placeholder="Что ищете, сроки, бюджет"></textarea></div>
     <p class="error" id="ntE" role="alert" hidden></p><button class="btn primary lg block">Создать тему</button></form>`));
   $('#ntF', o).onsubmit = async (e) => {
@@ -1268,7 +1300,7 @@ async function pageThread(id) {
   const own = state.me && (state.me.id === t.authorId || state.me.role === 'admin');
   view().innerHTML = `<article class="narrow">
     <a href="#/forum" class="btn ghost sm" style="margin:0 0 10px -8px">${ic.back}Все темы</a>
-    <span class="cat" style="display:block">${CATS[t.category]}${t.city ? ` · ${esc(t.city)}` : ''}</span>
+    <span class="cat" style="display:block">${CATS[t.category]}${place(t) ? ' · ' + place(t) : ''}</span>
     <h1 style="margin:6px 0 14px;font-size:clamp(1.4rem,4vw,1.9rem)">${esc(t.title)}</h1>
     <div style="display:flex;align-items:center;gap:6px"><div style="flex:1;min-width:0">${who(t.author, ago(t.createdAt))}</div>
       <button class="iconbtn" id="shT" aria-label="Поделиться">${ic.share}</button>
@@ -1305,7 +1337,7 @@ function downloadIcs(e) {
   const x = (s) => String(s || '').replace(/[\\;,]/g, (c) => '\\' + c).replace(/\n/g, '\\n');
   const stamp = new Date().toISOString().replace(/[-:]/g, '').replace(/\.\d+/, '');
   const ics = ['BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//Cosplaygram//RU', 'BEGIN:VEVENT', `UID:${e.id}@cosplaygram`, `DTSTAMP:${stamp}`,
-    `DTSTART;VALUE=DATE:${d}`, `DTEND;VALUE=DATE:${end}`, `SUMMARY:${x(e.title)}`, `LOCATION:${x([e.city, e.place].filter(Boolean).join(', '))}`,
+    `DTSTART;VALUE=DATE:${d}`, `DTEND;VALUE=DATE:${end}`, `SUMMARY:${x(e.title)}`, `LOCATION:${x([e.place, e.city, C.name(e.country)].filter(Boolean).join(', '))}`,
     `DESCRIPTION:${x([e.note, e.link].filter(Boolean).join(' '))}`, 'END:VEVENT', 'END:VCALENDAR'].join('\r\n');
   const a = document.createElement('a');
   a.href = URL.createObjectURL(new Blob([ics], { type: 'text/calendar' }));
@@ -1315,23 +1347,25 @@ function downloadIcs(e) {
   setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 1000);
 }
 async function pageEvents(params) {
+  const country = C.valid(params.get('country'));
   const city = params.get('city') || '';
   const past = params.get('past') === '1';
   const { events } = await api('/events');
   const today = todayLocal();
-  const cities = [...new Set(events.map((e) => e.city).filter(Boolean))];
-  let list = events.filter((e) => (past ? e.date < today : e.date >= today) && (!city || e.city === city));
+  const when = events.filter((e) => (past ? e.date < today : e.date >= today));
+  const cities = country ? [...new Set(when.filter((e) => e.country === country).map((e) => e.city).filter(Boolean))] : [];
+  let list = when.filter((e) => (!country || e.country === country) && (!city || e.city === city));
   if (past) list = list.reverse();
-  const qs = (o) => { const q = new URLSearchParams(); if (o.city) q.set('city', o.city); if (o.past) q.set('past', '1'); const s = q.toString(); return '#/events' + (s ? '?' + s : ''); };
+  const qs = (o) => { const q = new URLSearchParams(); if (o.country) q.set('country', o.country); if (o.city) q.set('city', o.city); if (o.past) q.set('past', '1'); const s = q.toString(); return '#/events' + (s ? '?' + s : ''); };
   view().innerHTML = `<div class="narrow"><div class="page-head"><div><h1>Мероприятия</h1><p class="muted">Фестивали, косплей-шоу, встречи и мастер-классы.</p></div>
     <button class="btn primary" id="ne">${ic.plus}Добавить</button></div>
-    <div class="chips" style="margin-bottom:6px"><a class="chip ${past ? '' : 'on'}" href="${qs({ city })}">Предстоящие</a><a class="chip ${past ? 'on' : ''}" href="${qs({ city, past: 1 })}">Прошедшие</a>
-      <span style="width:1px;background:var(--line);margin:6px 4px;flex:none" aria-hidden="true"></span>
-      <a class="chip ${!city ? 'on' : ''}" href="${qs({ past })}">Все города</a>${cities.map((c) => `<a class="chip ${c === city ? 'on' : ''}" href="${qs({ city: c, past })}">${esc(c)}</a>`).join('')}</div>
+    <div class="chips" style="margin-bottom:6px"><a class="chip ${past ? '' : 'on'}" href="${qs({ country, city })}">Предстоящие</a><a class="chip ${past ? 'on' : ''}" href="${qs({ country, city, past: 1 })}">Прошедшие</a></div>
+    <div class="chips" style="margin-bottom:6px">${countryChips(events.map((e) => e.country), country, (c) => qs({ country: c, past }))}</div>
+    ${cities.length > 1 ? `<div class="chips" style="margin-bottom:6px"><a class="chip ${!city ? 'on' : ''}" href="${qs({ country, past })}">Все города</a>${cities.map((c) => `<a class="chip ${c === city ? 'on' : ''}" href="${qs({ country, city: c, past })}">${esc(c)}</a>`).join('')}</div>` : ''}
     <div>${list.map((e) => {
       const own = state.me && (state.me.id === e.authorId || state.me.role === 'admin');
       return `<div class="ev"><div class="date"><b class="num">${+e.date.slice(8)}</b><span>${MONTHS[+e.date.slice(5, 7) - 1]}</span></div>
-        <div style="min-width:0"><span class="etype">${TYPES[e.type] || 'Мероприятие'}${e.city ? ' · ' + esc(e.city) : ''}</span>${e.demo ? ' <span class="pill">Пример</span>' : ''}
+        <div style="min-width:0"><span class="etype">${TYPES[e.type] || 'Мероприятие'}${place(e) ? ' · ' + place(e) : ''}</span>${e.demo ? ' <span class="pill">Пример</span>' : ''}
           <h3 style="margin-top:2px">${esc(e.title)}</h3>
           ${e.place ? `<div class="small muted" style="display:flex;gap:4px;align-items:center"><span style="width:15px;display:inline-flex">${ic.pin}</span>${esc(e.place)}</div>` : ''}
           ${e.note ? `<p class="small" style="margin-top:4px">${esc(e.note)}</p>` : ''}
@@ -1362,8 +1396,9 @@ function openNewEvent() {
     <div class="field"><label for="ne-t">Название</label><input class="input" id="ne-t" name="title" required maxlength="120"></div>
     <div class="row"><div class="field"><label for="ne-d">Дата</label><input class="input" id="ne-d" type="date" name="date" required min="${todayLocal()}"></div>
       <div class="field"><label for="ne-ty">Тип</label><select class="input" id="ne-ty" name="type">${Object.entries(TYPES).map(([k, v]) => `<option value="${k}">${v}</option>`).join('')}</select></div></div>
-    <div class="row"><div class="field"><label for="ne-c">Город</label><input class="input" id="ne-c" name="city" value="${esc(state.me?.city || '')}"></div>
-      <div class="field"><label for="ne-p">Место</label><input class="input" id="ne-p" name="place" maxlength="120"></div></div>
+    <div class="row"><div class="field"><label for="ne-co">Страна</label><select class="input" id="ne-co" name="country">${countryOptions(state.me?.country || '', 'Онлайн или не указана')}</select></div>
+      <div class="field"><label for="ne-c">Город</label><input class="input" id="ne-c" name="city" value="${esc(state.me?.city || '')}" maxlength="40"></div></div>
+    <div class="field"><label for="ne-p">Место</label><input class="input" id="ne-p" name="place" maxlength="120" placeholder="Площадка или адрес"></div>
     <div class="field"><label for="ne-l">Ссылка на организатора</label><input class="input" id="ne-l" name="link" type="url" inputmode="url" placeholder="https://"></div>
     <div class="field"><label for="ne-n">Описание</label><textarea class="input" id="ne-n" name="note" maxlength="300" placeholder="Номинации, взнос, как участвовать"></textarea></div>
     <p class="error" id="neE" role="alert" hidden></p><button class="btn primary lg block">Добавить мероприятие</button></form>`));
@@ -1399,8 +1434,9 @@ async function pageSettings() {
           <div class="stack" style="gap:6px"><label class="btn" for="avF" style="align-self:flex-start">${ic.image}${u.avatar ? 'Сменить фото' : 'Загрузить фото'}</label><input type="file" id="avF" accept="image/*" hidden>
           <span class="hint">Сохранится после нажатия «Сохранить».</span></div></div>
         <div class="field"><label for="s-n">Имя</label><input class="input" id="s-n" name="name" value="${esc(u.name)}" maxlength="60" autocomplete="given-name"></div>
-        <div class="row"><div class="field"><label for="s-c">Город</label><input class="input" id="s-c" name="city" value="${esc(u.city)}" maxlength="40"></div>
-          <div class="field"><label for="s-s">Что вы делаете</label><input class="input" id="s-s" name="specialty" value="${esc(u.specialty)}" maxlength="60" placeholder="Шитьё, броня, парики…"></div></div>
+        <div class="row"><div class="field"><label for="s-co">Страна</label><select class="input" id="s-co" name="country">${countryOptions(u.country)}</select></div>
+          <div class="field"><label for="s-c">Город</label><input class="input" id="s-c" name="city" value="${esc(u.city)}" maxlength="40"></div></div>
+        <div class="field"><label for="s-s">Что вы делаете</label><input class="input" id="s-s" name="specialty" value="${esc(u.specialty)}" maxlength="60" placeholder="Шитьё, броня, парики…"></div>
         <div class="field"><label for="s-b">О себе</label><textarea class="input" id="s-b" name="bio" maxlength="300">${esc(u.bio)}</textarea></div>
         <button class="btn primary" style="align-self:flex-start">Сохранить</button>
       </form></section>
@@ -1491,7 +1527,7 @@ async function pageCredits() {
   await loadChars(true);
   const rows = Object.entries(charData.commons).filter(([id]) => CG.get(id).id === id);
   view().innerHTML = `<div class="narrow"><div class="page-head"><div><h1>Авторы фото</h1>
-    <p class="muted">Фото косплея на карточках персонажей взяты с Wikimedia Commons под свободными лицензиями. Спасибо фотографам и косплеерам! Официальные изображения персонажей мы не используем.</p></div></div>
+    <p class="muted">Фото косплея на карточках персонажей взяты с Wikimedia Commons и Flickr (через Openverse) под свободными лицензиями. Спасибо фотографам и косплеерам! Официальные изображения персонажей мы не используем.</p></div></div>
     <div class="list">${rows.map(([id, c]) => `<a class="item" href="${esc(c.page)}" target="_blank" rel="noopener"><img class="thumb" src="/chars/${id}.jpg" alt="">
       <span style="min-width:0"><h3>${esc(CG.get(id).name)}</h3><span class="meta">${esc(c.author)} · ${esc(c.license)}</span></span><span class="muted" style="width:18px;display:inline-flex">${ic.right}</span></a>`).join('') || '<div class="empty"><p>Фото пока не загружены.</p></div>'}</div>
     <p class="hint" style="margin-top:16px">Если вы автор фото и хотите его убрать, напишите модератору в чате «Срочная помощь».</p></div>`;

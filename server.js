@@ -4,6 +4,7 @@ const crypto = require('crypto');
 const path = require('path');
 const { connect } = require('./db');
 const { seedDb } = require('./seed');
+const COUNTRIES = require('./public/countries');
 
 const PORT = process.env.PORT || 3000;
 const ADMINS = (process.env.ADMIN_USERNAMES || '').split(',').map((s) => s.trim().toLowerCase()).filter(Boolean);
@@ -12,7 +13,9 @@ const COLORS = ['lapis', 'turquoise', 'garnet', 'saffron', 'violet', 'jade'];
 const CATEGORIES = ['materials', 'sewing', 'props', 'wigs', 'photo', 'other'];
 const SOURCES = ['anime', 'manga', 'drama', 'film', 'game', 'original'];
 const themeId = (t) => (/^[a-z0-9-]{2,24}$/.test(String(t || '')) ? String(t) : '');
-const ROOMS = ['general', 'almaty', 'astana', 'shymkent', 'aktobe', 'karaganda', 'help'];
+// Комнаты чата: общая, срочная помощь и по одной на каждую страну (код страны строчными буквами)
+const ROOMS = ['general', 'help', ...COUNTRIES.LIST.map(([c]) => c.toLowerCase())];
+const KZ_CITIES = ['Алматы', 'Астана', 'Шымкент', 'Актобе', 'Караганда', 'Атырау', 'Актау', 'Павлодар', 'Костанай', 'Тараз', 'Уральск', 'Семей', 'Усть-Каменогорск', 'Кызылорда', 'Петропавловск', 'Туркестан'];
 
 const newId = () => crypto.randomBytes(8).toString('hex');
 const now = () => Date.now();
@@ -56,6 +59,12 @@ async function main() {
     await q("UPDATE users SET theme = $2 WHERE demo = TRUE AND username = $1 AND theme = ''", [u, t]);
   await q("UPDATE events SET title = 'Косплей-шоу на аниме-фестивале' WHERE demo = TRUE AND title = 'Косплей-конкурс на аниме-фестивале'");
   await q("UPDATE events SET note = 'Пример мероприятия. Замените на настоящее с датой и ссылкой организатора.' WHERE demo = TRUE AND note LIKE 'Пример события%'");
+  // Платформа стала международной: проставляем страну старым записям по известным городам
+  for (const t of ['users', 'events', 'threads']) {
+    await q(`UPDATE ${t} SET country = 'KZ' WHERE country = '' AND city = ANY($1)`, [KZ_CITIES]);
+    await q(`UPDATE ${t} SET country = 'UZ' WHERE country = '' AND city IN ('Ташкент', 'Самарканд')`);
+  }
+  await q("UPDATE messages SET room = 'kz' WHERE room IN ('almaty', 'astana', 'shymkent', 'aktobe', 'karaganda')");
   console.log(`База: ${db.kind}`);
 
   // ---------- картинки ----------
@@ -70,18 +79,18 @@ async function main() {
   const imgUrl = (id) => (!id ? null : id.startsWith('/') ? id : `/img/${id}`);
 
   // ---------- представления ----------
-  const userCols = 'u.id, u.username, u.name, u.city, u.specialty, u.bio, u.avatar_id, u.color, u.role, u.demo, u.created_at, u.theme';
+  const userCols = 'u.id, u.username, u.name, u.city, u.specialty, u.bio, u.avatar_id, u.color, u.role, u.demo, u.created_at, u.theme, u.country';
   const userView = (r, prefix = '') => {
     const g = (k) => r[prefix + k];
     if (!g('id')) return null;
     return {
       id: g('id'), username: g('username'), name: g('name'), city: g('city'), specialty: g('specialty'),
       bio: g('bio'), avatar: imgUrl(g('avatar_id')), color: g('color'), role: g('role'), demo: g('demo'),
-      createdAt: g('created_at'), theme: g('theme') || '',
+      createdAt: g('created_at'), theme: g('theme') || '', country: g('country') || '',
     };
   };
   const authorCols = (a = 'u', p = 'a_') =>
-    ['id', 'username', 'name', 'city', 'specialty', 'bio', 'avatar_id', 'color', 'role', 'demo', 'created_at', 'theme']
+    ['id', 'username', 'name', 'city', 'specialty', 'bio', 'avatar_id', 'color', 'role', 'demo', 'created_at', 'theme', 'country']
       .map((c) => `${a}.${c} AS ${p}${c}`).join(', ');
 
   async function loadPosts(where, params, meId, { limit = 30, comments = 2 } = {}) {
@@ -191,10 +200,10 @@ async function main() {
     const role = ADMINS.includes(username) || real.n === 0 ? 'admin' : 'user';
     const id = newId();
     await q(
-      `INSERT INTO users (id, username, password, name, city, specialty, color, role, created_at, theme)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)`,
+      `INSERT INTO users (id, username, password, name, city, specialty, color, role, created_at, theme, country)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)`,
       [id, username, hashPassword(password), clean(req.body.name, 60) || username, clean(req.body.city, 40),
-        clean(req.body.specialty, 60), COLORS[Math.floor(Math.random() * COLORS.length)], role, now(), themeId(req.body.theme)]
+        clean(req.body.specialty, 60), COLORS[Math.floor(Math.random() * COLORS.length)], role, now(), themeId(req.body.theme), COUNTRIES.valid(req.body.country)]
     );
     remember('reg:' + req.ip);
     await startSession(req, res, id);
@@ -231,9 +240,9 @@ async function main() {
     const u = req.user;
     const avatarId = b.avatar ? await saveImage(b.avatar, u.id) : null;
     await q(
-      `UPDATE users SET name = $2, city = $3, specialty = $4, bio = $5, color = $6, avatar_id = COALESCE($7, avatar_id), theme = $8 WHERE id = $1`,
+      `UPDATE users SET name = $2, city = $3, specialty = $4, bio = $5, color = $6, avatar_id = COALESCE($7, avatar_id), theme = $8, country = $9 WHERE id = $1`,
       [u.id, clean(b.name ?? u.name, 60) || u.username, clean(b.city ?? u.city, 40), clean(b.specialty ?? u.specialty, 60),
-        clean(b.bio ?? u.bio, 300), COLORS.includes(b.color) ? b.color : u.color, avatarId, 'theme' in b ? themeId(b.theme) : u.theme]
+        clean(b.bio ?? u.bio, 300), COLORS.includes(b.color) ? b.color : u.color, avatarId, 'theme' in b ? themeId(b.theme) : u.theme, 'country' in b ? COUNTRIES.valid(b.country) : u.country]
     );
     res.json({ user: await meView(u.id) });
   }));
@@ -257,6 +266,7 @@ async function main() {
       params.push(req.user.id);
       conds.push(`(p.author_id IN (SELECT followee_id FROM follows WHERE follower_id = $${params.length}) OR p.author_id = $${params.length})`);
     }
+    if (COUNTRIES.valid(req.query.country)) { params.push(COUNTRIES.valid(req.query.country)); conds.push(`u.country = $${params.length}`); }
     if (req.query.before) { params.push(Number(req.query.before)); conds.push(`p.created_at < $${params.length}`); }
     const posts = await loadPosts(conds.length ? 'WHERE ' + conds.join(' AND ') : '', params, req.user?.id, { limit: 20 });
     res.json({ posts });
@@ -428,14 +438,14 @@ async function main() {
   // ----- форум -----
   app.get('/api/forum', wrap(async (_req, res) => {
     const rows = await q(
-      `SELECT t.id, t.category, t.city, t.title, t.demo, t.created_at, ${authorCols()},
+      `SELECT t.id, t.category, t.city, t.country, t.title, t.demo, t.created_at, ${authorCols()},
         (SELECT count(*)::int FROM replies r WHERE r.thread_id = t.id) AS reply_count,
         COALESCE((SELECT max(r.created_at) FROM replies r WHERE r.thread_id = t.id), t.created_at) AS last_at
        FROM threads t JOIN users u ON u.id = t.author_id ORDER BY last_at DESC LIMIT 200`
     );
     res.json({
       threads: rows.map((r) => ({
-        id: r.id, category: r.category, city: r.city, title: r.title, demo: r.demo, createdAt: r.created_at,
+        id: r.id, category: r.category, city: r.city, country: r.country, title: r.title, demo: r.demo, createdAt: r.created_at,
         author: userView(r, 'a_'), replyCount: r.reply_count, lastAt: r.last_at,
       })),
     });
@@ -445,7 +455,7 @@ async function main() {
     if (!t) throw new HttpError(404, 'Тема не найдена');
     const replies = await q(`SELECT r.*, ${authorCols()} FROM replies r JOIN users u ON u.id = r.author_id WHERE r.thread_id = $1 ORDER BY r.created_at`, [id]);
     return {
-      id: t.id, authorId: t.author_id, category: t.category, city: t.city, title: t.title, body: t.body, demo: t.demo,
+      id: t.id, authorId: t.author_id, category: t.category, city: t.city, country: t.country, title: t.title, body: t.body, demo: t.demo,
       createdAt: t.created_at, author: userView(t, 'a_'),
       replies: replies.map((r) => ({ id: r.id, authorId: r.author_id, text: r.text, createdAt: r.created_at, author: userView(r, 'a_') })),
     };
@@ -456,8 +466,9 @@ async function main() {
     const body = clean(req.body.body, 4000);
     if (!title || !body) throw new HttpError(400, 'Заполните заголовок и текст');
     const id = newId();
-    await q('INSERT INTO threads (id, author_id, category, city, title, body, created_at) VALUES ($1,$2,$3,$4,$5,$6,$7)', [
+    await q('INSERT INTO threads (id, author_id, category, city, title, body, created_at, country) VALUES ($1,$2,$3,$4,$5,$6,$7,$8)', [
       id, req.user.id, CATEGORIES.includes(req.body.category) ? req.body.category : 'other', clean(req.body.city, 40), title, body, now(),
+      'country' in req.body ? COUNTRIES.valid(req.body.country) : req.user.country,
     ]);
     res.json({ thread: await loadThread(id) });
   }));
@@ -500,8 +511,9 @@ async function main() {
     const type = ['contest', 'festival', 'meetup', 'workshop'].includes(req.body.type) ? req.body.type : 'festival';
     const link = /^https?:\/\//.test(req.body.link || '') ? clean(req.body.link, 300) : '';
     await q(
-      'INSERT INTO events (id, title, date, city, place, type, link, note, author_id, created_at) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)',
-      [newId(), title, date, clean(req.body.city, 40), clean(req.body.place, 120), type, link, clean(req.body.note, 300), req.user.id, now()]
+      'INSERT INTO events (id, title, date, city, place, type, link, note, author_id, created_at, country) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)',
+      [newId(), title, date, clean(req.body.city, 40), clean(req.body.place, 120), type, link, clean(req.body.note, 300), req.user.id, now(),
+        'country' in req.body ? COUNTRIES.valid(req.body.country) : req.user.country]
     );
     res.json({ ok: true });
   }));
@@ -639,8 +651,8 @@ async function main() {
     const like = `%${term.replace(/[%_\\]/g, '\\$&')}%`;
     const users = await q(
       `SELECT ${userCols} FROM users u WHERE lower(u.username) LIKE $1 OR lower(u.name) LIKE $1
-       OR lower(u.specialty) LIKE $1 OR lower(u.city) LIKE $1 OR lower(u.bio) LIKE $1 LIMIT 30`,
-      [like]
+       OR lower(u.specialty) LIKE $1 OR lower(u.city) LIKE $1 OR lower(u.bio) LIKE $1 OR u.country = ANY($2) LIMIT 30`,
+      [like, term.length >= 3 ? COUNTRIES.LIST.filter(([, n]) => n.toLowerCase().startsWith(term)).map(([c]) => c) : []]
     );
     const posts = await loadPosts(
       `WHERE lower(p.character) LIKE $1 OR lower(p.fandom) LIKE $1 OR lower(p.caption) LIKE $1 OR lower(p.materials) LIKE $1`,

@@ -306,8 +306,7 @@
   "skip": [
    "File:Barbie - Modezauber in Paris (8104748847).jpg",
    "File:Cosplay of Barbie (2023 film) in London (September 2023).JPG"
-  ],
-  "off": true
+  ]
  },
  "vader": {
   "q": "Darth Vader cosplay",
@@ -391,8 +390,7 @@
   "skip": [
    "File:Cosplay of 2B and 9S from NieR- Automata at Made in Asia 2019 (2019-03-10 13-25-15 ILCE-6500 DSC08017 (46446651155).jpg",
    "File:Cosplay of 2B and 9S from NieR- Automata at Made in Asia 2019 (2019-03-10 13-25-13 ILCE-6500 DSC08016 (46446657235).jpg"
-  ],
-  "off": true
+  ]
  },
  "jinx": {
   "q": "Jinx League of Legends Arcane cosplay",
@@ -402,8 +400,7 @@
   "skip": [
    "File:Anime Expo 2015 - Jinx.jpg",
    "File:Japan Expo 2024 - Cosplay of Jinx 2.jpg"
-  ],
-  "off": true
+  ]
  },
  "link": {
   "q": "Link Legend of Zelda cosplay",
@@ -416,6 +413,426 @@
   "q": "Geralt of Rivia cosplay",
   "must": [
    "geralt"
+  ]
+ },
+ "tanjiro": {
+  "q": "Tanjiro Kamado cosplay",
+  "must": [
+   "tanjiro"
+  ]
+ },
+ "zenitsu": {
+  "q": "Zenitsu Agatsuma cosplay",
+  "must": [
+   "zenitsu"
+  ]
+ },
+ "mitsuri": {
+  "q": "Mitsuri Kanroji cosplay",
+  "must": [
+   "mitsuri",
+   "kanroji"
+  ]
+ },
+ "itadori": {
+  "q": "Yuji Itadori cosplay",
+  "must": [
+   "itadori",
+   "yuji"
+  ]
+ },
+ "sukuna": {
+  "q": "Sukuna cosplay jujutsu",
+  "must": [
+   "sukuna"
+  ]
+ },
+ "mikasa": {
+  "q": "Mikasa Ackerman cosplay",
+  "must": [
+   "mikasa"
+  ]
+ },
+ "eren": {
+  "q": "Eren Yeager cosplay",
+  "must": [
+   "eren"
+  ]
+ },
+ "power": {
+  "q": "Power Chainsaw Man cosplay",
+  "must": [
+   "power"
+  ]
+ },
+ "denji": {
+  "q": "Denji Chainsaw Man cosplay",
+  "must": [
+   "denji",
+   "chainsaw"
+  ]
+ },
+ "asuka": {
+  "q": "Asuka Langley cosplay",
+  "must": [
+   "asuka"
+  ]
+ },
+ "reiayanami": {
+  "q": "Rei Ayanami cosplay",
+  "must": [
+   "ayanami"
+  ]
+ },
+ "violet": {
+  "q": "Violet Evergarden cosplay",
+  "must": [
+   "violet",
+   "evergarden"
+  ]
+ },
+ "kaguya": {
+  "q": "Kaguya Shinomiya cosplay",
+  "must": [
+   "kaguya",
+   "shinomiya"
+  ]
+ },
+ "bocchi": {
+  "q": "Bocchi the Rock cosplay",
+  "must": [
+   "bocchi",
+   "hitori"
+  ]
+ },
+ "aihoshino": {
+  "q": "Ai Hoshino cosplay",
+  "must": [
+   "hoshino",
+   "oshi no ko"
+  ]
+ },
+ "todoroki": {
+  "q": "Shoto Todoroki cosplay",
+  "must": [
+   "todoroki"
+  ]
+ },
+ "deku": {
+  "q": "Izuku Midoriya Deku cosplay",
+  "must": [
+   "deku",
+   "midoriya"
+  ]
+ },
+ "killua": {
+  "q": "Killua Zoldyck cosplay",
+  "must": [
+   "killua"
+  ]
+ },
+ "ash": {
+  "q": "Ash Ketchum cosplay pokemon trainer",
+  "must": [
+   "ash",
+   "ketchum",
+   "pokemon trainer"
+  ]
+ },
+ "goku": {
+  "q": "Son Goku cosplay",
+  "must": [
+   "goku"
+  ]
+ },
+ "zoro": {
+  "q": "Roronoa Zoro cosplay",
+  "must": [
+   "zoro"
+  ]
+ },
+ "nami": {
+  "q": "Nami One Piece cosplay",
+  "must": [
+   "nami"
+  ]
+ },
+ "itachi": {
+  "q": "Itachi Uchiha cosplay",
+  "must": [
+   "itachi"
+  ]
+ },
+ "kakashi": {
+  "q": "Kakashi Hatake cosplay",
+  "must": [
+   "kakashi"
+  ]
+ },
+ "sasuke": {
+  "q": "Sasuke Uchiha cosplay",
+  "must": [
+   "sasuke"
+  ]
+ },
+ "hinata": {
+  "q": "Hinata Hyuga cosplay",
+  "must": [
+   "hinata"
+  ]
+ },
+ "ichigo": {
+  "q": "Ichigo Kurosaki cosplay",
+  "must": [
+   "ichigo"
+  ]
+ },
+ "lightyagami": {
+  "q": "Light Yagami cosplay",
+  "must": [
+   "light yagami",
+   "yagami",
+   "kira"
+  ]
+ },
+ "manwol": {
+  "q": "Hotel del Luna cosplay",
+  "must": [
+   "del luna",
+   "man-wol",
+   "manwol"
+  ]
+ },
+ "minjun": {
+  "q": "My Love from the Star cosplay",
+  "must": [
+   "love from the star"
+  ]
+ },
+ "wangso": {
+  "q": "Moon Lovers Scarlet Heart Ryeo cosplay",
+  "must": [
+   "scarlet heart",
+   "moon lovers",
+   "wang so"
+  ]
+ },
+ "leeyeon": {
+  "q": "Tale of the Nine Tailed cosplay",
+  "must": [
+   "nine tailed",
+   "nine-tailed",
+   "gumiho",
+   "kumiho"
+  ]
+ },
+ "leegon": {
+  "q": "The King Eternal Monarch cosplay",
+  "must": [
+   "eternal monarch"
+  ]
+ },
+ "shaoshang": {
+  "q": "Hanfu cosplay Love Like the Galaxy",
+  "must": [
+   "love like the galaxy",
+   "shaoshang"
+  ]
+ },
+ "jangok": {
+  "q": "Alchemy of Souls cosplay",
+  "must": [
+   "alchemy of souls"
+  ]
+ },
+ "spiderman": {
+  "q": "Spider-Man cosplay",
+  "must": [
+   "spider-man",
+   "spiderman",
+   "spider man"
+  ]
+ },
+ "ironman": {
+  "q": "Iron Man cosplay",
+  "must": [
+   "iron man",
+   "ironman"
+  ]
+ },
+ "loki": {
+  "q": "Loki cosplay",
+  "must": [
+   "loki"
+  ]
+ },
+ "wanda": {
+  "q": "Scarlet Witch cosplay",
+  "must": [
+   "scarlet witch",
+   "wanda"
+  ]
+ },
+ "deadpool": {
+  "q": "Deadpool cosplay",
+  "must": [
+   "deadpool"
+  ]
+ },
+ "harley": {
+  "q": "Harley Quinn cosplay",
+  "must": [
+   "harley"
+  ]
+ },
+ "joker": {
+  "q": "Joker cosplay",
+  "must": [
+   "joker"
+  ]
+ },
+ "wonderwoman": {
+  "q": "Wonder Woman cosplay",
+  "must": [
+   "wonder woman"
+  ]
+ },
+ "batman": {
+  "q": "Batman cosplay",
+  "must": [
+   "batman"
+  ]
+ },
+ "mando": {
+  "q": "Mandalorian cosplay",
+  "must": [
+   "mandalorian"
+  ]
+ },
+ "rey": {
+  "q": "Rey Star Wars cosplay",
+  "must": [
+   "rey"
+  ]
+ },
+ "maleficent": {
+  "q": "Maleficent cosplay",
+  "must": [
+   "maleficent"
+  ]
+ },
+ "belle": {
+  "q": "Belle Beauty and the Beast cosplay",
+  "must": [
+   "belle"
+  ]
+ },
+ "rapunzel": {
+  "q": "Rapunzel cosplay",
+  "must": [
+   "rapunzel"
+  ]
+ },
+ "eleven": {
+  "q": "Eleven Stranger Things cosplay",
+  "must": [
+   "eleven",
+   "stranger things"
+  ]
+ },
+ "daenerys": {
+  "q": "Daenerys Targaryen cosplay",
+  "must": [
+   "daenerys",
+   "khaleesi"
+  ]
+ },
+ "aang": {
+  "q": "Aang Avatar cosplay",
+  "must": [
+   "aang"
+  ]
+ },
+ "zhongli": {
+  "q": "Zhongli Genshin cosplay",
+  "must": [
+   "zhongli"
+  ]
+ },
+ "venti": {
+  "q": "Venti Genshin cosplay",
+  "must": [
+   "venti"
+  ]
+ },
+ "furina": {
+  "q": "Furina Genshin cosplay",
+  "must": [
+   "furina"
+  ]
+ },
+ "firefly": {
+  "q": "Firefly Honkai Star Rail cosplay",
+  "must": [
+   "firefly"
+  ]
+ },
+ "tifa": {
+  "q": "Tifa Lockhart cosplay",
+  "must": [
+   "tifa"
+  ]
+ },
+ "cloud": {
+  "q": "Cloud Strife cosplay",
+  "must": [
+   "cloud strife"
+  ]
+ },
+ "dva": {
+  "q": "D.Va Overwatch cosplay",
+  "must": [
+   "d.va",
+   "dva"
+  ]
+ },
+ "ahri": {
+  "q": "Ahri cosplay",
+  "must": [
+   "ahri"
+  ]
+ },
+ "lara": {
+  "q": "Lara Croft cosplay",
+  "must": [
+   "lara croft",
+   "tomb raider"
+  ]
+ },
+ "ellie": {
+  "q": "Ellie The Last of Us cosplay",
+  "must": [
+   "ellie",
+   "last of us"
+  ]
+ },
+ "zelda": {
+  "q": "Princess Zelda cosplay",
+  "must": [
+   "princess zelda",
+   "zelda"
+  ]
+ },
+ "peach": {
+  "q": "Princess Peach cosplay",
+  "must": [
+   "peach"
+  ]
+ },
+ "mario": {
+  "q": "Mario cosplay",
+  "must": [
+   "mario"
   ]
  }
 }
