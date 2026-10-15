@@ -1,0 +1,33 @@
+name: Фото персонажей с Wikimedia Commons
+
+on:
+  push:
+    paths:
+      - scripts/characters.json
+      - scripts/commons_photos.py
+  workflow_dispatch:
+    inputs:
+      only:
+        description: 'Только эти персонажи (id через пробел), пусто — все недостающие'
+        required: false
+        default: ''
+
+permissions:
+  contents: write
+
+jobs:
+  photos:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: pip install --quiet pillow
+      - name: Подобрать фото со свободной лицензией
+        run: python3 scripts/commons_photos.py ${{ github.event.inputs.only }}
+      - name: Сохранить в репозиторий
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898283+github-actions[bot]@users.noreply.github.com"
+          git add public/chars
+          git diff --cached --quiet || git commit -m "Фото персонажей с Wikimedia Commons"
+          git pull --rebase
+          git push
