@@ -2,7 +2,9 @@
 const express = require('express');
 const crypto = require('crypto');
 const path = require('path');
-const { connect } = require('./db');
+const fs = require('fs');
+const { connect, pgPool, copyAll } = require('./db');
+const storage = require('./storage');
 const COUNTRIES = require('./public/countries');
 
 const PORT = process.env.PORT || 3000;
@@ -16,6 +18,8 @@ const SOURCES = ['anime', 'manga', 'book', 'film', 'game', 'original'];
 const EVENT_TYPES = ['festival', 'contest', 'event', 'party', 'meetup', 'workshop'];
 const SOCIALS = ['instagram', 'tiktok', 'telegram', 'vk', 'youtube'];
 const ACH_KINDS = ['place', 'jury', 'guest', 'organizer', 'other'];
+const CURRENCIES = ['KZT', 'RUB', 'UZS', 'KGS', 'USD', 'EUR'];
+const ORDER_STATUSES = ['new', 'accepted', 'declined', 'done', 'cancelled'];
 const themeId = (t) => (/^[a-z0-9-]{2,24}$/.test(String(t || '')) ? String(t) : '');
 // Комнаты чата: общая, срочная помощь и по одной на каждую страну (код страны строчными буквами)
 const ROOMS = ['general', 'help', ...COUNTRIES.LIST.map(([c]) => c.toLowerCase())];
@@ -66,6 +70,22 @@ async function main() {
   const db = await connect();
   const q = db.query;
   const one = async (sql, p) => (await q(sql, p))[0] || null;
+  // Переезд: новая база пустая, а старая (Render) ещё жива — переносим всё автоматически
+  const NEW_URL = process.env.NEW_DATABASE_URL || process.env.SUPABASE_DB_URL;
+  if (NEW_URL && process.env.DATABASE_URL && NEW_URL !== process.env.DATABASE_URL) {
+    const { n } = await one('SELECT count(*)::int AS n FROM users');
+    if (n === 0) {
+      console.log('Новая база пустая — переношу данные из старой…');
+      const src = pgPool(process.env.DATABASE_URL);
+      try { await copyAll(src, db); console.log('Перенос завершён'); }
+      catch (e) {
+        // частичный перенос хуже пустой базы: очищаем, чтобы при следующем запуске перенос начался заново
+        console.error('Перенос не удался, попробую при следующем запуске:', e.message);
+        await db.exec(`TRUNCATE ${require('./db').TABLES.join(', ')} CASCADE`).catch(() => {});
+      }
+      finally { src.end().catch(() => {}); }
+    }
+  }
   // Только настоящие участники: демо-профили, их посты и примерные мероприятия удаляются
   await q('DELETE FROM events WHERE demo = TRUE');
   await q('DELETE FROM users WHERE demo = TRUE');
@@ -86,13 +106,36 @@ async function main() {
     if (!m) throw new HttpError(400, 'Фото должно быть в формате JPG, PNG, WEBP или GIF');
     if (m[2].length > 4_000_000) throw new HttpError(400, 'Фото слишком большое: максимум около 3 МБ');
     const id = newId();
-    await q('INSERT INTO images (id, mime, data, owner_id, created_at) VALUES ($1,$2,$3,$4,$5)', [id, m[1], m[2], ownerId, now()]);
+    let url = '';
+    if (storage.enabled) {
+      try { url = await storage.upload(id, m[1], Buffer.from(m[2], 'base64')); }
+      catch (e) { console.error('Хранилище фото недоступно, сохраняю в базу:', e.message); }
+    }
+    await q('INSERT INTO images (id, mime, data, owner_id, created_at, url) VALUES ($1,$2,$3,$4,$5,$6)', [id, m[1], url ? '' : m[2], ownerId, now(), url]);
     return id;
+  }
+  // Старые фото из базы постепенно переезжают во внешнее хранилище; ссылки /img/… продолжают работать
+  async function moveImages() {
+    if (!storage.enabled) return;
+    try { await storage.ensureBucket(); } catch (e) { console.error(e.message); return; }
+    let moved = 0;
+    for (;;) {
+      const rows = await q("SELECT id, mime, data FROM images WHERE url = '' AND data <> '' LIMIT 10");
+      if (!rows.length) break;
+      for (const r of rows) {
+        try {
+          const url = await storage.upload(r.id, r.mime, Buffer.from(r.data, 'base64'));
+          await q("UPDATE images SET url = $2, data = '' WHERE id = $1", [r.id, url]);
+          moved++;
+        } catch (e) { console.error('Не удалось перенести фото', r.id, e.message); return; }
+      }
+    }
+    if (moved) console.log(`Фото перенесены в ${storage.kind}: ${moved}`);
   }
   const imgUrl = (id) => (!id ? null : id.startsWith('/') ? id : `/img/${id}`);
 
   // ---------- представления ----------
-  const userCols = 'u.id, u.username, u.name, u.city, u.specialty, u.bio, u.avatar_id, u.color, u.role, u.demo, u.created_at, u.theme, u.country, u.verified, u.socials';
+  const userCols = 'u.id, u.username, u.name, u.city, u.specialty, u.bio, u.avatar_id, u.color, u.role, u.demo, u.created_at, u.theme, u.country, u.verified, u.socials, u.orders_open';
   const userView = (r, prefix = '') => {
     const g = (k) => r[prefix + k];
     if (!g('id')) return null;
@@ -100,11 +143,11 @@ async function main() {
       id: g('id'), username: g('username'), name: g('name'), city: g('city'), specialty: g('specialty'),
       bio: g('bio'), avatar: imgUrl(g('avatar_id')), color: g('color'), role: g('role'), demo: g('demo'),
       createdAt: g('created_at'), theme: g('theme') || '', country: g('country') || '',
-      verified: !!g('verified'), socials: (() => { try { return JSON.parse(g('socials') || '{}'); } catch { return {}; } })(),
+      verified: !!g('verified'), ordersOpen: !!g('orders_open'), socials: (() => { try { return JSON.parse(g('socials') || '{}'); } catch { return {}; } })(),
     };
   };
   const authorCols = (a = 'u', p = 'a_') =>
-    ['id', 'username', 'name', 'city', 'specialty', 'bio', 'avatar_id', 'color', 'role', 'demo', 'created_at', 'theme', 'country', 'verified', 'socials']
+    ['id', 'username', 'name', 'city', 'specialty', 'bio', 'avatar_id', 'color', 'role', 'demo', 'created_at', 'theme', 'country', 'verified', 'socials', 'orders_open']
       .map((c) => `${a}.${c} AS ${p}${c}`).join(', ');
 
   async function loadPosts(where, params, meId, { limit = 30, comments = 2 } = {}) {
@@ -169,8 +212,9 @@ async function main() {
   }));
 
   app.get('/img/:id', wrap(async (req, res) => {
-    const r = await one('SELECT mime, data FROM images WHERE id = $1', [req.params.id]);
+    const r = await one('SELECT mime, data, url FROM images WHERE id = $1', [req.params.id]);
     if (!r) return res.status(404).end();
+    if (r.url) { res.setHeader('Cache-Control', 'public, max-age=86400'); return res.redirect(301, r.url); }
     res.setHeader('Content-Type', r.mime);
     res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
     if (r.mime === 'image/svg+xml') res.setHeader('Content-Security-Policy', "default-src 'none'; style-src 'unsafe-inline'");
@@ -190,7 +234,18 @@ async function main() {
   const auth = (req, _res, next) => (req.user ? next() : next(new HttpError(401, 'Войдите, чтобы продолжить')));
   // сайт закрыт для гостей: без входа доступны только регистрация, вход и проверка сессии
   const OPEN = new Set(['/register', '/login', '/logout', '/me', '/characters']);
-  app.use('/api', (req, _res, next) => (OPEN.has(req.path) || req.user ? next() : next(new HttpError(401, 'Зарегистрируйтесь или войдите, чтобы пользоваться Cosplaygram'))));
+  // Гостям открыт просмотр: профили, работы, мероприятия с итогами и форум (писать — только после регистрации)
+  const GUEST_GET = [/^\/users\/[^/]+$/, /^\/posts\/[^/]+$/, /^\/events$/, /^\/events\/[^/]+\/results$/, /^\/forum(\/[^/]+)?$/];
+  const guestOk = (req) => req.method === 'GET' && GUEST_GET.some((r) => r.test(req.path));
+  app.use('/api', (req, _res, next) => (OPEN.has(req.path) || guestOk(req) || req.user ? next() : next(new HttpError(401, 'Зарегистрируйтесь или войдите, чтобы пользоваться Cosplaygram'))));
+  // Защита от спама: не больше 120 действий в минуту от одного участника
+  app.use('/api', (req, _res, next) => {
+    if (req.method === 'GET' || !req.user || ['/login', '/logout'].includes(req.path)) return next();
+    const k = 'w:' + req.user.id;
+    if (tooMany(k, 120, 60e3)) return next(new HttpError(429, 'Слишком много действий подряд. Подождите минуту.'));
+    remember(k);
+    next();
+  });
   const admin = (req, _res, next) => (['admin', 'dev'].includes(req.user?.role) ? next() : next(new HttpError(403, 'Только для модераторов')));
   const isAdmin = (req) => ['admin', 'dev'].includes(req.user?.role);
 
@@ -254,10 +309,11 @@ async function main() {
     const u = req.user;
     const avatarId = b.avatar ? await saveImage(b.avatar, u.id) : null;
     await q(
-      `UPDATE users SET name = $2, city = $3, specialty = $4, bio = $5, color = $6, avatar_id = COALESCE($7, avatar_id), theme = $8, country = $9, socials = $10 WHERE id = $1`,
+      `UPDATE users SET name = $2, city = $3, specialty = $4, bio = $5, color = $6, avatar_id = COALESCE($7, avatar_id), theme = $8, country = $9, socials = $10, orders_open = $11 WHERE id = $1`,
       [u.id, clean(b.name ?? u.name, 60) || u.username, clean(b.city ?? u.city, 40), clean(b.specialty ?? u.specialty, 60),
         clean(b.bio ?? u.bio, 300), COLORS.includes(b.color) ? b.color : u.color, avatarId, 'theme' in b ? themeId(b.theme) : u.theme, 'country' in b ? COUNTRIES.valid(b.country) : u.country,
-        JSON.stringify(b.socials && typeof b.socials === 'object' ? cleanSocials(b.socials) : u.socials || {})]
+        JSON.stringify(b.socials && typeof b.socials === 'object' ? cleanSocials(b.socials) : u.socials || {}),
+        'ordersOpen' in b ? !!b.ordersOpen && b.ordersOpen !== '0' : u.ordersOpen]
     );
     res.json({ user: await meView(u.id) });
   }));
@@ -394,10 +450,12 @@ async function main() {
   // ----- люди -----
   app.get('/api/users', wrap(async (req, res) => {
     const rows = await q(
-      `SELECT ${userCols}, (SELECT count(*)::int FROM follows f WHERE f.followee_id = u.id) AS followers
+      `SELECT ${userCols}, (SELECT count(*)::int FROM follows f WHERE f.followee_id = u.id) AS followers,
+         (SELECT round(avg(rating)::numeric, 1)::float FROM reviews v WHERE v.master_id = u.id) AS rating,
+         (SELECT count(*)::int FROM reviews v WHERE v.master_id = u.id) AS reviews
        FROM users u ORDER BY u.verified DESC, followers DESC, u.created_at DESC LIMIT 100`
     );
-    res.json({ users: rows.map((r) => ({ ...userView(r), followers: r.followers })) });
+    res.json({ users: rows.map((r) => ({ ...userView(r), followers: r.followers, rating: r.rating, reviews: r.reviews })) });
   }));
 
   app.get('/api/users/:username', wrap(async (req, res) => {
@@ -412,7 +470,14 @@ async function main() {
               EXISTS (SELECT 1 FROM follows WHERE follower_id = $2 AND followee_id = $1) AS is_following`,
       [user.id, req.user?.id || '']
     );
-    res.json({ user, posts, achievements: await loadAchievements(user.id), stats: { posts: posts.length, followers: s.followers, following: s.following, likes: s.likes }, isFollowing: s.is_following });
+    const services = await q('SELECT id, title, price, currency, days, note FROM services WHERE user_id = $1 ORDER BY created_at', [user.id]);
+    const reviews = await q(
+      `SELECT v.rating, v.text, v.created_at, o.title, ${authorCols()} FROM reviews v JOIN orders o ON o.id = v.order_id JOIN users u ON u.id = v.client_id
+       WHERE v.master_id = $1 ORDER BY v.created_at DESC LIMIT 30`, [user.id]);
+    const rt = await one('SELECT round(avg(rating)::numeric, 1)::float AS avg, count(*)::int AS n FROM reviews WHERE master_id = $1', [user.id]);
+    res.json({ user, posts, achievements: await loadAchievements(user.id), services,
+      reviews: reviews.map((v) => ({ rating: v.rating, text: v.text, createdAt: v.created_at, title: v.title, author: userView(v, 'a_') })),
+      rating: { avg: rt.avg, count: rt.n }, stats: { posts: posts.length, followers: s.followers, following: s.following, likes: s.likes }, isFollowing: s.is_following });
   }));
 
   // Достижения: добавленные самим участником + подтверждённые итогами мероприятий на сайте
@@ -439,6 +504,74 @@ async function main() {
   app.delete('/api/me/achievements/:id', auth, wrap(async (req, res) => {
     await q('DELETE FROM achievements WHERE id = $1 AND user_id = $2', [req.params.id, req.user.id]);
     res.json({ achievements: await loadAchievements(req.user.id) });
+  }));
+
+  // ----- услуги и заказы у мастеров -----
+  app.post('/api/me/services', auth, wrap(async (req, res) => {
+    const title = clean(req.body.title, 80);
+    if (!title) throw new HttpError(400, 'Напишите, что вы делаете на заказ');
+    const { n } = await one('SELECT count(*)::int AS n FROM services WHERE user_id = $1', [req.user.id]);
+    if (n >= 20) throw new HttpError(400, 'Не больше 20 услуг');
+    await q('INSERT INTO services (id, user_id, title, price, currency, days, note, created_at) VALUES ($1,$2,$3,$4,$5,$6,$7,$8)', [
+      newId(), req.user.id, title, Math.max(0, Math.min(100_000_000, parseInt(String(req.body.price).replace(/\D/g, ''), 10) || 0)),
+      CURRENCIES.includes(req.body.currency) ? req.body.currency : 'KZT', Math.max(0, Math.min(365, parseInt(req.body.days, 10) || 0)), clean(req.body.note, 200), now()]);
+    res.json({ services: await q('SELECT id, title, price, currency, days, note FROM services WHERE user_id = $1 ORDER BY created_at', [req.user.id]) });
+  }));
+  app.delete('/api/me/services/:id', auth, wrap(async (req, res) => {
+    await q('DELETE FROM services WHERE id = $1 AND user_id = $2', [req.params.id, req.user.id]);
+    res.json({ services: await q('SELECT id, title, price, currency, days, note FROM services WHERE user_id = $1 ORDER BY created_at', [req.user.id]) });
+  }));
+  app.post('/api/users/:username/orders', auth, wrap(async (req, res) => {
+    const m = await one('SELECT id, orders_open FROM users WHERE username = $1', [req.params.username.toLowerCase()]);
+    if (!m) throw new HttpError(404, 'Мастер не найден');
+    if (m.id === req.user.id) throw new HttpError(400, 'Нельзя заказать у себя');
+    if (!m.orders_open) throw new HttpError(400, 'Мастер сейчас не принимает заказы');
+    const title = clean(req.body.title, 120);
+    if (!title) throw new HttpError(400, 'Опишите, что нужно сделать');
+    const { n } = await one("SELECT count(*)::int AS n FROM orders WHERE client_id = $1 AND master_id = $2 AND status = 'new'", [req.user.id, m.id]);
+    if (n >= 3) throw new HttpError(400, 'У вас уже есть заявки, которые мастер пока не посмотрел');
+    const id = newId();
+    const svc = req.body.serviceId ? await one('SELECT id FROM services WHERE id = $1 AND user_id = $2', [req.body.serviceId, m.id]) : null;
+    await q('INSERT INTO orders (id, master_id, client_id, service_id, title, details, budget, deadline, status, created_at, updated_at) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$10)', [
+      id, m.id, req.user.id, svc?.id || null, title, clean(req.body.details, 2000), clean(req.body.budget, 60),
+      /^\d{4}-\d{2}-\d{2}$/.test(req.body.deadline || '') ? req.body.deadline : '', 'new', now()]);
+    await notify(m.id, req.user.id, 'order');
+    res.json({ ok: true, id });
+  }));
+  async function loadOrders(where, params) {
+    const rows = await q(
+      `SELECT o.*, ${authorCols('mu', 'm_')}, ${authorCols('cu', 'c_')}, v.rating AS review_rating, v.text AS review_text
+       FROM orders o JOIN users mu ON mu.id = o.master_id JOIN users cu ON cu.id = o.client_id LEFT JOIN reviews v ON v.order_id = o.id
+       ${where} ORDER BY o.updated_at DESC LIMIT 100`, params);
+    return rows.map((o) => ({ id: o.id, title: o.title, details: o.details, budget: o.budget, deadline: o.deadline, status: o.status,
+      createdAt: o.created_at, updatedAt: o.updated_at, master: userView(o, 'm_'), client: userView(o, 'c_'),
+      review: o.review_rating ? { rating: o.review_rating, text: o.review_text } : null }));
+  }
+  app.get('/api/orders', auth, wrap(async (req, res) => {
+    res.json({ incoming: await loadOrders('WHERE o.master_id = $1', [req.user.id]), outgoing: await loadOrders('WHERE o.client_id = $1', [req.user.id]) });
+  }));
+  app.post('/api/orders/:id/status', auth, wrap(async (req, res) => {
+    const o = await one('SELECT * FROM orders WHERE id = $1', [req.params.id]);
+    if (!o) throw new HttpError(404, 'Заказ не найден');
+    const to = req.body.status;
+    const isMaster = o.master_id === req.user.id, isClient = o.client_id === req.user.id;
+    const ok = (isMaster && ((o.status === 'new' && ['accepted', 'declined'].includes(to)) || (o.status === 'accepted' && to === 'done')))
+      || (isClient && ['new', 'accepted'].includes(o.status) && to === 'cancelled');
+    if (!ORDER_STATUSES.includes(to) || !ok) throw new HttpError(400, 'Так изменить заказ нельзя');
+    await q('UPDATE orders SET status = $2, updated_at = $3 WHERE id = $1', [o.id, to, now()]);
+    await notify(isMaster ? o.client_id : o.master_id, req.user.id, 'order_' + to);
+    res.json({ ok: true });
+  }));
+  app.post('/api/orders/:id/review', auth, wrap(async (req, res) => {
+    const o = await one('SELECT * FROM orders WHERE id = $1', [req.params.id]);
+    if (!o || o.client_id !== req.user.id) throw new HttpError(404, 'Заказ не найден');
+    if (o.status !== 'done') throw new HttpError(400, 'Отзыв можно оставить, когда мастер отметит заказ выполненным');
+    const rating = parseInt(req.body.rating, 10);
+    if (!(rating >= 1 && rating <= 5)) throw new HttpError(400, 'Поставьте оценку от 1 до 5');
+    if (await one('SELECT 1 FROM reviews WHERE order_id = $1', [o.id])) throw new HttpError(400, 'Отзыв уже оставлен');
+    await q('INSERT INTO reviews (order_id, master_id, client_id, rating, text, created_at) VALUES ($1,$2,$3,$4,$5,$6)', [o.id, o.master_id, o.client_id, rating, clean(req.body.text, 1000), now()]);
+    await notify(o.master_id, req.user.id, 'review');
+    res.json({ ok: true });
   }));
 
   app.post('/api/users/:username/follow', auth, wrap(async (req, res) => {
@@ -783,6 +916,18 @@ async function main() {
     await q('UPDATE reports SET resolved = TRUE WHERE id = $1', [req.params.id]);
     res.json({ ok: true });
   }));
+  // Резервная копия (без самих фото и сессий) — только для разработчика
+  app.get('/api/admin/backup', auth, admin, wrap(async (req, res) => {
+    if (req.user.role !== 'dev') throw new HttpError(403, 'Только для разработчика');
+    const { TABLES } = require('./db');
+    const out = { createdAt: new Date().toISOString(), tables: {} };
+    for (const t of TABLES.filter((x) => x !== 'sessions')) {
+      out.tables[t] = t === 'images' ? await q('SELECT id, mime, owner_id, created_at, url FROM images') : t === 'users'
+        ? await q('SELECT id, username, name, city, country, specialty, bio, avatar_id, color, role, verified, socials, theme, orders_open, created_at FROM users') : await q(`SELECT * FROM ${t}`);
+    }
+    res.setHeader('Content-Disposition', `attachment; filename="cosplaygram-backup-${out.createdAt.slice(0, 10)}.json"`);
+    res.json(out);
+  }));
   app.get('/api/admin/users', auth, admin, wrap(async (req, res) => {
     const term = clean(req.query.q, 60).toLowerCase();
     const like = `%${term.replace(/[%_\\]/g, '\\$&')}%`;
@@ -815,6 +960,55 @@ async function main() {
 
   app.get('/healthz', (_req, res) => res.send('ok'));
   app.use('/api', (_req, _res, next) => next(new HttpError(404, 'Нет такого адреса API')));
+  // Красивые ссылки с превью для Instagram, Telegram и поисковиков: /u/ник, /p/работа, /e/мероприятие
+  const INDEX = fs.readFileSync(path.join(__dirname, 'public', 'index.html'), 'utf8');
+  const escH = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+  const origin = (req) => `${req.headers['x-forwarded-proto'] || req.protocol}://${req.get('host')}`;
+  function page(req, res, meta) {
+    const o = origin(req);
+    const img = meta.image ? (meta.image.startsWith('http') ? meta.image : o + meta.image) : o + '/icon-512.png';
+    const tags = `<meta property="og:site_name" content="Cosplaygram"><meta property="og:type" content="${meta.type || 'website'}">
+  <meta property="og:title" content="${escH(meta.title)}"><meta property="og:description" content="${escH(meta.description)}">
+  <meta property="og:image" content="${escH(img)}"><meta property="og:url" content="${escH(o + req.path)}">
+  <meta name="twitter:card" content="summary_large_image"><link rel="canonical" href="${escH(o + req.path)}">`;
+    const html = INDEX.replace(/<title>[^<]*<\/title>/, `<title>${escH(meta.title)}</title>`)
+      .replace(/<meta name="description"[^>]*>/, `<meta name="description" content="${escH(meta.description)}">`)
+      .replace('</head>', tags + '\n</head>');
+    res.setHeader('Cache-Control', 'no-cache');
+    res.type('html').send(html);
+  }
+  const short = (s, n = 180) => { s = String(s || '').replace(/\s+/g, ' ').trim(); return s.length > n ? s.slice(0, n - 1) + '…' : s; };
+  app.get('/u/:username', wrap(async (req, res) => {
+    const u = await one(`SELECT ${userCols} FROM users u WHERE u.username = $1`, [req.params.username.toLowerCase()]);
+    if (!u) return page(req, res, { title: 'Cosplaygram', description: 'Платформа косплееров' });
+    const v = userView(u);
+    const cover = await one('SELECT pi.image_id FROM posts p JOIN post_images pi ON pi.post_id = p.id AND pi.idx = 0 WHERE p.author_id = $1 ORDER BY p.created_at DESC LIMIT 1', [v.id]);
+    const ach = await one('SELECT (SELECT count(*)::int FROM achievements WHERE user_id = $1) + (SELECT count(*)::int FROM event_results WHERE user_id = $1) AS n', [v.id]);
+    page(req, res, { type: 'profile', title: `${v.name} (@${v.username}) — Cosplaygram`,
+      description: short([v.specialty, v.city, ach.n ? `🏆 достижений: ${ach.n}` : '', v.bio].filter(Boolean).join(' · ') || 'Косплеер на Cosplaygram'),
+      image: imgUrl(cover?.image_id) || v.avatar });
+  }));
+  app.get('/p/:id', wrap(async (req, res) => {
+    const p = await one('SELECT p.character, p.fandom, p.caption, u.name, u.username FROM posts p JOIN users u ON u.id = p.author_id WHERE p.id = $1', [req.params.id]);
+    if (!p) return page(req, res, { title: 'Cosplaygram', description: 'Платформа косплееров' });
+    const im = await one('SELECT image_id FROM post_images WHERE post_id = $1 AND idx = 0', [req.params.id]);
+    page(req, res, { type: 'article', title: `${p.character || 'Косплей'}${p.fandom ? ' · ' + p.fandom : ''} — @${p.username}`, description: short(p.caption || `Работа ${p.name} на Cosplaygram`), image: imgUrl(im?.image_id) });
+  }));
+  app.get('/e/:id', wrap(async (req, res) => {
+    const e = await one('SELECT title, date, city, country, note FROM events WHERE id = $1', [req.params.id]);
+    if (!e) return page(req, res, { title: 'Мероприятия — Cosplaygram', description: 'Фестивали, ивенты, вечеринки, сходки' });
+    const w = await q('SELECT r.nomination, r.place, COALESCE(u.name, r.name) AS who FROM event_results r LEFT JOIN users u ON u.id = r.user_id WHERE r.event_id = $1 ORDER BY r.created_at LIMIT 6', [req.params.id]);
+    page(req, res, { title: `${e.title}${w.length ? ' — итоги' : ''} · Cosplaygram`,
+      description: short(w.length ? w.map((r) => `${r.nomination}: ${r.place} — ${r.who}`).join('; ') : [e.date.split('-').reverse().join('.'), e.city, COUNTRIES.name(e.country), e.note].filter(Boolean).join(' · ')) });
+  }));
+  app.get('/robots.txt', (req, res) => res.type('text').send(`User-agent: *\nAllow: /\nDisallow: /api/\nSitemap: ${origin(req)}/sitemap.xml\n`));
+  app.get('/sitemap.xml', wrap(async (req, res) => {
+    const o = origin(req);
+    const urls = [o + '/', ...(await q('SELECT username FROM users ORDER BY created_at DESC LIMIT 5000')).map((r) => `${o}/u/${encodeURIComponent(r.username)}`),
+      ...(await q('SELECT id FROM posts ORDER BY created_at DESC LIMIT 20000')).map((r) => `${o}/p/${r.id}`),
+      ...(await q('SELECT id FROM events ORDER BY date DESC LIMIT 2000')).map((r) => `${o}/e/${r.id}`)];
+    res.type('application/xml').send(`<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">${urls.map((u) => `<url><loc>${escH(u)}</loc></url>`).join('')}</urlset>`);
+  }));
   app.get(/^\/(?!api\/|img\/|chars\/).*/, (_req, res) => { res.setHeader('Cache-Control', 'no-cache'); res.sendFile(path.join(__dirname, 'public', 'index.html')); });
 
   app.use((err, _req, res, _next) => {
@@ -823,7 +1017,10 @@ async function main() {
     res.status(status).json({ error: status === 413 ? 'Файлы слишком большие' : status >= 500 ? 'Ошибка сервера. Попробуйте ещё раз.' : err.message });
   });
 
-  app.listen(PORT, () => console.log(`Cosplaygram запущен на порту ${PORT}`));
+  app.listen(PORT, () => {
+    console.log(`Cosplaygram запущен на порту ${PORT}${storage.enabled ? ', фото: ' + storage.kind : ''}`);
+    setTimeout(() => moveImages().catch((e) => console.error(e)), 3000);
+  });
 }
 
 main().catch((e) => {

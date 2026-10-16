@@ -1,0 +1,14 @@
+name: Не давать сайту засыпать
+
+# Бесплатный сервер Render засыпает после 15 минут тишины, и первый вход грузится ~50 секунд.
+# Раз в 10 минут заглядываем на сайт, чтобы он оставался бодрым.
+on:
+  schedule:
+    - cron: '*/10 * * * *'
+  workflow_dispatch:
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - run: curl -fsS --max-time 90 https://cosplaygram.onrender.com/healthz || true

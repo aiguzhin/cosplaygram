@@ -157,6 +157,43 @@ ALTER TABLE threads ADD COLUMN IF NOT EXISTS country TEXT NOT NULL DEFAULT '';
 ALTER TABLE users ADD COLUMN IF NOT EXISTS verified BOOLEAN NOT NULL DEFAULT FALSE;
 ALTER TABLE users ADD COLUMN IF NOT EXISTS socials TEXT NOT NULL DEFAULT '{}';
 ALTER TABLE events ADD COLUMN IF NOT EXISTS major BOOLEAN NOT NULL DEFAULT FALSE;
+ALTER TABLE images ADD COLUMN IF NOT EXISTS url TEXT NOT NULL DEFAULT '';
+ALTER TABLE users ADD COLUMN IF NOT EXISTS orders_open BOOLEAN NOT NULL DEFAULT FALSE;
+CREATE TABLE IF NOT EXISTS services (
+  id TEXT PRIMARY KEY,
+  user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  title TEXT NOT NULL,
+  price INTEGER NOT NULL DEFAULT 0,
+  currency TEXT NOT NULL DEFAULT 'KZT',
+  days INTEGER NOT NULL DEFAULT 0,
+  note TEXT NOT NULL DEFAULT '',
+  created_at DOUBLE PRECISION NOT NULL
+);
+CREATE INDEX IF NOT EXISTS services_user ON services(user_id);
+CREATE TABLE IF NOT EXISTS orders (
+  id TEXT PRIMARY KEY,
+  master_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  client_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  service_id TEXT,
+  title TEXT NOT NULL,
+  details TEXT NOT NULL DEFAULT '',
+  budget TEXT NOT NULL DEFAULT '',
+  deadline TEXT NOT NULL DEFAULT '',
+  status TEXT NOT NULL DEFAULT 'new',
+  created_at DOUBLE PRECISION NOT NULL,
+  updated_at DOUBLE PRECISION NOT NULL
+);
+CREATE INDEX IF NOT EXISTS orders_master ON orders(master_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS orders_client ON orders(client_id, created_at DESC);
+CREATE TABLE IF NOT EXISTS reviews (
+  order_id TEXT PRIMARY KEY REFERENCES orders(id) ON DELETE CASCADE,
+  master_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  client_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  rating INTEGER NOT NULL,
+  text TEXT NOT NULL DEFAULT '',
+  created_at DOUBLE PRECISION NOT NULL
+);
+CREATE INDEX IF NOT EXISTS reviews_master ON reviews(master_id, created_at DESC);
 CREATE TABLE IF NOT EXISTS event_results (
   id TEXT PRIMARY KEY,
   event_id TEXT NOT NULL REFERENCES events(id) ON DELETE CASCADE,
@@ -196,20 +233,26 @@ CREATE TABLE IF NOT EXISTS reports (
 );
 `;
 
+// Postgres по адресу (Supabase, Render и т. п.)
+function pgPool(url) {
+  const { Pool, types } = require('pg');
+  types.setTypeParser(20, (v) => Number(v)); // bigint → number
+  const local = /localhost|127\.0\.0\.1/.test(url);
+  const pool = new Pool({ connectionString: url, ssl: local ? false : { rejectUnauthorized: false }, max: 5 });
+  return {
+    query: async (sql, params = []) => (await pool.query(sql, params)).rows,
+    exec: async (sql) => { await pool.query(sql); },
+    end: () => pool.end(),
+  };
+}
+
+// Основная база: NEW_DATABASE_URL (Neon, после переезда) → DATABASE_URL (Render) → локальная PGlite
 async function connect() {
   let query, exec, kind;
-  if (process.env.DATABASE_URL) {
-    const { Pool, types } = require('pg');
-    types.setTypeParser(20, (v) => Number(v)); // bigint → number
-    const local = /localhost|127\.0\.0\.1/.test(process.env.DATABASE_URL);
-    const pool = new Pool({
-      connectionString: process.env.DATABASE_URL,
-      ssl: local ? false : { rejectUnauthorized: false },
-      max: 5,
-    });
-    query = async (sql, params = []) => (await pool.query(sql, params)).rows;
-    exec = async (sql) => { await pool.query(sql); };
-    kind = 'postgres';
+  const url = process.env.NEW_DATABASE_URL || process.env.SUPABASE_DB_URL || process.env.DATABASE_URL;
+  if (url) {
+    ({ query, exec } = pgPool(url));
+    kind = process.env.NEW_DATABASE_URL || process.env.SUPABASE_DB_URL ? 'новая база (Neon)' : 'postgres';
   } else {
     const dir = process.env.DATA_DIR || path.join(__dirname, 'data', 'pg');
     fs.mkdirSync(dir, { recursive: true });
@@ -224,4 +267,28 @@ async function connect() {
   return { query, exec, kind };
 }
 
-module.exports = { connect };
+// Перенос всех данных из старой базы в новую (по порядку, чтобы не сломать связи между таблицами)
+const TABLES = ['users', 'sessions', 'images', 'posts', 'post_images', 'likes', 'saves', 'comments', 'follows', 'stories',
+  'threads', 'replies', 'events', 'event_going', 'event_results', 'achievements', 'messages', 'notifications', 'reports',
+  'dms', 'char_covers', 'services', 'orders', 'reviews'];
+async function copyAll(src, dst, log = console.log) {
+  for (const t of TABLES) {
+    const [ex] = await src.query('SELECT to_regclass($1) AS r', ['public.' + t]);
+    if (!ex.r) continue;
+    const cols = (await dst.query("SELECT column_name FROM information_schema.columns WHERE table_schema = 'public' AND table_name = $1", [t])).map((r) => r.column_name);
+    const size = t === 'images' ? 10 : 400;
+    let off = 0;
+    for (;;) {
+      const rows = await src.query(`SELECT * FROM ${t} ORDER BY 1 LIMIT ${size} OFFSET ${off}`);
+      if (!rows.length) break;
+      const use = Object.keys(rows[0]).filter((c) => cols.includes(c));
+      const vals = [];
+      const ph = rows.map((r, i) => '(' + use.map((c, j) => { vals.push(r[c]); return '$' + (i * use.length + j + 1); }).join(',') + ')').join(',');
+      await dst.query(`INSERT INTO ${t} (${use.join(',')}) VALUES ${ph} ON CONFLICT DO NOTHING`, vals);
+      off += rows.length;
+    }
+    log(`  перенесено: ${t} — ${off}`);
+  }
+}
+
+module.exports = { connect, pgPool, copyAll, TABLES };
