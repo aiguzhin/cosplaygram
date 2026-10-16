@@ -1,0 +1,6 @@
+# DOMAIN из .env: «cosplaygram.kz, www.cosplaygram.kz» — сертификат https выпускается автоматически.
+# Пока домена нет — «:80», сайт открывается по IP сервера.
+{$DOMAIN::80} {
+	encode gzip
+	reverse_proxy app:3000
+}

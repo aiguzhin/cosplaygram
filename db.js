@@ -237,7 +237,8 @@ CREATE TABLE IF NOT EXISTS reports (
 function pgPool(url) {
   const { Pool, types } = require('pg');
   types.setTypeParser(20, (v) => Number(v)); // bigint → number
-  const local = /localhost|127\.0\.0\.1/.test(url);
+  // без SSL: локальная база или база в соседнем контейнере на том же сервере (docker compose)
+  const local = /localhost|127\.0\.0\.1|@db[:/]|sslmode=disable/.test(url);
   const pool = new Pool({ connectionString: url, ssl: local ? false : { rejectUnauthorized: false }, max: 5 });
   return {
     query: async (sql, params = []) => (await pool.query(sql, params)).rows,

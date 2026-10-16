@@ -1,0 +1,44 @@
+# Cosplaygram на своём сервере: сайт + база Postgres + Caddy (https-сертификат сам).
+# Все данные лежат на этом сервере. Настройки — в файле .env (его создаёт deploy/install.sh).
+services:
+  db:
+    image: postgres:16-alpine
+    restart: always
+    environment:
+      POSTGRES_USER: cosplaygram
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      POSTGRES_DB: cosplaygram
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U cosplaygram"]
+      interval: 5s
+      retries: 20
+
+  app:
+    build: .
+    restart: always
+    env_file: .env
+    depends_on:
+      db:
+        condition: service_healthy
+
+  caddy:
+    image: caddy:2-alpine
+    restart: always
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      DOMAIN: ${DOMAIN}
+    volumes:
+      - ./deploy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      - app
+
+volumes:
+  pgdata:
+  caddy_data:
+  caddy_config:
