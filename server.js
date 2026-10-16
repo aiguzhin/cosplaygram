@@ -3,15 +3,19 @@ const express = require('express');
 const crypto = require('crypto');
 const path = require('path');
 const { connect } = require('./db');
-const { seedDb } = require('./seed');
 const COUNTRIES = require('./public/countries');
 
 const PORT = process.env.PORT || 3000;
+// Разработчики платформы: полный доступ и роль, которую не может снять модератор
+const DEVS = ['aiguzhin', ...(process.env.DEV_USERNAMES || '').split(',')].map((s) => s.trim().toLowerCase()).filter(Boolean);
 const ADMINS = (process.env.ADMIN_USERNAMES || '').split(',').map((s) => s.trim().toLowerCase()).filter(Boolean);
 const DAY = 24 * 60 * 60 * 1000;
 const COLORS = ['lapis', 'turquoise', 'garnet', 'saffron', 'violet', 'jade'];
 const CATEGORIES = ['materials', 'sewing', 'props', 'wigs', 'photo', 'other'];
-const SOURCES = ['anime', 'manga', 'drama', 'film', 'game', 'original'];
+const SOURCES = ['anime', 'manga', 'book', 'film', 'game', 'original'];
+const EVENT_TYPES = ['festival', 'contest', 'event', 'party', 'meetup', 'workshop'];
+const SOCIALS = ['instagram', 'tiktok', 'telegram', 'vk', 'youtube'];
+const ACH_KINDS = ['place', 'jury', 'guest', 'organizer', 'other'];
 const themeId = (t) => (/^[a-z0-9-]{2,24}$/.test(String(t || '')) ? String(t) : '');
 // Комнаты чата: общая, срочная помощь и по одной на каждую страну (код страны строчными буквами)
 const ROOMS = ['general', 'help', ...COUNTRIES.LIST.map(([c]) => c.toLowerCase())];
@@ -44,6 +48,15 @@ const tooMany = (key, max, windowMs) => hits(key, windowMs).length >= max;
 const remember = (key) => { (attempts.get(key) || attempts.set(key, []).get(key)).push(now()); };
 setInterval(() => { for (const [k, v] of attempts) if (!v.length || now() - v.at(-1) > 3600e3) attempts.delete(k); }, 600e3).unref();
 
+// Ссылка или @ник → просто ник (буквы, цифры, точка, _ и -)
+function handle(v) {
+  let s = String(v ?? '').trim().slice(0, 200);
+  s = s.replace(/^https?:\/\/(www\.)?/i, '').replace(/^(instagram\.com|tiktok\.com|t\.me|telegram\.me|vk\.com|youtube\.com|m\.vk\.com)\//i, '');
+  s = s.replace(/^@/, '').split(/[/?#]/)[0].replace(/^@/, '');
+  return /^[A-Za-z0-9._-]{1,60}$/.test(s) ? s : '';
+}
+const cleanSocials = (o) => Object.fromEntries(SOCIALS.map((k) => [k, handle(o[k])]).filter(([, v]) => v));
+
 class HttpError extends Error {
   constructor(status, message) { super(message); this.status = status; }
 }
@@ -53,12 +66,12 @@ async function main() {
   const db = await connect();
   const q = db.query;
   const one = async (sql, p) => (await q(sql, p))[0] || null;
-  if (await seedDb(db)) console.log('Демо-данные загружены');
-  await q("UPDATE posts SET source = 'original' WHERE demo = TRUE AND source = ''");
-  for (const [u, t] of [['aru.cos', 'frieren'], ['dias_props', 'guts'], ['kamila.wigs', 'usagi'], ['timur.photo', 'paul'], ['madi.craft', 'vader'], ['aisha.sews', 'wei']])
-    await q("UPDATE users SET theme = $2 WHERE demo = TRUE AND username = $1 AND theme = ''", [u, t]);
-  await q("UPDATE events SET title = 'Косплей-шоу на аниме-фестивале' WHERE demo = TRUE AND title = 'Косплей-конкурс на аниме-фестивале'");
-  await q("UPDATE events SET note = 'Пример мероприятия. Замените на настоящее с датой и ссылкой организатора.' WHERE demo = TRUE AND note LIKE 'Пример события%'");
+  // Только настоящие участники: демо-профили, их посты и примерные мероприятия удаляются
+  await q('DELETE FROM events WHERE demo = TRUE');
+  await q('DELETE FROM users WHERE demo = TRUE');
+  if (DEVS.length) await q("UPDATE users SET role = 'dev', verified = TRUE WHERE username = ANY($1)", [DEVS]);
+  // Дорамы заменены книгами: старые публикации-дорамы считаем сериалами
+  await q("UPDATE posts SET source = 'film' WHERE source = 'drama'");
   // Платформа стала международной: проставляем страну старым записям по известным городам
   for (const t of ['users', 'events', 'threads']) {
     await q(`UPDATE ${t} SET country = 'KZ' WHERE country = '' AND city = ANY($1)`, [KZ_CITIES]);
@@ -79,7 +92,7 @@ async function main() {
   const imgUrl = (id) => (!id ? null : id.startsWith('/') ? id : `/img/${id}`);
 
   // ---------- представления ----------
-  const userCols = 'u.id, u.username, u.name, u.city, u.specialty, u.bio, u.avatar_id, u.color, u.role, u.demo, u.created_at, u.theme, u.country';
+  const userCols = 'u.id, u.username, u.name, u.city, u.specialty, u.bio, u.avatar_id, u.color, u.role, u.demo, u.created_at, u.theme, u.country, u.verified, u.socials';
   const userView = (r, prefix = '') => {
     const g = (k) => r[prefix + k];
     if (!g('id')) return null;
@@ -87,10 +100,11 @@ async function main() {
       id: g('id'), username: g('username'), name: g('name'), city: g('city'), specialty: g('specialty'),
       bio: g('bio'), avatar: imgUrl(g('avatar_id')), color: g('color'), role: g('role'), demo: g('demo'),
       createdAt: g('created_at'), theme: g('theme') || '', country: g('country') || '',
+      verified: !!g('verified'), socials: (() => { try { return JSON.parse(g('socials') || '{}'); } catch { return {}; } })(),
     };
   };
   const authorCols = (a = 'u', p = 'a_') =>
-    ['id', 'username', 'name', 'city', 'specialty', 'bio', 'avatar_id', 'color', 'role', 'demo', 'created_at', 'theme', 'country']
+    ['id', 'username', 'name', 'city', 'specialty', 'bio', 'avatar_id', 'color', 'role', 'demo', 'created_at', 'theme', 'country', 'verified', 'socials']
       .map((c) => `${a}.${c} AS ${p}${c}`).join(', ');
 
   async function loadPosts(where, params, meId, { limit = 30, comments = 2 } = {}) {
@@ -177,8 +191,8 @@ async function main() {
   // сайт закрыт для гостей: без входа доступны только регистрация, вход и проверка сессии
   const OPEN = new Set(['/register', '/login', '/logout', '/me', '/characters']);
   app.use('/api', (req, _res, next) => (OPEN.has(req.path) || req.user ? next() : next(new HttpError(401, 'Зарегистрируйтесь или войдите, чтобы пользоваться Cosplaygram'))));
-  const admin = (req, _res, next) => (req.user?.role === 'admin' ? next() : next(new HttpError(403, 'Только для модераторов')));
-  const isAdmin = (req) => req.user?.role === 'admin';
+  const admin = (req, _res, next) => (['admin', 'dev'].includes(req.user?.role) ? next() : next(new HttpError(403, 'Только для модераторов')));
+  const isAdmin = (req) => ['admin', 'dev'].includes(req.user?.role);
 
   async function startSession(req, res, userId) {
     const sid = crypto.randomBytes(24).toString('hex');
@@ -197,13 +211,13 @@ async function main() {
     if (password.length < 8) throw new HttpError(400, 'Пароль должен быть не короче 8 символов');
     if (await one('SELECT 1 FROM users WHERE username = $1', [username])) throw new HttpError(409, 'Этот ник уже занят');
     const real = await one('SELECT count(*)::int AS n FROM users WHERE demo = FALSE');
-    const role = ADMINS.includes(username) || real.n === 0 ? 'admin' : 'user';
+    const role = DEVS.includes(username) ? 'dev' : ADMINS.includes(username) || real.n === 0 ? 'admin' : 'user';
     const id = newId();
     await q(
-      `INSERT INTO users (id, username, password, name, city, specialty, color, role, created_at, theme, country)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)`,
+      `INSERT INTO users (id, username, password, name, city, specialty, color, role, created_at, theme, country, verified)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)`,
       [id, username, hashPassword(password), clean(req.body.name, 60) || username, clean(req.body.city, 40),
-        clean(req.body.specialty, 60), COLORS[Math.floor(Math.random() * COLORS.length)], role, now(), themeId(req.body.theme), COUNTRIES.valid(req.body.country)]
+        clean(req.body.specialty, 60), COLORS[Math.floor(Math.random() * COLORS.length)], role, now(), themeId(req.body.theme), COUNTRIES.valid(req.body.country), role === 'dev']
     );
     remember('reg:' + req.ip);
     await startSession(req, res, id);
@@ -240,9 +254,10 @@ async function main() {
     const u = req.user;
     const avatarId = b.avatar ? await saveImage(b.avatar, u.id) : null;
     await q(
-      `UPDATE users SET name = $2, city = $3, specialty = $4, bio = $5, color = $6, avatar_id = COALESCE($7, avatar_id), theme = $8, country = $9 WHERE id = $1`,
+      `UPDATE users SET name = $2, city = $3, specialty = $4, bio = $5, color = $6, avatar_id = COALESCE($7, avatar_id), theme = $8, country = $9, socials = $10 WHERE id = $1`,
       [u.id, clean(b.name ?? u.name, 60) || u.username, clean(b.city ?? u.city, 40), clean(b.specialty ?? u.specialty, 60),
-        clean(b.bio ?? u.bio, 300), COLORS.includes(b.color) ? b.color : u.color, avatarId, 'theme' in b ? themeId(b.theme) : u.theme, 'country' in b ? COUNTRIES.valid(b.country) : u.country]
+        clean(b.bio ?? u.bio, 300), COLORS.includes(b.color) ? b.color : u.color, avatarId, 'theme' in b ? themeId(b.theme) : u.theme, 'country' in b ? COUNTRIES.valid(b.country) : u.country,
+        JSON.stringify(b.socials && typeof b.socials === 'object' ? cleanSocials(b.socials) : u.socials || {})]
     );
     res.json({ user: await meView(u.id) });
   }));
@@ -380,7 +395,7 @@ async function main() {
   app.get('/api/users', wrap(async (req, res) => {
     const rows = await q(
       `SELECT ${userCols}, (SELECT count(*)::int FROM follows f WHERE f.followee_id = u.id) AS followers
-       FROM users u ORDER BY u.demo ASC, followers DESC, u.created_at DESC LIMIT 50`
+       FROM users u ORDER BY u.verified DESC, followers DESC, u.created_at DESC LIMIT 100`
     );
     res.json({ users: rows.map((r) => ({ ...userView(r), followers: r.followers })) });
   }));
@@ -397,7 +412,33 @@ async function main() {
               EXISTS (SELECT 1 FROM follows WHERE follower_id = $2 AND followee_id = $1) AS is_following`,
       [user.id, req.user?.id || '']
     );
-    res.json({ user, posts, stats: { posts: posts.length, followers: s.followers, following: s.following, likes: s.likes }, isFollowing: s.is_following });
+    res.json({ user, posts, achievements: await loadAchievements(user.id), stats: { posts: posts.length, followers: s.followers, following: s.following, likes: s.likes }, isFollowing: s.is_following });
+  }));
+
+  // Достижения: добавленные самим участником + подтверждённые итогами мероприятий на сайте
+  async function loadAchievements(userId) {
+    const own = await q('SELECT * FROM achievements WHERE user_id = $1 ORDER BY year DESC, created_at DESC', [userId]);
+    const won = await q(
+      `SELECT r.id, r.nomination, r.place, e.id AS event_id, e.title, e.date FROM event_results r JOIN events e ON e.id = r.event_id
+       WHERE r.user_id = $1 ORDER BY e.date DESC`, [userId]);
+    return [
+      ...won.map((r) => ({ id: 'r:' + r.id, kind: 'place', event: r.title, year: r.date.slice(0, 4), title: [r.place, r.nomination].filter(Boolean).join(' — '), verified: true, eventId: r.event_id })),
+      ...own.map((a) => ({ id: a.id, kind: a.kind, event: a.event, year: a.year, title: a.title, verified: false })),
+    ].sort((a, b) => String(b.year).localeCompare(String(a.year)));
+  }
+  app.post('/api/me/achievements', auth, wrap(async (req, res) => {
+    const event = clean(req.body.event, 100);
+    if (!event) throw new HttpError(400, 'Укажите фестиваль или мероприятие');
+    const n = await one('SELECT count(*)::int AS n FROM achievements WHERE user_id = $1', [req.user.id]);
+    if (n.n >= 60) throw new HttpError(400, 'Слишком много достижений');
+    const year = /^\d{4}$/.test(String(req.body.year || '').trim()) ? String(req.body.year).trim() : '';
+    await q('INSERT INTO achievements (id, user_id, kind, event, year, title, created_at) VALUES ($1,$2,$3,$4,$5,$6,$7)', [
+      newId(), req.user.id, ACH_KINDS.includes(req.body.kind) ? req.body.kind : 'other', event, year, clean(req.body.title, 120), now()]);
+    res.json({ achievements: await loadAchievements(req.user.id) });
+  }));
+  app.delete('/api/me/achievements/:id', auth, wrap(async (req, res) => {
+    await q('DELETE FROM achievements WHERE id = $1 AND user_id = $2', [req.params.id, req.user.id]);
+    res.json({ achievements: await loadAchievements(req.user.id) });
   }));
 
   app.post('/api/users/:username/follow', auth, wrap(async (req, res) => {
@@ -493,9 +534,10 @@ async function main() {
   app.get('/api/events', wrap(async (req, res) => {
     const rows = await q(
       `SELECT e.*, (SELECT count(*)::int FROM event_going g WHERE g.event_id = e.id) AS going_count,
+         (SELECT count(*)::int FROM event_results x WHERE x.event_id = e.id) AS results_count,
          EXISTS (SELECT 1 FROM event_going g WHERE g.event_id = e.id AND g.user_id = $1) AS going
        FROM events e ORDER BY e.date`, [req.user?.id || '']);
-    res.json({ events: rows.map((e) => ({ ...e, authorId: e.author_id, goingCount: e.going_count })) });
+    res.json({ events: rows.map((e) => ({ ...e, authorId: e.author_id, goingCount: e.going_count, resultsCount: e.results_count })) });
   }));
   app.post('/api/events/:id/going', auth, wrap(async (req, res) => {
     if (!(await one('SELECT 1 FROM events WHERE id = $1', [req.params.id]))) throw new HttpError(404, 'Мероприятие не найдено');
@@ -508,14 +550,50 @@ async function main() {
     const title = clean(req.body.title, 120);
     const date = clean(req.body.date, 10);
     if (!title || !/^\d{4}-\d{2}-\d{2}$/.test(date) || isNaN(Date.parse(date))) throw new HttpError(400, 'Укажите название и дату мероприятия');
-    const type = ['contest', 'festival', 'meetup', 'workshop'].includes(req.body.type) ? req.body.type : 'festival';
+    const type = EVENT_TYPES.includes(req.body.type) ? req.body.type : 'festival';
     const link = /^https?:\/\//.test(req.body.link || '') ? clean(req.body.link, 300) : '';
     await q(
-      'INSERT INTO events (id, title, date, city, place, type, link, note, author_id, created_at, country) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)',
+      'INSERT INTO events (id, title, date, city, place, type, link, note, author_id, created_at, country, major) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)',
       [newId(), title, date, clean(req.body.city, 40), clean(req.body.place, 120), type, link, clean(req.body.note, 300), req.user.id, now(),
-        'country' in req.body ? COUNTRIES.valid(req.body.country) : req.user.country]
+        'country' in req.body ? COUNTRIES.valid(req.body.country) : req.user.country, isAdmin(req) && !!req.body.major]
     );
     res.json({ ok: true });
+  }));
+  app.post('/api/admin/events/:id/major', auth, admin, wrap(async (req, res) => {
+    const r = await q('UPDATE events SET major = NOT major WHERE id = $1 RETURNING major', [req.params.id]);
+    if (!r.length) throw new HttpError(404, 'Мероприятие не найдено');
+    res.json({ major: r[0].major });
+  }));
+  // ----- итоги: победители по номинациям -----
+  async function loadResults(eventId) {
+    const rows = await q(
+      `SELECT r.*, ${authorCols()} FROM event_results r LEFT JOIN users u ON u.id = r.user_id WHERE r.event_id = $1 ORDER BY r.created_at`, [eventId]);
+    return rows.map((r) => ({ id: r.id, nomination: r.nomination, place: r.place, name: r.name, link: r.link, user: userView(r, 'a_') }));
+  }
+  const canEditEvent = async (req, id) => {
+    const e = await one('SELECT author_id FROM events WHERE id = $1', [id]);
+    if (!e) throw new HttpError(404, 'Мероприятие не найдено');
+    if (e.author_id !== req.user.id && !isAdmin(req)) throw new HttpError(403, 'Итоги может заполнять автор мероприятия или модератор');
+  };
+  app.get('/api/events/:id/results', wrap(async (req, res) => res.json({ results: await loadResults(req.params.id) })));
+  app.post('/api/events/:id/results', auth, wrap(async (req, res) => {
+    await canEditEvent(req, req.params.id);
+    const nomination = clean(req.body.nomination, 100);
+    const who = clean(req.body.who, 80);
+    if (!nomination || !who) throw new HttpError(400, 'Укажите номинацию и участника');
+    const u = await one('SELECT id, username FROM users WHERE username = $1', [who.replace(/^@/, '').toLowerCase()]);
+    let link = clean(req.body.link, 200);
+    if (link && !/^https?:\/\//.test(link)) { const h = handle(link); link = h ? 'https://instagram.com/' + h : ''; }
+    await q('INSERT INTO event_results (id, event_id, nomination, place, user_id, name, link, created_at) VALUES ($1,$2,$3,$4,$5,$6,$7,$8)', [
+      newId(), req.params.id, nomination, clean(req.body.place, 40), u?.id || null, u ? '' : who, link, now()]);
+    res.json({ results: await loadResults(req.params.id) });
+  }));
+  app.delete('/api/results/:id', auth, wrap(async (req, res) => {
+    const r = await one('SELECT event_id FROM event_results WHERE id = $1', [req.params.id]);
+    if (!r) throw new HttpError(404, 'Запись не найдена');
+    await canEditEvent(req, r.event_id);
+    await q('DELETE FROM event_results WHERE id = $1', [req.params.id]);
+    res.json({ results: await loadResults(r.event_id) });
   }));
   app.delete('/api/events/:id', auth, wrap(async (req, res) => {
     const e = await one('SELECT author_id FROM events WHERE id = $1', [req.params.id]);
@@ -705,15 +783,39 @@ async function main() {
     await q('UPDATE reports SET resolved = TRUE WHERE id = $1', [req.params.id]);
     res.json({ ok: true });
   }));
-  app.post('/api/admin/demo/clear', auth, admin, wrap(async (_req, res) => {
-    await q('DELETE FROM events WHERE demo = TRUE');
-    await q('DELETE FROM users WHERE demo = TRUE');
+  app.get('/api/admin/users', auth, admin, wrap(async (req, res) => {
+    const term = clean(req.query.q, 60).toLowerCase();
+    const like = `%${term.replace(/[%_\\]/g, '\\$&')}%`;
+    const rows = await q(
+      `SELECT ${userCols}, (SELECT count(*)::int FROM posts p WHERE p.author_id = u.id) AS posts FROM users u
+       ${term ? 'WHERE lower(u.username) LIKE $1 OR lower(u.name) LIKE $1' : ''} ORDER BY u.created_at DESC LIMIT 200`, term ? [like] : []);
+    res.json({ users: rows.map((r) => ({ ...userView(r), posts: r.posts })) });
+  }));
+  app.post('/api/admin/users/:id', auth, admin, wrap(async (req, res) => {
+    const t = await one('SELECT id, role FROM users WHERE id = $1', [req.params.id]);
+    if (!t) throw new HttpError(404, 'Участник не найден');
+    if (t.role === 'dev' && req.user.role !== 'dev') throw new HttpError(403, 'Разработчика может менять только разработчик');
+    if ('verified' in req.body) await q('UPDATE users SET verified = $2 WHERE id = $1', [t.id, !!req.body.verified]);
+    if ('role' in req.body) {
+      if (req.user.role !== 'dev') throw new HttpError(403, 'Роли назначает только разработчик');
+      if (t.id === req.user.id) throw new HttpError(400, 'Свою роль менять нельзя');
+      if (!['user', 'admin', 'dev'].includes(req.body.role)) throw new HttpError(400, 'Неизвестная роль');
+      await q('UPDATE users SET role = $2 WHERE id = $1', [t.id, req.body.role]);
+    }
+    res.json({ user: userView(await one(`SELECT ${userCols} FROM users u WHERE u.id = $1`, [t.id])) });
+  }));
+  app.delete('/api/admin/users/:id', auth, admin, wrap(async (req, res) => {
+    const t = await one('SELECT id, role FROM users WHERE id = $1', [req.params.id]);
+    if (!t) throw new HttpError(404, 'Участник не найден');
+    if (t.id === req.user.id) throw new HttpError(400, 'Себя удалить нельзя');
+    if (t.role === 'dev' || (t.role === 'admin' && req.user.role !== 'dev')) throw new HttpError(403, 'Этого участника удалить нельзя');
+    await q('DELETE FROM users WHERE id = $1', [t.id]);
     res.json({ ok: true });
   }));
 
   app.get('/healthz', (_req, res) => res.send('ok'));
   app.use('/api', (_req, _res, next) => next(new HttpError(404, 'Нет такого адреса API')));
-  app.get(/^\/(?!api\/|img\/|demo\/|chars\/).*/, (_req, res) => { res.setHeader('Cache-Control', 'no-cache'); res.sendFile(path.join(__dirname, 'public', 'index.html')); });
+  app.get(/^\/(?!api\/|img\/|chars\/).*/, (_req, res) => { res.setHeader('Cache-Control', 'no-cache'); res.sendFile(path.join(__dirname, 'public', 'index.html')); });
 
   app.use((err, _req, res, _next) => {
     const status = err.status || (err.type === 'entity.too.large' ? 413 : 500);

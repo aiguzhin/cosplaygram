@@ -1,5 +1,6 @@
 // Cosplaygram — темы по персонажам.
-// Порядок внутри раздела — по популярности у косплееров: рейтинг Spacomic «кого хотят косплеить» 2025
+// Дорам нет: их почти не косплеят; вместо них — персонажи книг.
+  // Порядок внутри раздела — по популярности у косплееров: рейтинг Spacomic «кого хотят косплеить» 2025
 // и постоянные фавориты конвентов. На сайте сортировка дополнительно учитывает, сколько косплеев
 // персонажа уже опубликовано в Cosplaygram.
 // Официальные изображения персонажей не используем (авторские права): на карточке — фото косплея
@@ -7,7 +8,7 @@
 (function () {
   'use strict';
 
-  const CATS = { anime: 'Аниме', manga: 'Манга', drama: 'Дорамы', film: 'Фильмы и сериалы', game: 'Игры' };
+  const CATS = { anime: 'Аниме', manga: 'Манга', book: 'Книги', film: 'Фильмы и сериалы', game: 'Игры' };
 
   function hexA(hex, a) {
     const n = parseInt(hex.slice(1), 16);
@@ -103,26 +104,28 @@
     T('ichigo', 'Ичиго Куросаки', 'Блич', 'manga', 'dark', '#0C0C0D', '#F07A1F', '#E8E8EA', 'Unbounded', 'stripes'),
     T('lightyagami', 'Лайт Ягами', 'Тетрадь смерти', 'manga', 'dark', '#0D0C10', '#C8323A', '#D9B76B', 'Cormorant Garamond', 'grid'),
 
-    // ---------- Дорамы ----------
-    T('gihun', 'Сон Ки-хун', 'Игра в кальмара', 'drama', 'dark', '#0B1414', '#F0397A', '#2BB39B', 'Unbounded', 'grid'),
-    T('wei', 'Вэй Усянь', 'Неукротимый: Повелитель Чэньцин', 'drama', 'dark', '#0F0B0B', '#D23C46', '#E2C17C', 'Cormorant Garamond', 'waves'),
-    T('lan', 'Лань Ванцзи', 'Неукротимый: Повелитель Чэньцин', 'drama', 'light', '#F4F8FA', '#36698F', '#A9BFCF', 'Cormorant Garamond', 'waves'),
-    T('dongfang', 'Дунфан Цинцан', 'Любовь между феей и дьяволом', 'drama', 'dark', '#0E0B14', '#9B6BF0', '#D9C38A', 'Cormorant Garamond', 'stars'),
-    T('kimshin', 'Ким Шин', 'Токкэби', 'drama', 'dark', '#111014', '#D1AB61', '#B23A48', 'Yeseva One', 'stars'),
-    T('haein', 'Хон Хэ-ин', 'Королева слёз', 'drama', 'light', '#F8F5F1', '#9A6A4C', '#2F3B4C', 'Cormorant Garamond', 'diamond'),
-    T('seri', 'Юн Се-ри', 'Аварийная посадка любви', 'drama', 'light', '#FBF6F3', '#C9614F', '#4E6A86', 'Yeseva One', 'dots'),
-    T('donguen', 'Мун Дон-ын', 'Слава', 'drama', 'dark', '#0C0D10', '#8FA3B5', '#B33A3A', 'Unbounded', 'grid'),
-    T('manwol', 'Чан Ман-воль', 'Отель «Дель Луна»', 'drama', 'dark', '#100C14', '#B07BD6', '#D9B76B', 'Cormorant Garamond', 'stars'),
-    T('minjun', 'До Мин-джун', 'Моя любовь со звезды', 'drama', 'dark', '#0B0E16', '#6FA8E8', '#D9C38A', 'Unbounded', 'stars'),
-    T('wangso', 'Ван Со', 'Алые сердца: Корё', 'drama', 'dark', '#100B0B', '#B8323F', '#D9B76B', 'Cormorant Garamond', 'waves'),
-    T('leeyeon', 'Ли Ён', 'Легенда о кумихо', 'drama', 'dark', '#0E0B12', '#D9534F', '#9AA6B8', 'Cormorant Garamond', 'rings'),
-    T('leegon', 'Ли Гон', 'Король: Вечный монарх', 'drama', 'light', '#F4F6FA', '#2E4E8C', '#C9A74A', 'Cormorant Garamond', 'diamond'),
-    T('shaoshang', 'Чэн Шаошан', 'Любовь как галактика', 'drama', 'light', '#FBF5F2', '#C9614F', '#6B8E6B', 'Cormorant Garamond', 'waves'),
-    T('jangok', 'Чан Ок', 'Вечный огонь: Алхимия душ', 'drama', 'dark', '#0E0D12', '#5A8FD8', '#D9C38A', 'Cormorant Garamond', 'rings'),
+    // ---------- Книги ----------
+    T('wei', 'Вэй Усянь', 'Магистр дьявольского культа', 'book', 'dark', '#0F0B0B', '#D23C46', '#E2C17C', 'Cormorant Garamond', 'waves'),
+    T('lan', 'Лань Ванцзи', 'Магистр дьявольского культа', 'book', 'light', '#F4F8FA', '#36698F', '#A9BFCF', 'Cormorant Garamond', 'waves'),
+    T('xielian', 'Се Лянь', 'Благословение небожителей', 'book', 'light', '#F7F4F7', '#A8668E', '#C9B6D6', 'Cormorant Garamond', 'waves'),
+    T('huacheng', 'Хуа Чэн', 'Благословение небожителей', 'book', 'dark', '#120A0C', '#C8323A', '#B8A0D8', 'Cormorant Garamond', 'stars'),
+    T('harry', 'Гарри Поттер', 'Гарри Поттер', 'book', 'dark', '#160D0F', '#D9A441', '#A0283A', 'Cormorant Garamond', 'stars'),
+    T('hermione', 'Гермиона Грейнджер', 'Гарри Поттер', 'book', 'dark', '#140D0F', '#C9A74A', '#A0283A', 'Cormorant Garamond', 'stars'),
+    T('alice', 'Алиса', 'Алиса в Стране чудес', 'book', 'light', '#F2F7FC', '#3A7BD5', '#D9A441', 'Comfortaa', 'check'),
+    T('hatter', 'Безумный Шляпник', 'Алиса в Стране чудес', 'book', 'dark', '#120E14', '#D98A2E', '#4FA08B', 'Yeseva One', 'check'),
+    T('woland', 'Воланд', 'Мастер и Маргарита', 'book', 'dark', '#0D0B10', '#B8323F', '#D9B76B', 'Cormorant Garamond', 'stars'),
+    T('margarita', 'Маргарита', 'Мастер и Маргарита', 'book', 'dark', '#0F0B10', '#D9B76B', '#8E1F2F', 'Cormorant Garamond', 'stars'),
+    T('sherlock', 'Шерлок Холмс', 'Приключения Шерлока Холмса', 'book', 'light', '#F4F1EA', '#6B4E2E', '#2E4E6B', 'Cormorant Garamond', 'grid'),
+    T('katniss', 'Китнисс Эвердин', 'Голодные игры', 'book', 'dark', '#0E0F0C', '#E07A2F', '#6B7F45', 'Unbounded', 'stripes'),
+    T('percy', 'Перси Джексон', 'Перси Джексон', 'book', 'light', '#F2F8FA', '#E8762F', '#2E7FA8', 'Unbounded', 'waves'),
+    T('kaz', 'Каз Бреккер', 'Шестёрка воронов', 'book', 'dark', '#0C0D10', '#8A8F98', '#7A2E3A', 'Cormorant Garamond', 'grid'),
+    T('inej', 'Инеж Гафа', 'Шестёрка воронов', 'book', 'dark', '#100C14', '#8E6BAE', '#D9B76B', 'Cormorant Garamond', 'diamond'),
+    T('dracula', 'Граф Дракула', 'Дракула', 'book', 'dark', '#0C080A', '#B8323F', '#5A5A66', 'Cormorant Garamond', 'rings'),
+    T('littleprince', 'Маленький принц', 'Маленький принц', 'book', 'light', '#F5F7FC', '#D9A441', '#4A78C2', 'Comfortaa', 'stars'),
 
     // ---------- Фильмы и сериалы ----------
+    T('gihun', 'Сон Ки-хун', 'Игра в кальмара', 'film', 'dark', '#0B1414', '#F0397A', '#2BB39B', 'Unbounded', 'grid'),
     T('wednesday', 'Уэнсдэй Аддамс', 'Уэнсдэй', 'film', 'dark', '#0B0B0D', '#CFC8EA', '#6B4E9B', 'Cormorant Garamond', 'check'),
-    T('harry', 'Гарри Поттер', 'Гарри Поттер', 'film', 'dark', '#160D0F', '#D9A441', '#A0283A', 'Cormorant Garamond', 'stars'),
     T('miles', 'Майлз Моралес', 'Человек-паук: Через вселенные', 'film', 'dark', '#0B0B10', '#E8384F', '#3A7BFF', 'Unbounded', 'dots'),
     T('elsa', 'Эльза', 'Холодное сердце', 'film', 'light', '#F1F7FC', '#2373AE', '#7CC6EE', 'Cormorant Garamond', 'stars'),
     T('neo', 'Нео', 'Матрица', 'film', 'dark', '#050806', '#3BFF6E', '#1C8C3C', 'JetBrains Mono', 'rain'),

@@ -142,6 +142,9 @@ const ic = {
   right: I('<path d="m9 5 7 7-7 7"/>'),
   up: I('<path d="m6 15 6-6 6 6"/>'),
   check: I('<path d="m5 12.5 4.5 4.5L19 7.5"/>'),
+  trophy: I('<path d="M8 21h8M12 17v4M7 4h10v5a5 5 0 0 1-10 0z"/><path d="M17 5h3v2a3 3 0 0 1-3 3M7 5H4v2a3 3 0 0 0 3 3"/>'),
+  link: I('<path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1"/><path d="M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1"/>'),
+  verified: '<svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 2l2.4 1.8 3-.2.9 2.9 2.5 1.7-1 2.8 1 2.8-2.5 1.7-.9 2.9-3-.2L12 22l-2.4-1.8-3 .2-.9-2.9-2.5-1.7 1-2.8-1-2.8 2.5-1.7.9-2.9 3 .2z"/><path d="m8.4 12.2 2.5 2.5 4.7-4.9" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>',
   globe: I('<circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c2.5 2.6 3.8 5.6 3.8 9s-1.3 6.4-3.8 9c-2.5-2.6-3.8-5.6-3.8-9S9.5 5.6 12 3z"/>'),
   palette: I('<path d="M12 3a9 9 0 1 0 0 18c1.1 0 1.6-.8 1.6-1.6 0-1.3-1-1.6-1-2.7 0-1 .8-1.7 1.8-1.7H17a4 4 0 0 0 4-4C21 6.6 17 3 12 3z"/><circle cx="7.5" cy="11" r="1"/><circle cx="10" cy="7" r="1"/><circle cx="15" cy="7" r="1"/>'),
   phone: I('<rect x="6.5" y="2.5" width="11" height="19" rx="2.5"/><path d="M11 18.5h2"/>'),
@@ -154,7 +157,7 @@ const ic = {
 };
 
 /* ================= люди и персонажи ================= */
-const SOURCES = { anime: 'Аниме', manga: 'Манга', drama: 'Дорама', film: 'Фильм', game: 'Игра', original: 'Ориджинал' };
+const SOURCES = { anime: 'Аниме', manga: 'Манга', book: 'Книга', film: 'Фильм', game: 'Игра', original: 'Ориджинал' };
 const LEGACY = { lapis: '#4F63E8', turquoise: '#1BA79D', garnet: '#D93D62', saffron: '#D4931C', violet: '#7C58E6', jade: '#2E9A63' };
 const themeOf = (u) => CG.get(u?.theme || 'classic');
 function ava(u, size = 36) {
@@ -165,8 +168,15 @@ function ava(u, size = 36) {
   return `<span class="ava" style="--s:${size}px;${st}">${inner}</span>`;
 }
 const userLink = (u) => `#/u/${encodeURIComponent(u?.username || '')}`;
+// Роли и галочка подтверждённого аккаунта
+const isMod = (u) => ['admin', 'dev'].includes(u?.role);
+const ROLE_LABEL = { dev: 'Разработчик', admin: 'Модератор' };
+const vmark = (u) => (u?.verified || u?.role === 'dev' ? `<span class="vmark" title="Подтверждённый аккаунт" aria-label="Подтверждённый аккаунт">${ic.verified}</span>` : '');
+const rolePill = (u) => (ROLE_LABEL[u?.role] ? `<span class="pill role-${u.role}">${ROLE_LABEL[u.role]}</span>` : '');
+const SOCIAL = { instagram: ['Instagram', 'https://instagram.com/'], tiktok: ['TikTok', 'https://www.tiktok.com/@'], telegram: ['Telegram', 'https://t.me/'], vk: ['VK', 'https://vk.com/'], youtube: ['YouTube', 'https://www.youtube.com/@'] };
+const ACH = { place: ['🏆', 'Призовое место'], jury: ['⚖️', 'Жюри'], guest: ['🎤', 'Приглашённый гость'], organizer: ['📣', 'Организатор'], other: ['⭐', 'Другое'] };
 const who = (u, sub, size = 36) =>
-  `<a class="who" href="${userLink(u)}">${ava(u, size)}<span class="t"><b>${esc(u?.name || u?.username)}</b><span>@${esc(u?.username)}${sub ? ' · ' + esc(sub) : ''}</span></span></a>`;
+  `<a class="who" href="${userLink(u)}">${ava(u, size)}<span class="t"><b>${esc(u?.name || u?.username)}${vmark(u)}</b><span>@${esc(u?.username)}${sub ? ' · ' + esc(sub) : ''}</span></span></a>`;
 
 // Фото персонажа: обложка модератора → лучший косплей участников → свободное фото с Wikimedia Commons → эмблема
 const charData = { site: {}, commons: {}, loaded: false };
@@ -197,7 +207,7 @@ function charCard(t, on) {
     <span class="meta"><span class="nm">${esc(t.name)}</span><span class="fr">${esc(meta)}</span></span>
     <span class="ok">${ic.check}</span></button>`;
 }
-const CHAR_TABS = [['', 'Популярные'], ['anime', 'Аниме'], ['manga', 'Манга'], ['drama', 'Дорамы'], ['film', 'Фильмы и сериалы'], ['game', 'Игры'], ['classic', 'Классика']];
+const CHAR_TABS = [['', 'Популярные'], ['anime', 'Аниме'], ['manga', 'Манга'], ['book', 'Книги'], ['film', 'Фильмы и сериалы'], ['game', 'Игры'], ['classic', 'Классика']];
 function charsFor(cat, query = '') {
   const qq = query.trim().toLowerCase();
   let list = CG.THEMES.filter((t) => (cat === '' ? true : cat === 'classic' ? !t.cat : t.cat === cat));
@@ -380,7 +390,7 @@ function openMenu() {
     <a href="#/settings">${ic.gear}Настройки профиля</a>
     <button class="mi" data-act="lang">${ic.globe}Язык<span class="r notranslate" translate="no">${esc(CGLang.name(CGLang.current()))}</span></button>
     ${canInstall ? `<button class="mi" data-act="install">${ic.phone}Установить приложение</button>` : ''}
-    ${me.role === 'admin' ? `<a href="#/admin">${ic.shield}Модерация</a>` : ''}
+    ${isMod(me) ? `<a href="#/admin">${ic.shield}Админ-панель</a>` : ''}
     <div class="sep"></div>
     <button class="mi" data-act="logout">${ic.logout}Выйти</button>
   </nav>`;
@@ -454,6 +464,8 @@ function openAuth(mode = 'login', after) {
     <form class="form" id="authForm" novalidate>
       <div class="field"><label for="au-user">Ник</label><input class="input" id="au-user" name="username" autocomplete="username" autocapitalize="none" autocorrect="off" spellcheck="false" required placeholder="например, aru.cos"></div>
       ${reg ? `<div class="field"><label for="au-name">Имя</label><input class="input" id="au-name" name="name" autocomplete="given-name" placeholder="Как вас называть"></div>
+        <div class="field"><label for="au-spec">Ваше лучшее качество</label><input class="input" id="au-spec" name="specialty" maxlength="60" placeholder="Необязательно">
+          <p class="hint">Крафт, вигмейкинг, грим, сценическое выступление, макияж и т. д.</p></div>
         <div class="row"><div class="field"><label for="au-country">Страна</label><select class="input" id="au-country" name="country" autocomplete="country">${countryOptions(C.guess())}</select></div>
         <div class="field"><label for="au-city">Город</label><input class="input" id="au-city" name="city" autocomplete="address-level2" placeholder="Необязательно"></div></div>` : ''}
       <div class="field"><label for="au-pass">Пароль</label>${pwField('au-pass', 'password', reg ? 'new-password' : 'current-password', reg ? 'Не короче 8 символов' : '')}</div>
@@ -609,14 +621,14 @@ function bindCarousel(c, onDouble) {
 }
 
 const commentHtml = (c, p) => {
-  const can = state.me && (state.me.id === c.authorId || state.me.id === p.authorId || state.me.role === 'admin');
+  const can = state.me && (state.me.id === c.authorId || state.me.id === p.authorId || isMod(state.me));
   return `<div class="comment">${ava(c.author, 30)}<div class="t"><a href="${userLink(c.author)}"><b>${esc(c.author?.username)}</b></a>${esc(c.text)}
     <div class="small muted">${ago(c.createdAt)}</div></div>
     ${can ? `<button class="iconbtn" data-delc="${c.id}" aria-label="Удалить комментарий">${ic.trash}</button>` : ''}</div>`;
 };
 
 function detailHtml(p, page) {
-  const own = state.me && (state.me.id === p.authorId || state.me.role === 'admin');
+  const own = state.me && (state.me.id === p.authorId || isMod(state.me));
   const src = p.source ? SOURCES[p.source] : '';
   const sub = [p.fandom, src && src.toLowerCase() !== String(p.fandom).toLowerCase() ? src : ''].filter(Boolean).join(' · ');
   return `<div class="detail" ${page ? '' : 'role="dialog" aria-modal="true"'} aria-label="${esc(p.character || 'Публикация')}">
@@ -745,7 +757,7 @@ function bindReports(root) {
 
 /* ================= создание и редактирование ================= */
 const charDatalist = () => `<datalist id="charList">${CG.THEMES.filter((t) => t.cat).map((t) => `<option value="${esc(t.name)}">${esc(t.from)}</option>`).join('')}</datalist>`;
-const CAT_TO_SOURCE = { anime: 'anime', manga: 'manga', drama: 'drama', film: 'film', game: 'game' };
+const CAT_TO_SOURCE = { anime: 'anime', manga: 'manga', book: 'book', film: 'film', game: 'game' };
 const findChar = (name) => CG.THEMES.find((t) => t.cat && t.name.toLowerCase() === String(name || '').trim().toLowerCase());
 function bindCharInput(root, hint) {
   const inp = $('[name=character]', root);
@@ -931,15 +943,12 @@ function openStory(gi, ii = 0) {
 /* ================= стартовый экран ================= */
 function pageLanding() {
   const sel = CG.stored() || 'classic';
-  const shots = [['tomyris', 'Томирис · aru.cos'], ['knight', 'Рыцарь · dias_props'], ['silkroad', 'Шёлковый путь'], ['moon', 'Лунная волшебница']];
   view().innerHTML = `<section class="land">
     <div><h1>Кто вы сегодня?</h1>
-      <p class="lead">Выберите персонажа из аниме, манги, дорам, фильмов или игр — Cosplaygram оденется в его стиль. Дальше: ваши костюмы, процесс создания, мастера и мероприятия рядом.</p></div>
+      <p class="lead">Выберите персонажа из аниме, манги, книг, фильмов или игр — Cosplaygram оденется в его стиль. Дальше: ваши костюмы, процесс создания, мастера и мероприятия рядом.</p></div>
     <div id="land" data-sel="${sel}">${charTabs()}<div class="char-grid" style="margin-top:12px"></div></div>
     <div class="land-cta"><div class="t"><span class="small muted">Ваш стиль</span><br><b id="lnN">${esc(CG.get(sel).name)}</b></div>
       <div class="acts"><button class="btn" data-act="login">Войти</button><button class="btn primary" data-act="register">Зарегистрироваться</button></div></div>
-    <div><div class="section-title"><h2>Работы участников</h2></div>
-      <div class="strip">${shots.map(([f, c]) => `<figure><img src="/demo/${f}.jpg" alt="" loading="lazy"><figcaption>${c}</figcaption></figure>`).join('')}</div></div>
     <div class="perks">
       <div><b>Процесс по шагам</b><span>От выкройки до готового образа, с подписью к каждому фото.</span></div>
       <div><b>Мастера рядом</b><span>Швеи, реквизиторы, мастера париков и фотографы вашего города.</span></div>
@@ -952,7 +961,7 @@ function pageLanding() {
 }
 
 /* ================= лента ================= */
-const FILTERS = [['', 'Все'], ['following', 'Подписки'], ['near', 'Моя страна'], ['process', 'Процесс'], ['anime', 'Аниме'], ['manga', 'Манга'], ['drama', 'Дорамы'], ['film', 'Фильмы'], ['game', 'Игры'], ['original', 'Ориджинал']];
+const FILTERS = [['', 'Все'], ['following', 'Подписки'], ['near', 'Моя страна'], ['process', 'Процесс'], ['anime', 'Аниме'], ['manga', 'Манга'], ['book', 'Книги'], ['film', 'Фильмы'], ['game', 'Игры'], ['original', 'Ориджинал']];
 function feedQuery(f, before) {
   const q = new URLSearchParams();
   if (f.startsWith('char:')) q.set('char', f.slice(5));
@@ -1050,7 +1059,7 @@ async function pageProcess() {
 }
 
 /* ================= поиск и мастера ================= */
-const personItem = (u) => `<a class="item" href="${userLink(u)}">${ava(u, 46)}<span style="min-width:0"><h3>${esc(u.name)}${u.demo ? ' <span class="pill">Демо</span>' : ''}</h3>
+const personItem = (u) => `<a class="item" href="${userLink(u)}">${ava(u, 46)}<span style="min-width:0"><h3>${esc(u.name)}${vmark(u)}</h3>
   <span class="meta">@${esc(u.username)}${u.specialty ? ' · ' + esc(u.specialty) : ''}${place(u) ? ' · ' + place(u) : ''}</span></span>
   ${u.followers != null ? `<span class="count-b"><b class="num">${u.followers}</b>${plural(u.followers, 'подписчик', 'подписчика', 'подписчиков')}</span>` : `<span class="muted" style="width:18px;display:inline-flex">${ic.right}</span>`}</a>`;
 
@@ -1095,22 +1104,27 @@ async function pageProfile(username) {
   try { d = await api('/users/' + encodeURIComponent(username)); }
   catch { view().innerHTML = '<div class="empty"><h2>Такого косплеера нет</h2><a class="btn" href="#/people">Все мастера</a></div>'; return; }
   const { user: u, posts, stats } = d;
+  const ach = d.achievements || [];
   let following = d.isFollowing;
   const mine = state.me?.id === u.id;
   const t = themeOf(u);
   const procN = posts.filter((p) => p.kind === 'process').length;
   view().innerHTML = `
     <div class="cover" style="${CG.styleAttr(t)}"><div class="ch"><span>Персонаж</span><b>${esc(t.name)}</b><span>${esc(t.from)}</span></div></div>
-    <div class="prof">${ava(u, 96)}<div class="nm"><h1>${esc(u.name)}</h1>
-      <div class="muted">@${esc(u.username)} ${u.role === 'admin' ? '<span class="pill">Модератор</span>' : ''} ${u.demo ? '<span class="pill">Демо</span>' : ''}</div></div></div>
+    <div class="prof">${ava(u, 96)}<div class="nm"><h1>${esc(u.name)}${vmark(u)}</h1>
+      <div class="muted">@${esc(u.username)} ${rolePill(u)}</div></div></div>
     <div class="prof-info">
       ${u.specialty || place(u) ? `<div style="font-weight:500">${[esc(u.specialty), place(u)].filter(Boolean).join(' · ')}</div>` : ''}
       ${u.bio ? `<p style="max-width:62ch">${esc(u.bio)}</p>` : ''}
+      ${Object.keys(SOCIAL).some((k) => u.socials?.[k]) ? `<div class="socials">${Object.entries(SOCIAL).filter(([k]) => u.socials?.[k]).map(([k, [n, base]]) => `<a class="btn sm" href="${esc(base + u.socials[k])}" target="_blank" rel="noopener">${ic.link}${n}</a>`).join('')}</div>` : ''}
       <div class="stats"><span><b class="num">${stats.posts}</b>${plural(stats.posts, 'работа', 'работы', 'работ')}</span><span id="folN"><b class="num">${stats.followers}</b>${plural(stats.followers, 'подписчик', 'подписчика', 'подписчиков')}</span><span><b class="num">${stats.following}</b>${plural(stats.following, 'подписка', 'подписки', 'подписок')}</span><span><b class="num">${stats.likes}</b>${plural(stats.likes, 'отметка', 'отметки', 'отметок')}</span></div>
     </div>
     <div class="prof-acts">${mine
       ? `<a class="btn" href="#/settings">${ic.edit}Настроить профиль</a><button class="btn" data-act="picker">${ic.palette}Сменить персонажа</button><button class="btn" id="shP">${ic.share}Поделиться</button>`
       : `<button class="btn ${following ? '' : 'primary'}" id="fol">${following ? 'Вы подписаны' : 'Подписаться'}</button><a class="btn" href="#/messages/${encodeURIComponent(u.username)}">${ic.mail}Написать</a><button class="btn ic" id="shP" aria-label="Поделиться профилем">${ic.share}</button><button class="btn ghost ic" data-report="user:${u.id}" aria-label="Пожаловаться">${ic.flag}</button>`}</div>
+    ${ach.length || mine ? `<section class="ach"><div class="ach-h"><h2>${ic.trophy}Достижения${ach.length ? ' · ' + ach.length : ''}</h2>${mine ? `<button class="btn sm" id="addAch">${ic.plus}Добавить</button>` : ''}</div>
+      ${ach.length ? `<div class="ach-list">${ach.map((a) => `<div class="ach-item"><span class="ai">${(ACH[a.kind] || ACH.other)[0]}</span><span class="at"><b>${esc(a.title || (ACH[a.kind] || ACH.other)[1])}</b><span>${esc(a.event)}${a.year ? ' · ' + esc(a.year) : ''}</span>${a.verified ? `<span class="ok-v">${ic.check}Подтверждено итогами на Cosplaygram</span>` : ''}</span>${mine && !a.verified ? `<button class="iconbtn" data-dach="${a.id}" aria-label="Удалить достижение">${ic.trash}</button>` : ''}</div>`).join('')}</div>`
+        : '<p class="muted small">Добавьте призовые места, судейство и выступления на фестивалях: так вас быстрее найдут как мастера.</p>'}</section>` : ''}
     <div class="tabs-line" role="tablist"><button class="on" data-f="all">Работы · ${posts.length}</button><button data-f="process">Процесс · ${procN}</button>${mine ? '<button data-f="saved">Сохранённое</button>' : ''}</div>
     <div class="tiles" id="pG"></div>`;
   const fill = async (f) => {
@@ -1126,6 +1140,8 @@ async function pageProfile(username) {
   $$('.tabs-line button').forEach((b) => (b.onclick = () => { $$('.tabs-line button').forEach((x) => x.classList.toggle('on', x === b)); fill(b.dataset.f); }));
   bindReports(view());
   $('#shP').onclick = () => share(`#/u/${u.username}`, u.name);
+  $('#addAch')?.addEventListener('click', openAchievement);
+  $$('[data-dach]').forEach((b) => (b.onclick = confirmTwice(async () => { await api('/me/achievements/' + b.dataset.dach, { method: 'DELETE' }); route(); }, 'Нажмите ещё раз, чтобы удалить')));
   $('#fol')?.addEventListener('click', () => requireAuth(async () => {
     try {
       const r = await api(`/users/${encodeURIComponent(u.username)}/follow`, { method: 'POST' });
@@ -1311,7 +1327,7 @@ async function pageThread(id) {
   let t;
   try { ({ thread: t } = await api('/forum/' + id)); }
   catch { view().innerHTML = '<div class="empty"><h2>Тема не найдена</h2><a class="btn" href="#/forum">Ко всем темам</a></div>'; return; }
-  const own = state.me && (state.me.id === t.authorId || state.me.role === 'admin');
+  const own = state.me && (state.me.id === t.authorId || isMod(state.me));
   view().innerHTML = `<article class="narrow">
     <a href="#/forum" class="btn ghost sm" style="margin:0 0 10px -8px">${ic.back}Все темы</a>
     <span class="cat" style="display:block">${CATS[t.category]}${place(t) ? ' · ' + place(t) : ''}</span>
@@ -1343,7 +1359,8 @@ async function pageThread(id) {
 }
 
 /* ================= мероприятия ================= */
-const TYPES = { festival: 'Фестиваль', contest: 'Косплей-шоу', meetup: 'Встреча', workshop: 'Мастер-класс' };
+const TYPES = { festival: 'Фестиваль', contest: 'Соревнование', event: 'Ивент', party: 'Вечеринка', meetup: 'Сходка', workshop: 'Мастер-класс' };
+const PLACES = ['Гран-при', '1 место', '2 место', '3 место', 'Спецприз', 'Победитель'];
 function downloadIcs(e) {
   const d = e.date.replace(/-/g, '');
   const nd = new Date(e.date + 'T00:00:00'); nd.setDate(nd.getDate() + 1);
@@ -1364,28 +1381,32 @@ async function pageEvents(params) {
   const country = C.valid(params.get('country'));
   const city = params.get('city') || '';
   const past = params.get('past') === '1';
+  const major = params.get('major') === '1';
   const { events } = await api('/events');
   const today = todayLocal();
   const when = events.filter((e) => (past ? e.date < today : e.date >= today));
   const cities = country ? [...new Set(when.filter((e) => e.country === country).map((e) => e.city).filter(Boolean))] : [];
-  let list = when.filter((e) => (!country || e.country === country) && (!city || e.city === city));
+  let list = when.filter((e) => (!country || e.country === country) && (!city || e.city === city) && (!major || e.major));
   if (past) list = list.reverse();
-  const qs = (o) => { const q = new URLSearchParams(); if (o.country) q.set('country', o.country); if (o.city) q.set('city', o.city); if (o.past) q.set('past', '1'); const s = q.toString(); return '#/events' + (s ? '?' + s : ''); };
-  view().innerHTML = `<div class="narrow"><div class="page-head"><div><h1>Мероприятия</h1><p class="muted">Фестивали, косплей-шоу, встречи и мастер-классы.</p></div>
+  const qs = (o) => { const q = new URLSearchParams(); if (o.country) q.set('country', o.country); if (o.city) q.set('city', o.city); if (o.past) q.set('past', '1'); if (o.major) q.set('major', '1'); const s = q.toString(); return '#/events' + (s ? '?' + s : ''); };
+  view().innerHTML = `<div class="narrow"><div class="page-head"><div><h1>Мероприятия</h1><p class="muted">Фестивали, ивенты, вечеринки, сходки.</p></div>
     <button class="btn primary" id="ne">${ic.plus}Добавить</button></div>
-    <div class="chips" style="margin-bottom:6px"><a class="chip ${past ? '' : 'on'}" href="${qs({ country, city })}">Предстоящие</a><a class="chip ${past ? 'on' : ''}" href="${qs({ country, city, past: 1 })}">Прошедшие</a></div>
+    <div class="chips" style="margin-bottom:6px"><a class="chip ${past ? '' : 'on'}" href="${qs({ country, city, major })}">Предстоящие</a><a class="chip ${past ? 'on' : ''}" href="${qs({ country, city, past: 1, major })}">Прошедшие</a>
+      <a class="chip ${major ? 'on' : ''}" href="${qs({ country, city, past, major: !major })}">★ Крупные фестивали</a></div>
     <div class="chips" style="margin-bottom:6px">${countryChips(events.map((e) => e.country), country, (c) => qs({ country: c, past }))}</div>
     ${cities.length > 1 ? `<div class="chips" style="margin-bottom:6px"><a class="chip ${!city ? 'on' : ''}" href="${qs({ country, past })}">Все города</a>${cities.map((c) => `<a class="chip ${c === city ? 'on' : ''}" href="${qs({ country, city: c, past })}">${esc(c)}</a>`).join('')}</div>` : ''}
     <div>${list.map((e) => {
-      const own = state.me && (state.me.id === e.authorId || state.me.role === 'admin');
-      return `<div class="ev"><div class="date"><b class="num">${+e.date.slice(8)}</b><span>${MONTHS[+e.date.slice(5, 7) - 1]}</span></div>
-        <div style="min-width:0"><span class="etype">${TYPES[e.type] || 'Мероприятие'}${place(e) ? ' · ' + place(e) : ''}</span>${e.demo ? ' <span class="pill">Пример</span>' : ''}
+      const own = state.me && (state.me.id === e.authorId || isMod(state.me));
+      return `<div class="ev ${e.major ? 'major' : ''}"><div class="date"><b class="num">${+e.date.slice(8)}</b><span>${MONTHS[+e.date.slice(5, 7) - 1]}</span></div>
+        <div style="min-width:0">${e.major ? '<span class="pill major-pill">★ Крупный фестиваль</span> ' : ''}<span class="etype">${TYPES[e.type] || 'Мероприятие'}${place(e) ? ' · ' + place(e) : ''}</span>${e.demo ? ' <span class="pill">Пример</span>' : ''}
           <h3 style="margin-top:2px">${esc(e.title)}</h3>
           ${e.place ? `<div class="small muted" style="display:flex;gap:4px;align-items:center"><span style="width:15px;display:inline-flex">${ic.pin}</span>${esc(e.place)}</div>` : ''}
           ${e.note ? `<p class="small" style="margin-top:4px">${esc(e.note)}</p>` : ''}
           <div class="acts">${past ? '' : `<button class="btn sm ${e.going ? 'on' : ''}" data-go="${e.id}" aria-pressed="${!!e.going}">${e.going ? ic.check + 'Я пойду' : 'Пойду'} · <span class="num">${e.goingCount}</span></button>`}
             <button class="btn sm ghost" data-ics="${e.id}">${ic.calendar}В календарь</button>
             ${e.link ? `<a class="btn sm ghost" href="${esc(e.link)}" target="_blank" rel="noopener">Организатор</a>` : ''}
+            ${past || e.resultsCount ? `<button class="btn sm ${past ? 'primary' : ''}" data-results="${e.id}">${ic.trophy}Итоги${e.resultsCount ? ' · ' + e.resultsCount : ''}</button>` : ''}
+            ${isMod(state.me) ? `<button class="btn sm ghost" data-major="${e.id}">${e.major ? 'Снять «крупный»' : '★ Крупный'}</button>` : ''}
             ${own ? `<button class="btn sm ghost danger" data-dele="${e.id}" aria-label="Удалить мероприятие">${ic.trash}</button>` : ''}</div></div></div>`;
     }).join('') || `<div class="empty"><h2>${past ? 'Прошедших мероприятий нет' : 'Ближайших мероприятий нет'}</h2><p>Знаете о фестивале или встрече? Добавьте, чтобы о нём узнали другие.</p></div>`}</div></div>`;
   $('#ne').onclick = () => requireAuth(openNewEvent);
@@ -1399,11 +1420,45 @@ async function pageEvents(params) {
       if (r.going) toast('Отлично! Добавьте мероприятие в календарь, чтобы не забыть');
     } catch (e) { toast(e.message); }
   })));
+  $$('[data-results]').forEach((b) => (b.onclick = () => { const e = events.find((x) => x.id === b.dataset.results); openResults(e, !!state.me && (state.me.id === e.authorId || isMod(state.me))); }));
+  $$('[data-major]').forEach((b) => (b.onclick = async () => { await api(`/admin/events/${b.dataset.major}/major`, { method: 'POST' }); route(); }));
   $$('[data-dele]').forEach((b) => (b.onclick = confirmTwice(async () => {
     await api('/events/' + b.dataset.dele, { method: 'DELETE' });
     toast('Мероприятие удалено');
     route();
   }, 'Нажмите ещё раз, чтобы удалить мероприятие')));
+}
+async function openResults(e, canEdit) {
+  const o = openOverlay(sheet('Итоги', `<p class="muted" style="margin-bottom:12px"><b style="color:var(--ink)">${esc(e.title)}</b> · ${+e.date.slice(8)} ${MONTHS[+e.date.slice(5, 7) - 1]} ${e.date.slice(0, 4)}</p>
+    <div id="rsL"><div class="skel" style="height:80px"></div></div>
+    ${canEdit ? `<form class="form" id="rsF" style="margin-top:16px"><h3>Добавить победителя</h3>
+      <div class="row"><div class="field"><label for="rs-n">Номинация</label><input class="input" id="rs-n" name="nomination" required maxlength="100" list="rsNoms" placeholder="Лучшая схожесть"><datalist id="rsNoms"></datalist></div>
+        <div class="field"><label for="rs-p">Место</label><select class="input" id="rs-p" name="place">${PLACES.map((x) => `<option>${x}</option>`).join('')}</select></div></div>
+      <div class="row"><div class="field"><label for="rs-w">Участник</label><input class="input" id="rs-w" name="who" required maxlength="80" autocapitalize="none" placeholder="@ник на Cosplaygram или имя"></div>
+        <div class="field"><label for="rs-l">Instagram</label><input class="input" id="rs-l" name="link" maxlength="200" autocapitalize="none" placeholder="Необязательно"></div></div>
+      <p class="hint">Если указать @ник участника Cosplaygram, победа появится у него в профиле в «Достижениях».</p>
+      <p class="error" id="rsE" role="alert" hidden></p><button class="btn primary">Добавить</button></form>` : ''}`));
+  const draw = (results) => {
+    const noms = [...new Set(results.map((r) => r.nomination))];
+    $('#rsL', o).innerHTML = noms.length ? noms.map((n) => `<div class="res-nom"><h3>${esc(n)}</h3>${results.filter((r) => r.nomination === n).map((r) => `<div class="res-row"><span class="pl">${esc(r.place || '—')}</span>
+      <span class="nm">${r.user ? `<a href="${userLink(r.user)}">${esc(r.user.name)}${vmark(r.user)}</a> <span class="muted small">@${esc(r.user.username)}</span>` : esc(r.name)}</span>
+      ${r.link ? `<a class="iconbtn" href="${esc(r.link)}" target="_blank" rel="noopener" aria-label="Instagram">${ic.link}</a>` : ''}
+      ${canEdit ? `<button class="iconbtn" data-drs="${r.id}" aria-label="Удалить">${ic.trash}</button>` : ''}</div>`).join('')}</div>`).join('')
+      : `<div class="empty" style="padding:18px 0"><p>${canEdit ? 'Итогов пока нет. Добавьте победителей по номинациям.' : 'Организатор ещё не добавил итоги.'}</p></div>`;
+    const dl = $('#rsNoms', o); if (dl) dl.innerHTML = noms.map((n) => `<option value="${esc(n)}">`).join('');
+    $$('[data-drs]', o).forEach((b) => (b.onclick = async () => draw((await api('/results/' + b.dataset.drs, { method: 'DELETE' })).results)));
+  };
+  draw((await api(`/events/${e.id}/results`)).results);
+  $('#rsF', o)?.addEventListener('submit', async (ev) => {
+    ev.preventDefault();
+    const f = ev.target, err = $('#rsE', o);
+    err.hidden = true;
+    try {
+      draw((await api(`/events/${e.id}/results`, { body: Object.fromEntries(new FormData(f)) })).results);
+      f.who.value = ''; f.link.value = ''; f.who.focus();
+      toast('Добавлено');
+    } catch (x) { err.textContent = x.message; err.hidden = false; }
+  });
 }
 function openNewEvent() {
   const o = openOverlay(sheet('Новое мероприятие', `<form class="form" id="neF" novalidate>
@@ -1415,6 +1470,7 @@ function openNewEvent() {
     <div class="field"><label for="ne-p">Место</label><input class="input" id="ne-p" name="place" maxlength="120" placeholder="Площадка или адрес"></div>
     <div class="field"><label for="ne-l">Ссылка на организатора</label><input class="input" id="ne-l" name="link" type="url" inputmode="url" placeholder="https://"></div>
     <div class="field"><label for="ne-n">Описание</label><textarea class="input" id="ne-n" name="note" maxlength="300" placeholder="Номинации, взнос, как участвовать"></textarea></div>
+    ${isMod(state.me) ? '<label class="check"><input type="checkbox" name="major" value="1"> ★ Крупный фестиваль</label>' : ''}
     <p class="error" id="neE" role="alert" hidden></p><button class="btn primary lg block">Добавить мероприятие</button></form>`));
   $('#neF', o).onsubmit = async (e) => {
     e.preventDefault();
@@ -1430,6 +1486,21 @@ function openNewEvent() {
       toast('Мероприятие добавлено');
       route();
     } catch (ex) { err.textContent = ex.message; err.hidden = false; }
+  };
+}
+
+function openAchievement() {
+  const y = new Date().getFullYear();
+  const o = openOverlay(sheet('Новое достижение', `<form class="form" id="achF">
+    <div class="field"><label for="ac-k">Что это</label><select class="input" id="ac-k" name="kind">${Object.entries(ACH).map(([k, [e, n]]) => `<option value="${k}">${e} ${n}</option>`).join('')}</select></div>
+    <div class="row"><div class="field"><label for="ac-e">Фестиваль или мероприятие</label><input class="input" id="ac-e" name="event" required maxlength="100" placeholder="Например, Flavi Fest"></div>
+      <div class="field"><label for="ac-y">Год</label><input class="input" id="ac-y" name="year" inputmode="numeric" maxlength="4" value="${y}"></div></div>
+    <div class="field"><label for="ac-t">Подробнее</label><input class="input" id="ac-t" name="title" maxlength="120" placeholder="2 место — лучшая схожесть"></div>
+    <p class="error" id="acE" role="alert" hidden></p><button class="btn primary lg block">Добавить</button></form>`));
+  $('#achF', o).onsubmit = async (e) => {
+    e.preventDefault();
+    try { await api('/me/achievements', { body: Object.fromEntries(new FormData(e.target)) }); closeOverlay({ silent: true }); toast('Достижение добавлено'); route(); }
+    catch (err) { const p = $('#acE', o); p.textContent = err.message; p.hidden = false; }
   };
 }
 
@@ -1450,8 +1521,11 @@ async function pageSettings() {
         <div class="field"><label for="s-n">Имя</label><input class="input" id="s-n" name="name" value="${esc(u.name)}" maxlength="60" autocomplete="given-name"></div>
         <div class="row"><div class="field"><label for="s-co">Страна</label><select class="input" id="s-co" name="country">${countryOptions(u.country)}</select></div>
           <div class="field"><label for="s-c">Город</label><input class="input" id="s-c" name="city" value="${esc(u.city)}" maxlength="40"></div></div>
-        <div class="field"><label for="s-s">Что вы делаете</label><input class="input" id="s-s" name="specialty" value="${esc(u.specialty)}" maxlength="60" placeholder="Шитьё, броня, парики…"></div>
+        <div class="field"><label for="s-s">Ваше лучшее качество</label><input class="input" id="s-s" name="specialty" value="${esc(u.specialty)}" maxlength="60" placeholder="Например, вигмейкинг">
+          <p class="hint">Крафт, вигмейкинг, грим, сценическое выступление, макияж и т. д.</p></div>
         <div class="field"><label for="s-b">О себе</label><textarea class="input" id="s-b" name="bio" maxlength="300">${esc(u.bio)}</textarea></div>
+        <fieldset class="socials-f"><legend class="label">Соцсети</legend><p class="hint" style="margin-bottom:8px">Ник или ссылка на профиль.</p>
+          <div class="soc-grid">${Object.entries(SOCIAL).map(([k, [n]]) => `<div class="field"><label for="so-${k}">${n}</label><input class="input" id="so-${k}" name="so_${k}" value="${esc(u.socials?.[k] || '')}" maxlength="200" autocapitalize="none" spellcheck="false" placeholder="@ник"></div>`).join('')}</div></fieldset>
         <button class="btn primary" style="align-self:flex-start">Сохранить</button>
       </form></section>
     <section class="section"><h2 style="margin-bottom:12px">Пароль</h2>
@@ -1479,6 +1553,8 @@ async function pageSettings() {
     b.disabled = true;
     try {
       const body = Object.fromEntries(new FormData(e.target));
+      body.socials = {};
+      for (const k of Object.keys(body)) if (k.startsWith('so_')) { body.socials[k.slice(3)] = body[k]; delete body[k]; }
       if (avatar) body.avatar = avatar;
       const { user } = await api('/me', { method: 'PATCH', body });
       state.me = user;
@@ -1500,12 +1576,16 @@ async function pageSettings() {
 
 /* ================= модерация ================= */
 async function pageAdmin() {
-  if (state.me?.role !== 'admin') { view().innerHTML = '<div class="empty"><h2>Раздел только для модераторов</h2></div>'; return; }
+  if (!isMod(state.me)) { view().innerHTML = '<div class="empty"><h2>Раздел только для администрации</h2></div>'; return; }
+  const dev = state.me.role === 'dev';
   const { stats, reports } = await api('/admin/reports');
   const kinds = { post: 'Публикация', comment: 'Комментарий', thread: 'Тема форума', message: 'Сообщение', user: 'Профиль', event: 'Мероприятие' };
-  view().innerHTML = `<div class="narrow"><div class="page-head"><div><h1>Модерация</h1><p class="muted">Жалобы и состояние платформы.</p></div></div>
+  view().innerHTML = `<div class="narrow"><div class="page-head"><div><h1>Админ-панель</h1><p class="muted">Вы: ${ROLE_LABEL[state.me.role]}. Участники, галочки, жалобы и фото персонажей.</p></div></div>
     <div class="tiles-stats"><div><b class="num">${stats.users}</b><span class="small muted">участников</span></div><div><b class="num">${stats.posts}</b><span class="small muted">публикаций</span></div>
       <div><b class="num">${stats.threads}</b><span class="small muted">тем</span></div><div><b class="num">${stats.messages}</b><span class="small muted">сообщений в чате</span></div></div>
+    <section class="section"><h2 style="margin-bottom:8px">Участники</h2>
+      <input class="input" id="auQ" type="search" placeholder="Ник или имя" aria-label="Найти участника" style="margin-bottom:8px">
+      <div class="list" id="auL"><div class="skel" style="height:120px"></div></div></section>
     <h2 style="margin-bottom:4px">Открытые жалобы · ${reports.length}</h2>
     <div class="list section">${reports.map((r) => `<div class="item">${ava(r.reporter, 36)}<span style="min-width:0"><b>${esc(r.reason)}</b>
       <span class="meta" style="display:block">${kinds[r.type] || r.type} · от @${esc(r.reporter?.username)}, ${ago(r.createdAt)}</span>
@@ -1513,9 +1593,25 @@ async function pageAdmin() {
       <button class="btn sm" data-res="${r.id}">Закрыть</button></div>`).join('') || '<div class="empty"><p>Жалоб нет.</p></div>'}</div>
     <section class="section"><h2>Фото персонажей</h2><p class="muted small" style="margin:6px 0 12px">Загрузите обложку для карточки персонажа — например, фото косплея участника с его разрешения. Обложка важнее остальных фото.</p>
       <div class="char-grid" id="adChars"></div><input type="file" id="adFile" accept="image/*" hidden></section>
-    <section class="section"><h2>Демо-контент</h2><p class="muted small" style="margin:6px 0 12px">Когда появятся настоящие участники, уберите демо-профили, их работы и примеры мероприятий.</p>
-      <button class="btn danger" id="clr">Удалить демо-контент</button></section></div>`;
+  </div>`;
   bindCards(view());
+  const drawUsers = (users) => {
+    $('#auL').innerHTML = users.map((u) => {
+      const locked = u.role === 'dev' && !dev, self = u.id === state.me.id;
+      return `<div class="item adm-u">${ava(u, 40)}<span style="min-width:0"><a href="${userLink(u)}"><b>${esc(u.name)}</b>${vmark(u)}</a> ${rolePill(u)}
+        <span class="meta" style="display:block">@${esc(u.username)} · ${u.posts} ${plural(u.posts, 'работа', 'работы', 'работ')}${place(u) ? ' · ' + place(u) : ''}</span>
+        <span class="adm-acts">${locked ? '' : `<button class="btn sm ${u.verified ? '' : 'primary'}" data-ver="${u.id}" data-v="${u.verified ? 0 : 1}">${u.verified ? 'Снять галочку' : '✓ Дать галочку'}</button>`}
+          ${dev && !self ? `<select class="input sm" data-role="${u.id}" aria-label="Роль">${[['user', 'Участник'], ['admin', 'Модератор'], ['dev', 'Разработчик']].map(([k, n]) => `<option value="${k}" ${u.role === k ? 'selected' : ''}>${n}</option>`).join('')}</select>` : ''}
+          ${!self && u.role !== 'dev' && (dev || u.role !== 'admin') ? `<button class="btn sm ghost danger" data-delu="${u.id}">${ic.trash}Удалить</button>` : ''}</span></span></div>`;
+    }).join('') || '<div class="empty"><p>Никого не нашли.</p></div>';
+    $$('[data-ver]').forEach((b) => (b.onclick = async () => { try { await api('/admin/users/' + b.dataset.ver, { body: { verified: b.dataset.v === '1' } }); toast(b.dataset.v === '1' ? 'Галочка выдана' : 'Галочка снята'); loadUsers(); } catch (e) { toast(e.message); } }));
+    $$('[data-role]').forEach((sel) => (sel.onchange = async () => { try { await api('/admin/users/' + sel.dataset.role, { body: { role: sel.value } }); toast('Роль изменена'); loadUsers(); } catch (e) { toast(e.message); } }));
+    $$('[data-delu]').forEach((b) => (b.onclick = confirmTwice(async () => { try { await api('/admin/users/' + b.dataset.delu, { method: 'DELETE' }); toast('Аккаунт удалён'); loadUsers(); } catch (e) { toast(e.message); } }, 'Нажмите ещё раз: аккаунт и все его публикации удалятся')));
+  };
+  let tq;
+  const loadUsers = async () => drawUsers((await api('/admin/users?q=' + encodeURIComponent($('#auQ').value.trim()))).users);
+  $('#auQ').oninput = () => { clearTimeout(tq); tq = setTimeout(loadUsers, 250); };
+  loadUsers();
   $$('[data-res]').forEach((b) => (b.onclick = async () => { await api(`/admin/reports/${b.dataset.res}/resolve`, { method: 'POST' }); b.closest('.item').remove(); toast('Жалоба закрыта'); }));
   await loadChars(true);
   let target = null;
@@ -1536,7 +1632,6 @@ async function pageAdmin() {
     } catch (err) { toast(err.message); }
     e.target.value = '';
   };
-  $('#clr').onclick = confirmTwice(async () => { await api('/admin/demo/clear', { method: 'POST' }); toast('Демо-контент удалён'); location.hash = '#/'; }, 'Нажмите ещё раз: демо-контент удалится без возможности восстановления');
 }
 
 /* ================= авторы фото ================= */

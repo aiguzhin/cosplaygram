@@ -233,39 +233,6 @@
    "wangji"
   ]
  },
- "dongfang": {
-  "q": "Dongfang Qingcang cosplay",
-  "must": [
-   "dongfang"
-  ]
- },
- "kimshin": {
-  "q": "Goblin Kim Shin cosplay",
-  "must": [
-   "kim shin",
-   "goblin"
-  ]
- },
- "haein": {
-  "q": "Queen of Tears Hong Hae-in cosplay",
-  "must": [
-   "hae-in",
-   "queen of tears"
-  ]
- },
- "seri": {
-  "q": "Crash Landing on You cosplay",
-  "must": [
-   "crash landing"
-  ]
- },
- "donguen": {
-  "q": "The Glory Moon Dong-eun cosplay",
-  "must": [
-   "dong-eun",
-   "the glory"
-  ]
- },
  "wednesday": {
   "q": "Wednesday Addams cosplay",
   "must": [
@@ -625,56 +592,6 @@
    "File:Cosplayers of Misa Amane, Ryuk and Light Yagami 20110306.jpg"
   ]
  },
- "manwol": {
-  "q": "Hotel del Luna cosplay",
-  "must": [
-   "del luna",
-   "man-wol",
-   "manwol"
-  ]
- },
- "minjun": {
-  "q": "My Love from the Star cosplay",
-  "must": [
-   "love from the star"
-  ]
- },
- "wangso": {
-  "q": "Moon Lovers Scarlet Heart Ryeo cosplay",
-  "must": [
-   "scarlet heart",
-   "moon lovers",
-   "wang so"
-  ]
- },
- "leeyeon": {
-  "q": "Tale of the Nine Tailed cosplay",
-  "must": [
-   "nine tailed",
-   "nine-tailed",
-   "gumiho",
-   "kumiho"
-  ]
- },
- "leegon": {
-  "q": "The King Eternal Monarch cosplay",
-  "must": [
-   "eternal monarch"
-  ]
- },
- "shaoshang": {
-  "q": "Hanfu cosplay Love Like the Galaxy",
-  "must": [
-   "love like the galaxy",
-   "shaoshang"
-  ]
- },
- "jangok": {
-  "q": "Alchemy of Souls cosplay",
-  "must": [
-   "alchemy of souls"
-  ]
- },
  "spiderman": {
   "q": "Spider-Man cosplay",
   "must": [
@@ -877,6 +794,95 @@
   "q": "Mario cosplay",
   "must": [
    "mario"
+  ]
+ },
+ "xielian": {
+  "q": "Xie Lian cosplay",
+  "must": [
+   "xie lian",
+   "heaven official"
+  ]
+ },
+ "huacheng": {
+  "q": "Hua Cheng cosplay",
+  "must": [
+   "hua cheng"
+  ]
+ },
+ "hermione": {
+  "q": "Hermione Granger cosplay",
+  "must": [
+   "hermione"
+  ]
+ },
+ "alice": {
+  "q": "Alice in Wonderland cosplay",
+  "must": [
+   "alice"
+  ]
+ },
+ "hatter": {
+  "q": "Mad Hatter cosplay",
+  "must": [
+   "hatter"
+  ]
+ },
+ "woland": {
+  "q": "Woland cosplay",
+  "must": [
+   "woland"
+  ]
+ },
+ "margarita": {
+  "q": "Margarita cosplay Master",
+  "must": [
+   "margarita"
+  ]
+ },
+ "sherlock": {
+  "q": "Sherlock Holmes cosplay",
+  "must": [
+   "sherlock",
+   "holmes"
+  ]
+ },
+ "katniss": {
+  "q": "Katniss Everdeen cosplay",
+  "must": [
+   "katniss"
+  ]
+ },
+ "percy": {
+  "q": "Percy Jackson cosplay",
+  "must": [
+   "percy"
+  ]
+ },
+ "kaz": {
+  "q": "Kaz Brekker cosplay",
+  "must": [
+   "kaz brekker",
+   "six of crows"
+  ]
+ },
+ "inej": {
+  "q": "Inej Ghafa cosplay",
+  "must": [
+   "inej",
+   "six of crows"
+  ]
+ },
+ "dracula": {
+  "q": "Dracula cosplay",
+  "must": [
+   "dracula"
+  ]
+ },
+ "littleprince": {
+  "q": "Little Prince cosplay",
+  "must": [
+   "little prince",
+   "petit prince"
   ]
  }
 }
