@@ -1675,6 +1675,10 @@ async function pageAdmin() {
       <div><b class="num">${stats.threads}</b><span class="small muted">тем</span></div><div><b class="num">${stats.messages}</b><span class="small muted">сообщений в чате</span></div></div>
     ${dev ? `<section class="section"><h2 style="margin-bottom:6px">Резервная копия</h2><p class="muted small" style="margin-bottom:10px">Все данные сайта одним файлом (без самих фото и паролей). Скачивайте раз в неделю.</p>
       <a class="btn" href="/api/admin/backup" download>${ic.save}Скачать копию</a></section>` : ''}
+    ${dev ? `<section class="section"><h2 style="margin-bottom:6px">Переезд на новый сервер</h2><p class="muted small" style="margin-bottom:10px">Отправит всех участников, работы, фото, мероприятия и заказы на новый сервер. Код показывает установщик на новом сервере.</p>
+      <form class="form" id="mgF"><div class="row"><div class="field"><label for="mg-t">Адрес нового сервера</label><input class="input" id="mg-t" name="target" value="https://cosplaygram.kz" autocapitalize="none" spellcheck="false"></div>
+        <div class="field"><label for="mg-c">Код переезда</label><input class="input" id="mg-c" name="code" inputmode="numeric" maxlength="20" autocomplete="off"></div></div>
+        <p class="hint" id="mgR"></p><button class="btn primary" style="align-self:flex-start">Перенести данные</button></form></section>` : ''}
     <section class="section"><h2 style="margin-bottom:8px">Участники</h2>
       <input class="input" id="auQ" type="search" placeholder="Ник или имя" aria-label="Найти участника" style="margin-bottom:8px">
       <div class="list" id="auL"><div class="skel" style="height:120px"></div></div></section>
@@ -1700,6 +1704,17 @@ async function pageAdmin() {
     $$('[data-role]').forEach((sel) => (sel.onchange = async () => { try { await api('/admin/users/' + sel.dataset.role, { body: { role: sel.value } }); toast('Роль изменена'); loadUsers(); } catch (e) { toast(e.message); } }));
     $$('[data-delu]').forEach((b) => (b.onclick = confirmTwice(async () => { try { await api('/admin/users/' + b.dataset.delu, { method: 'DELETE' }); toast('Аккаунт удалён'); loadUsers(); } catch (e) { toast(e.message); } }, 'Нажмите ещё раз: аккаунт и все его публикации удалятся')));
   };
+  $('#mgF')?.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const btn = e.target.querySelector('button'), out = $('#mgR');
+    btn.disabled = true; out.textContent = 'Переношу… это может занять минуту';
+    try {
+      const r = await api('/admin/migrate/push', { body: Object.fromEntries(new FormData(e.target)) });
+      out.textContent = 'Готово! Перенесено: ' + Object.entries(r.done || {}).map(([k, v]) => `${k} ${v}`).join(', ');
+      toast('Данные на новом сервере');
+    } catch (x) { out.textContent = x.message; }
+    btn.disabled = false;
+  });
   let tq;
   const loadUsers = async () => drawUsers((await api('/admin/users?q=' + encodeURIComponent($('#auQ').value.trim()))).users);
   $('#auQ').oninput = () => { clearTimeout(tq); tq = setTimeout(loadUsers, 250); };

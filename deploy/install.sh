@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
 # Установка Cosplaygram на сервер Ubuntu/Debian одной командой:
-#   curl -fsSL https://raw.githubusercontent.com/aiguzhin/cosplaygram/main/deploy/install.sh | sudo bash -s cosplaygram.kz
-# Домен можно не указывать — тогда сайт откроется по IP, домен добавите потом: sudo /opt/cosplaygram/deploy/set-domain.sh cosplaygram.kz
+#   curl -sL cosplaygram.onrender.com/i | bash
+# (под root). Домен по умолчанию cosplaygram.kz; другой: ... | bash -s example.kz
 set -euo pipefail
-DOMAIN_ARG="${1:-}"
+DOMAIN_ARG="${1:-cosplaygram.kz}"
 DIR=/opt/cosplaygram
 say() { printf '\n\033[1;33m== %s\033[0m\n' "$*"; }
 
@@ -16,21 +16,17 @@ if [ -d "$DIR/.git" ]; then git -C "$DIR" pull -q; else git clone -q https://git
 cd "$DIR"
 
 say "3/5 Настройки"
+IP=$(curl -fsS --max-time 5 https://api.ipify.org || hostname -I | awk '{print $1}')
 if [ ! -f .env ]; then
   DBP=$(openssl rand -hex 16)
-  OLD=""
-  if [ -r /dev/tty ]; then
-    echo "Чтобы перенести всех участников и посты со старого сайта, вставьте адрес старой базы:"
-    echo "Render → cosplaygram-db → Connect → External Database URL (начинается с postgresql://)."
-    read -r -p "Адрес (или просто Enter, чтобы начать с пустого сайта): " OLD < /dev/tty || true
-  fi
-  if [ -n "$DOMAIN_ARG" ]; then DOMAIN="$DOMAIN_ARG, www.$DOMAIN_ARG"; else DOMAIN=":80"; fi
+  CODE=$(shuf -i 100000-999999 -n 1)
   umask 077
   cat > .env <<ENV
-DOMAIN=$DOMAIN
+DOMAIN=$DOMAIN_ARG, www.$DOMAIN_ARG, http://$IP
 DB_PASSWORD=$DBP
 NEW_DATABASE_URL=postgres://cosplaygram:$DBP@db:5432/cosplaygram
-DATABASE_URL=$OLD
+DATABASE_URL=
+MIGRATE_CODE=$CODE
 ENV
 else
   echo "Файл .env уже есть — оставляю как есть"
@@ -49,8 +45,12 @@ SHELL=/bin/bash
 CRON
 chmod +x deploy/*.sh
 
-IP=$(curl -fsS --max-time 5 https://api.ipify.org || hostname -I | awk '{print $1}')
+CODE=$(grep '^MIGRATE_CODE=' .env | cut -d= -f2)
 say "Готово!"
-echo "Сайт: http://$IP  (через минуту, пока собирается)"
+echo "Сайт: http://$IP  (через 2–3 минуты, пока собирается)"
+echo ""
+echo "   IP сервера:     $IP"
+echo "   КОД ПЕРЕЕЗДА:   $CODE"
+echo ""
 if [ -n "$DOMAIN_ARG" ]; then echo "Домен: https://$DOMAIN_ARG — в настройках DNS домена укажите A-записи @ и www → $IP"; fi
 echo "Резервные копии базы: /opt/backups (каждую ночь, хранятся 14 дней)"

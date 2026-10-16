@@ -200,6 +200,39 @@ async function main() {
   // ---------- приложение ----------
   const app = express();
   app.set('trust proxy', 1);
+  // ----- переезд на новый сервер -----
+  // Новый сервер (пустая база) принимает данные один раз — только с кодом, который показал установщик.
+  app.post('/api/migrate/import', express.json({ limit: '500mb' }), wrap(async (req, res) => {
+    const code = String(process.env.MIGRATE_CODE || '');
+    const got = String(req.headers['x-migrate-code'] || '');
+    if (!code || got.length !== code.length || !crypto.timingSafeEqual(Buffer.from(got), Buffer.from(code)))
+      throw new HttpError(403, 'Неверный код переезда');
+    const { n } = await one('SELECT count(*)::int AS n FROM users');
+    if (n > 0) throw new HttpError(409, 'На новом сервере уже есть данные — переезд выполнен раньше');
+    const { TABLES } = require('./db');
+    const done = {};
+    try {
+      for (const t of TABLES) {
+        const rows = req.body?.tables?.[t];
+        if (!Array.isArray(rows) || !rows.length) continue;
+        const cols = (await q("SELECT column_name FROM information_schema.columns WHERE table_schema = 'public' AND table_name = $1", [t])).map((r) => r.column_name);
+        for (let i = 0; i < rows.length; i += t === 'images' ? 10 : 300) {
+          const part = rows.slice(i, i + (t === 'images' ? 10 : 300));
+          const use = Object.keys(part[0]).filter((c) => cols.includes(c));
+          const vals = [];
+          const ph = part.map((r, k) => '(' + use.map((c, j) => { vals.push(r[c]); return '$' + (k * use.length + j + 1); }).join(',') + ')').join(',');
+          await q(`INSERT INTO ${t} (${use.join(',')}) VALUES ${ph} ON CONFLICT DO NOTHING`, vals);
+        }
+        done[t] = rows.length;
+      }
+    } catch (e) {
+      await db.exec(`TRUNCATE ${TABLES.join(', ')} CASCADE`).catch(() => {});
+      throw new HttpError(500, 'Перенос не удался: ' + e.message);
+    }
+    if (DEVS.length) await q("UPDATE users SET role = 'dev', verified = TRUE WHERE username = ANY($1)", [DEVS]);
+    console.log('Переезд: данные приняты', done);
+    res.json({ ok: true, done });
+  }));
   app.use(express.json({ limit: '25mb' }));
   app.use((req, res, next) => {
     res.setHeader('X-Content-Type-Options', 'nosniff');
@@ -928,6 +961,25 @@ async function main() {
     res.setHeader('Content-Disposition', `attachment; filename="cosplaygram-backup-${out.createdAt.slice(0, 10)}.json"`);
     res.json(out);
   }));
+  // Старый сервер отправляет все данные на новый (только разработчик)
+  app.post('/api/admin/migrate/push', auth, admin, wrap(async (req, res) => {
+    if (req.user.role !== 'dev') throw new HttpError(403, 'Только для разработчика');
+    let target = clean(req.body.target, 200).replace(/\/+$/, '');
+    if (!/^https?:\/\//.test(target)) target = 'https://' + target;
+    if (!/^https?:\/\/[a-z0-9.-]+(:\d+)?$/i.test(target)) throw new HttpError(400, 'Адрес нового сервера: например, https://cosplaygram.kz');
+    const { TABLES } = require('./db');
+    const tables = {};
+    for (const t of TABLES) tables[t] = await q(`SELECT * FROM ${t}`);
+    let r;
+    try {
+      r = await fetch(target + '/api/migrate/import', {
+        method: 'POST', headers: { 'Content-Type': 'application/json', 'x-migrate-code': clean(req.body.code, 20) }, body: JSON.stringify({ tables }),
+      });
+    } catch (e) { throw new HttpError(502, 'Новый сервер не отвечает: ' + e.message); }
+    const j = await r.json().catch(() => ({}));
+    if (!r.ok) throw new HttpError(400, j.error || 'Новый сервер ответил ошибкой ' + r.status);
+    res.json(j);
+  }));
   app.get('/api/admin/users', auth, admin, wrap(async (req, res) => {
     const term = clean(req.query.q, 60).toLowerCase();
     const like = `%${term.replace(/[%_\\]/g, '\\$&')}%`;
@@ -959,6 +1011,8 @@ async function main() {
   }));
 
   app.get('/healthz', (_req, res) => res.send('ok'));
+  // Короткая команда установки: curl -sL cosplaygram.onrender.com/i | bash
+  app.get('/i', (_req, res) => { res.type('text/plain'); res.sendFile(path.join(__dirname, 'deploy', 'install.sh')); });
   app.use('/api', (_req, _res, next) => next(new HttpError(404, 'Нет такого адреса API')));
   // Красивые ссылки с превью для Instagram, Telegram и поисковиков: /u/ник, /p/работа, /e/мероприятие
   const INDEX = fs.readFileSync(path.join(__dirname, 'public', 'index.html'), 'utf8');
