@@ -34,9 +34,10 @@ DATABASE_URL=$OLD
 ENV
 else
   echo "Файл .env уже есть — оставляю как есть"
-  [ -n "$DOMAIN_ARG" ] && "$DIR/deploy/set-domain.sh" "$DOMAIN_ARG" --no-restart
+  if [ -n "$DOMAIN_ARG" ]; then bash "$DIR/deploy/set-domain.sh" "$DOMAIN_ARG" --no-restart; fi
 fi
 
+chmod +x deploy/*.sh
 say "4/5 Запускаю сайт, базу и https"
 docker compose up -d --build
 
@@ -51,5 +52,5 @@ chmod +x deploy/*.sh
 IP=$(curl -fsS --max-time 5 https://api.ipify.org || hostname -I | awk '{print $1}')
 say "Готово!"
 echo "Сайт: http://$IP  (через минуту, пока собирается)"
-[ -n "$DOMAIN_ARG" ] && echo "Домен: https://$DOMAIN_ARG — в настройках DNS домена укажите A-записи @ и www → $IP"
+if [ -n "$DOMAIN_ARG" ]; then echo "Домен: https://$DOMAIN_ARG — в настройках DNS домена укажите A-записи @ и www → $IP"; fi
 echo "Резервные копии базы: /opt/backups (каждую ночь, хранятся 14 дней)"
