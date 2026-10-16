@@ -837,7 +837,11 @@
   "q": "Margarita cosplay Master",
   "must": [
    "margarita"
-  ]
+  ],
+  "skip": [
+   "File:100th anniversary of Mikhail Bulgakov 06.jpg"
+  ],
+  "off": true
  },
  "sherlock": {
   "q": "Sherlock Holmes cosplay",
