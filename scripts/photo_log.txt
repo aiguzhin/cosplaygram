@@ -4,12 +4,6 @@ chuya: Chuya Nakahara cosplay
 gojo: Gojo Satoru cosplay
   commons: 0 подходящих
   — подходящего свободного фото нет
-dazai: Dazai Osamu cosplay
-  commons: 1 подходящих
-  ✓ File:Dazai Osamu cosplay.jpg — CC BY-SA 4.0
-katsura: Katsura Kotaro cosplay
-  commons: 3 подходящих
-  ✓ File:Cosplayer of Hinagiku Katsura, Hayate the Combat Butler at CWT T11 20140301.jpg — CC BY 2.0
 vermouth: Vermouth Detective Conan cosplay
   commons: 0 подходящих
   — подходящего свободного фото нет
@@ -22,21 +16,6 @@ lan: Lan Wangji cosplay
 paul: Paul Atreides cosplay
   commons: 0 подходящих
   — подходящего свободного фото нет
-ace: Ace Trappola Twisted Wonderland cosplay
-  commons: 37 подходящих
-  ✓ File:Montreal Comiccon 2015 - Ace Ventura (18835946894).jpg — CC BY-SA 2.0
-sukuna: Sukuna cosplay jujutsu
-  commons: 8 подходящих
-  ✓ File:Cosplay of Ryomen Sukuna at Made in Asia 2022 (52167641228).jpg — CC BY-SA 2.0
-power: Power Chainsaw Man cosplay
-  commons: 42 подходящих
-  ✓ File:Cosplay of White Power Ranger at Florida Supercon 2013 (9358576081).jpg — CC BY 2.0
-ash: Ash Ketchum cosplay pokemon trainer
-  commons: 43 подходящих
-  ✓ File:Tekkoshocon 2010 cosplay 142.JPG — CC BY-SA 3.0
-eleven: Eleven Stranger Things cosplay
-  commons: 4 подходящих
-  ✓ File:Maomao and Liliel passing 7-Eleven Gangjie Store 20260207.jpg — CC BY-SA 4.0
 huacheng: Hua Cheng cosplay
   commons: 0 подходящих
   — подходящего свободного фото нет
