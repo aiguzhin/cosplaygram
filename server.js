@@ -323,22 +323,30 @@ async function main() {
   const meView = async (id) => userView(await one(`SELECT ${userCols} FROM users u WHERE u.id = $1`, [id]));
 
   // ----- аккаунт -----
+  // Почта: приводим к нижнему регистру и проверяем, что похожа на адрес
+  const normEmail = (v) => String(v || '').trim().toLowerCase().slice(0, 200);
+  const okEmail = (e) => /^[^\s@]{1,64}@[^\s@]{1,180}\.[a-z0-9-]{2,24}$/i.test(e);
+  const emailFree = async (e, except = '') => !(await one('SELECT 1 FROM users WHERE email = $1 AND id <> $2', [e, except]));
+
   app.post('/api/register', wrap(async (req, res) => {
     if (tooMany('reg:' + req.ip, 30, 3600e3)) throw new HttpError(429, 'Слишком много регистраций из этой сети. Попробуйте через час.');
     const username = clean(req.body.username, 30).toLowerCase();
     const password = String(req.body.password || '');
+    const email = normEmail(req.body.email);
+    if (!okEmail(email)) throw new HttpError(400, 'Укажите почту, например name@mail.ru');
     if (!/^[a-z0-9_.]{3,30}$/.test(username)) throw new HttpError(400, 'Ник: от 3 до 30 символов — латиница, цифры, точка или _');
     if (password.length < 8) throw new HttpError(400, 'Пароль должен быть не короче 8 символов');
+    if (!(await emailFree(email))) throw new HttpError(409, 'На эту почту уже есть профиль — просто войдите');
     if (await one('SELECT 1 FROM users WHERE username = $1', [username])) throw new HttpError(409, 'Этот ник уже занят');
     if (req.body.avatar) checkImage(req.body.avatar);
     const real = await one('SELECT count(*)::int AS n FROM users WHERE demo = FALSE');
     const role = DEVS.includes(username) ? 'dev' : ADMINS.includes(username) || real.n === 0 ? 'admin' : 'user';
     const id = newId();
     await q(
-      `INSERT INTO users (id, username, password, name, city, specialty, color, role, created_at, theme, country, verified)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)`,
+      `INSERT INTO users (id, username, password, name, city, specialty, color, role, created_at, theme, country, verified, email)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)`,
       [id, username, hashPassword(password), clean(req.body.name, 60) || username, clean(req.body.city, 40),
-        clean(req.body.specialty, 60), COLORS[Math.floor(Math.random() * COLORS.length)], role, now(), themeId(req.body.theme), COUNTRIES.valid(req.body.country), role === 'dev']
+        clean(req.body.specialty, 60), COLORS[Math.floor(Math.random() * COLORS.length)], role, now(), themeId(req.body.theme), COUNTRIES.valid(req.body.country), role === 'dev', email]
     );
     if (req.body.avatar) await q('UPDATE users SET avatar_id = $2 WHERE id = $1', [id, await saveImage(req.body.avatar, id)]);
     remember('reg:' + req.ip);
@@ -347,11 +355,14 @@ async function main() {
   }));
 
   app.post('/api/login', wrap(async (req, res) => {
-    const name = clean(req.body.username, 30).toLowerCase().replace(/^@/, '');
+    // входить можно по почте или по нику
+    const raw = String(req.body.username || req.body.email || '').trim().toLowerCase();
+    const byMail = raw.includes('@') && !raw.startsWith('@');
+    const name = byMail ? normEmail(raw) : clean(raw, 30).replace(/^@/, '');
     const key = `login:${req.ip}:${name}`;
     if (tooMany(key, 10, 600e3)) throw new HttpError(429, 'Слишком много неудачных попыток. Подождите 10 минут.');
-    const u = await one('SELECT id, password FROM users WHERE username = $1', [name]);
-    if (!u || !checkPassword(String(req.body.password || ''), u.password)) { remember(key); throw new HttpError(401, 'Неверный ник или пароль'); }
+    const u = await one(`SELECT id, password FROM users WHERE ${byMail ? 'email' : 'username'} = $1`, [name]);
+    if (!u || !checkPassword(String(req.body.password || ''), u.password)) { remember(key); throw new HttpError(401, byMail ? 'Неверная почта или пароль' : 'Неверный ник или пароль'); }
     await startSession(req, res, u.id);
     res.json({ user: await meView(u.id) });
   }));
@@ -392,6 +403,15 @@ async function main() {
     if (String(req.body.next || '').length < 8) throw new HttpError(400, 'Новый пароль должен быть не короче 8 символов');
     await q('UPDATE users SET password = $2 WHERE id = $1', [req.user.id, hashPassword(String(req.body.next))]);
     res.json({ ok: true });
+  }));
+
+  // Почта для входа (видна только самому участнику)
+  app.post('/api/me/email', auth, wrap(async (req, res) => {
+    const email = normEmail(req.body.email);
+    if (!okEmail(email)) throw new HttpError(400, 'Укажите почту, например name@mail.ru');
+    if (!(await emailFree(email, req.user.id))) throw new HttpError(409, 'Эта почта уже привязана к другому профилю');
+    await q('UPDATE users SET email = $2 WHERE id = $1', [req.user.id, email]);
+    res.json({ ok: true, email });
   }));
 
   // ----- вход через Google и Telegram -----
@@ -458,7 +478,8 @@ async function main() {
 
   app.get('/api/auth/providers', (_req, res) => {
     const c = authCfg();
-    res.json({ google: c.google || null, telegram: c.tgToken && c.tgBot ? c.tgBot : null });
+    const tg = c.tgToken && c.tgBot ? c.tgBot : null;
+    res.json({ google: c.google || null, telegram: tg, telegramId: tg ? String(c.tgToken).split(':')[0] : null });
   });
 
   app.post('/api/auth/google', wrap(async (req, res) => {
@@ -520,6 +541,9 @@ async function main() {
         COLORS[Math.floor(Math.random() * COLORS.length)], role, now(), themeId(req.body.theme), COUNTRIES.valid(req.body.country), role === 'dev']
     );
     await q('INSERT INTO identities (provider, subject, user_id, label, created_at) VALUES ($1,$2,$3,$4,$5)', [t.provider, t.subject, id, t.label || '', now()]);
+    // почту из Google сразу сохраняем — по ней можно будет входить, если задать пароль
+    const gmail = t.provider === 'google' ? normEmail(t.label) : '';
+    if (okEmail(gmail) && (await emailFree(gmail))) await q('UPDATE users SET email = $2 WHERE id = $1', [id, gmail]);
     remember('reg:' + req.ip);
     // своё фото важнее фото из Google/Telegram
     const av = req.body.avatar ? await saveImage(req.body.avatar, id) : t.avatar ? await fetchAvatar(t.avatar, id) : null;
@@ -531,8 +555,8 @@ async function main() {
   // Какие способы входа привязаны к моему профилю
   app.get('/api/me/identities', auth, wrap(async (req, res) => {
     const rows = await q('SELECT provider, label, created_at FROM identities WHERE user_id = $1 ORDER BY created_at', [req.user.id]);
-    const u = await one('SELECT password FROM users WHERE id = $1', [req.user.id]);
-    res.json({ identities: rows.map((r) => ({ provider: r.provider, label: r.label, createdAt: r.created_at })), hasPassword: !!u.password });
+    const u = await one('SELECT password, email FROM users WHERE id = $1', [req.user.id]);
+    res.json({ identities: rows.map((r) => ({ provider: r.provider, label: r.label, createdAt: r.created_at })), hasPassword: !!u.password, email: u.email || '' });
   }));
   app.delete('/api/me/identities/:provider', auth, wrap(async (req, res) => {
     const rows = await q('SELECT provider FROM identities WHERE user_id = $1', [req.user.id]);

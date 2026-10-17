@@ -687,7 +687,9 @@ function openAuth(mode = 'login', after) {
     <div class="social" id="socBox" hidden></div>
     <form class="form" id="authForm" novalidate>
       ${reg ? photoField('au-ph', null, 'Необязательно — можно добавить потом') : ''}
-      <div class="field"><label for="au-user">Ник</label><input class="input" id="au-user" name="username" autocomplete="username" autocapitalize="none" autocorrect="off" spellcheck="false" required placeholder="например, aru.cos"></div>
+      ${reg ? `<div class="field"><label for="au-mail">Почта</label><input class="input" id="au-mail" name="email" type="email" inputmode="email" autocomplete="email" autocapitalize="none" autocorrect="off" spellcheck="false" required placeholder="name@mail.ru">
+        <p class="hint">По почте и паролю вы будете входить. Другие участники её не видят.</p></div>` : ''}
+      <div class="field"><label for="au-user">${reg ? 'Ник' : 'Почта или ник'}</label><input class="input" id="au-user" name="username" autocomplete="${reg ? 'nickname' : 'username'}" autocapitalize="none" autocorrect="off" spellcheck="false" required placeholder="${reg ? 'например, aru.cos' : 'name@mail.ru или aru.cos'}"></div>
       ${reg ? `<div class="field"><label for="au-name">Имя</label><input class="input" id="au-name" name="name" autocomplete="given-name" placeholder="Как вас называть"></div>
         <div class="field"><label for="au-spec">Ваше лучшее качество</label><input class="input" id="au-spec" name="specialty" maxlength="60" placeholder="Необязательно">
           <p class="hint">Крафт, вигмейкинг, грим, сценическое выступление, макияж и т. д.</p></div>
@@ -711,7 +713,7 @@ function openAuth(mode = 'login', after) {
     const err = $('#authErr', o);
     const body = Object.fromEntries(new FormData(e.target));
     body.username = String(body.username || '').trim().toLowerCase().replace(/^@/, '');
-    if (reg) { body.theme = CG.stored() || ''; if (avatar) body.avatar = avatar; }
+    if (reg) { body.email = String(body.email || '').trim().toLowerCase(); body.theme = CG.stored() || ''; if (avatar) body.avatar = avatar; }
     btn.disabled = true;
     try {
       const { user } = await api(reg ? '/register' : '/login', { body });
@@ -727,7 +729,7 @@ function openAuth(mode = 'login', after) {
       btn.disabled = false;
     }
   };
-  if (!isMobile()) setTimeout(() => $('#au-user', o)?.focus(), 80);
+  if (!isMobile()) setTimeout(() => $(reg ? '#au-mail' : '#au-user', o)?.focus(), 80);
 }
 
 /* ----- вход через Google и Telegram ----- */
@@ -751,6 +753,14 @@ function loadGsi(clientId) {
   }).catch((e) => { gsiP = null; throw e; }));
 }
 window.cgTg = (user) => socialAuth('telegram', user);
+let tgP = null;
+const loadTg = () => (tgP ||= loadScript('https://telegram.org/js/telegram-widget.js?22').catch((e) => { tgP = null; throw e; }));
+// Цвет кнопки Google под фон текущего стиля: на светлом — белая, на тёмном — тёмная
+function bgIsLight() {
+  const m = /rgba?\((\d+),\s*(\d+),\s*(\d+)/.exec(getComputedStyle(document.body).backgroundColor || '');
+  return !m || (0.299 * m[1] + 0.587 * m[2] + 0.114 * m[3]) / 255 > 0.5;
+}
+const TG_ICON = '<svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M21.9 4.4 18.7 19.6c-.2 1.1-.9 1.4-1.8.9l-5-3.7-2.4 2.3c-.3.3-.5.5-1 .5l.4-5.1 9.2-8.3c.4-.4-.1-.6-.6-.2L6.1 13.2 1.2 11.7c-1.1-.3-1.1-1.1.2-1.6l19.1-7.4c.9-.3 1.7.2 1.4 1.7z"/></svg>';
 
 // Кнопки Google и Telegram в контейнере box. link — привязка к уже открытому профилю (в настройках)
 async function mountSocial(box, { after = null, link = false, only = null } = {}) {
@@ -759,21 +769,25 @@ async function mountSocial(box, { after = null, link = false, only = null } = {}
   if (!box?.isConnected || (!want('google') && !want('telegram'))) return false;
   social.after = after;
   box.hidden = false;
-  box.innerHTML = `${want('google') ? '<div class="soc-btn notranslate" translate="no" data-g></div>' : ''}${want('telegram') ? '<div class="soc-btn notranslate" translate="no" data-tg></div>' : ''}
-    ${link ? '' : '<div class="or"><span>или по нику и паролю</span></div>'}`;
+  const w = Math.max(220, Math.min(380, box.clientWidth || 320));
+  box.innerHTML = `${want('google') ? '<div class="soc-btn notranslate" translate="no" data-g></div>' : ''}${want('telegram') ? `<button type="button" class="tg-btn notranslate" translate="no" data-tg style="width:${w}px">${TG_ICON}<span>Войти через Telegram</span></button>` : ''}
+    ${link ? '' : '<div class="or"><span>или по почте и паролю</span></div>'}`;
   if (want('telegram')) {
-    const sc = document.createElement('script');
-    sc.async = true;
-    sc.src = 'https://telegram.org/js/telegram-widget.js?22';
-    Object.assign(sc.dataset, { telegramLogin: pv.telegram, size: 'large', radius: '20', onauth: 'cgTg(user)', requestAccess: 'write', userpic: 'false', lang: 'ru' });
-    $('[data-tg]', box).appendChild(sc);
+    // своя кнопка вместо виджета Telegram: открывает то же окно входа, но без чёрной рамки вокруг
+    const b = $('[data-tg]', box);
+    loadTg().catch(() => {});
+    b.onclick = async () => {
+      if (!window.Telegram?.Login?.auth) { try { await loadTg(); } catch { return toast('Telegram не загрузился. Проверьте интернет и попробуйте ещё раз.'); } }
+      social.after = after;
+      window.Telegram.Login.auth({ bot_id: pv.telegramId, request_access: 'write', lang: 'ru' }, (user) => { if (user) socialAuth('telegram', user); });
+    };
   }
   if (want('google')) {
     const el = $('[data-g]', box);
     try {
       await loadGsi(pv.google);
       const lang = window.CGLang ? CGLang.current() : 'ru';
-      window.google.accounts.id.renderButton(el, { type: 'standard', theme: 'filled_black', size: 'large', shape: 'pill', text: 'continue_with', locale: lang, width: Math.max(220, Math.min(380, box.clientWidth || 320)) });
+      window.google.accounts.id.renderButton(el, { type: 'standard', theme: bgIsLight() ? 'outline' : 'filled_black', size: 'large', shape: 'pill', text: 'continue_with', locale: lang, width: w });
     } catch { el.remove(); }
   }
   return true;
@@ -2013,9 +2027,13 @@ async function pageSettings() {
     <section class="section" id="idSec" hidden><h2 style="margin-bottom:6px">Вход через Google и Telegram</h2>
       <p class="muted" style="margin-bottom:10px">Привяжите аккаунт — и входите в Cosplaygram одной кнопкой, без пароля.</p>
       <div class="ach-list" id="idL"></div><div class="social" id="idBox" hidden style="margin-top:12px"></div></section>
+    <section class="section"><h2 style="margin-bottom:6px">Почта</h2>
+      <p class="muted" style="margin-bottom:10px">По почте и паролю можно входить в Cosplaygram. Другие участники её не видят.</p>
+      <form class="form" id="emF"><div class="row"><div class="field"><label for="em-v">Почта</label><input class="input" id="em-v" name="email" type="email" inputmode="email" autocomplete="email" autocapitalize="none" spellcheck="false" required placeholder="name@mail.ru"></div></div>
+        <button class="btn" style="align-self:flex-start">Сохранить почту</button></form></section>
     <section class="section"><h2 style="margin-bottom:12px" id="pwH">Пароль</h2>
       <form class="form" id="pw"><input type="text" name="username" value="${esc(u.username)}" autocomplete="username" hidden>
-        <p class="hint" id="pwNo" hidden>Сейчас вы входите через Google или Telegram. Задайте пароль, чтобы входить и по нику.</p>
+        <p class="hint" id="pwNo" hidden>Сейчас вы входите через Google или Telegram. Задайте пароль, чтобы входить и по почте или нику.</p>
         <div class="row"><div class="field" id="pwCur"><label for="pw-c">Текущий пароль</label>${pwField('pw-c', 'current', 'current-password', '')}</div>
           <div class="field"><label for="pw-n">Новый пароль</label>${pwField('pw-n', 'next', 'new-password', 'Не короче 8 символов')}</div></div>
         <button class="btn" style="align-self:flex-start">Сменить пароль</button></form></section>
@@ -2042,6 +2060,7 @@ async function pageSettings() {
   // Привязанные способы входа
   Promise.all([getProviders(), api('/me/identities')]).then(([pv, r]) => {
     if (!r.hasPassword) { $('#pwCur')?.remove(); $('#pwNo').hidden = false; $('#pwH').textContent = 'Задать пароль'; }
+    if ($('#em-v') && !$('#em-v').value) $('#em-v').value = r.email || '';
     const linked = r.identities.map((x) => x.provider);
     const missing = Object.keys(PROV).filter((k) => pv[k] && !linked.includes(k));
     if (!linked.length && !missing.length) return;
@@ -2086,6 +2105,14 @@ async function pageSettings() {
       toast('Профиль сохранён');
     } catch (err) { toast(err.message); }
     b.disabled = false;
+  };
+  $('#emF').onsubmit = async (e) => {
+    e.preventDefault();
+    try {
+      const r = await api('/me/email', { body: { email: $('#em-v').value.trim() } });
+      $('#em-v').value = r.email;
+      toast('Почта сохранена — теперь можно входить по ней');
+    } catch (err) { toast(err.message); }
   };
   $('#pw').onsubmit = async (e) => {
     e.preventDefault();
