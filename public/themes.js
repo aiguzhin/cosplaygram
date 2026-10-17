@@ -220,6 +220,21 @@
     }
   }
 
+  // Элементы мира персонажа: предметы и символы, которые узнают фанаты (без логотипов и эмблем)
+  const MOTIFS = {"classic": "🧵🪡✂️", "classic-light": "🧵🪡✂️", "chuya": "🎩🍷🌑", "gojo": "🍬👁️♾️", "miku": "🎵🎤🥬", "dazai": "🩹📖🦀", "maomao": "🌿💊🧪", "shinobu": "🦋💜🌸", "nezuko": "🎋🌸🌙", "marin": "💅🎀📸", "frieren": "🌼✨🪄", "hanako": "👻🌙🏮", "levi": "🧹🫖⚔️", "historia": "👑🐴🌾", "makima": "🐕⛓️🌹", "yor": "🌹🗡️🖤", "anya": "🥜⭐📺", "rem": "💙🌸⛓️", "zerotwo": "🍯🌸🦖", "usagi": "🌙🐰⭐", "chihiro": "🐉🍙🏮", "tanjiro": "🌊🔥🎴", "zenitsu": "⚡🍙🐦", "mitsuri": "🍡💗🐍", "itadori": "👊🍙🎬", "sukuna": "🔥👁️⛩️", "mikasa": "🧣⚔️🪽", "eren": "🗝️🕊️🪽", "power": "🐱🩸👑", "denji": "🪚🍞🐶", "asuka": "🤖🥇❤️", "reiayanami": "🤖💙🌙", "violet": "✉️💌⌨️", "kaguya": "🌸💮♟️", "bocchi": "🎸📦🩷", "aihoshino": "⭐🎤💜", "todoroki": "🔥❄️🧊", "deku": "💚👊⚡", "killua": "⚡🍫🛹", "ash": "⚡🧢🎒", "kagura": "☂️🍙🐕", "gintoki": "🍓🥛🗡️", "katsura": "🦆🍜🎋", "luffy": "👒🍖🏴‍☠️", "naruto": "🍜🍥🦊", "guts": "⚔️🌑🦅", "edward": "⚙️⚗️🦾", "lawliet": "🍰🍬🔍", "nana": "🎸🍓🖤", "vermouth": "🍸🎭🖤", "goku": "🐉⭐🥋", "zoro": "⚔️🍶🧭", "nami": "🍊🗺️💰", "itachi": "🐦🌙🔴", "kakashi": "📙⚡🐕", "sasuke": "⚡🐍🗡️", "hinata": "💜🌸🌙", "ichigo": "🍓⚔️💀", "lightyagami": "📓🍎✒️", "wei": "🪈🍷🐰", "lan": "🐇🎶☁️", "xielian": "🌸🎋🍶", "huacheng": "🦋🏮🗡️", "harry": "⚡🦉🧹", "hermione": "📚🪄⏳", "alice": "🐇🫖🃏", "hatter": "🎩🫖🕰️", "woland": "🐈‍⬛🌙🔥", "margarita": "🌼🧹🌙", "sherlock": "🔍🎻🧩", "katniss": "🏹🔥🕊️", "percy": "🌊🔱🖊️", "kaz": "🎩🃏🦯", "inej": "🗡️🌙🎪", "dracula": "🦇🌕🥀", "littleprince": "🌹🦊🪐", "gihun": "🦑⭕🔺", "wednesday": "🖤🎻✋", "miles": "🕷️🎧🎨", "elsa": "❄️⛄💎", "neo": "💊🕶️🟢", "paul": "🏜️🪱🌀", "barbie": "💖👠🏖️", "vader": "🌌⭐🔴", "jack": "🏴‍☠️🧭🍾", "gandalf": "🧙🪄🍂", "mulan": "🐉🌸🗡️", "spiderman": "🕷️🕸️🏙️", "ironman": "🔧⚡🦾", "loki": "🐍👑🟢", "wanda": "🔮❤️📺", "deadpool": "🌮💀❤️", "harley": "🔨💋🃏", "joker": "🃏😂💜", "wonderwoman": "⭐🛡️👑", "batman": "🦇🌃🌙", "mando": "🛡️👶🌌", "rey": "⭐🌵🔵", "maleficent": "🐦🖤🌹", "belle": "🌹📖🕯️", "rapunzel": "☀️🏮🦎", "eleven": "🧇🔦🌀", "daenerys": "🐉🔥👑", "aang": "🌬️🪁🍃", "wanderer": "🎐🍃🎩", "raiden": "⚡🌸⛩️", "hutao": "👻🔥🌸", "kafka": "🕷️🎻💜", "acheron": "🌧️🗡️💜", "ace": "♥️🃏⚔️", "2b": "🗡️🤖🌿", "jinx": "💣🎀💙", "link": "🗡️🛡️🍄", "geralt": "🐺⚔️🧪", "zhongli": "🪨🍵🐉", "venti": "🎵🍃🍎", "furina": "💧🎭👑", "firefly": "✨🌙🔥", "tifa": "🥊🍸⭐", "cloud": "⚔️☁️🏍️", "dva": "🎮🐰🤖", "ahri": "🦊💗✨", "lara": "🏺🗺️🧭", "ellie": "🎸🦒🌿", "zelda": "👑🎵🌸", "peach": "🍑👑🍄", "mario": "🍄⭐🪙"};
+  const motifCache = {};
+  function motifs(t, op = 0.12) {
+    const set = Array.from((t.custom && t.raw && t.raw.motifs) || MOTIFS[t.id] || (t.custom ? '🧵✨📸' : '🧵🪡✂️'));
+    // эмодзи из нескольких символов (🏴‍☠️, 🐈‍⬛) — разбиваем по графемам
+    const items = typeof Intl !== 'undefined' && Intl.Segmenter ? [...new Intl.Segmenter('ru', { granularity: 'grapheme' }).segment(set.join(''))].map((x) => x.segment) : set;
+    const key = items.join('') + op;
+    if (motifCache[key]) return motifCache[key];
+    const spots = [[34, 40, -14, 26], [128, 22, 12, 20], [196, 92, -6, 28], [72, 120, 18, 22], [160, 176, -20, 24], [24, 196, 8, 20], [112, 232, -10, 26], [210, 236, 16, 20]];
+    const txt = spots.map(([x, y, r, s], i) => `<text x="${x}" y="${y}" font-size="${s}" transform="rotate(${r} ${x} ${y})" text-anchor="middle">${items[i % items.length]}</text>`).join('');
+    const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="240" height="260"><g opacity="${op}" font-family="Apple Color Emoji,Segoe UI Emoji,Noto Color Emoji,sans-serif">${txt}</g></svg>`;
+    return (motifCache[key] = `url("data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}")`);
+  }
+
   // CSS-переменные темы; применяются к любому элементу (сайт целиком, карточка, обложка профиля).
   function vars(t) {
     const dark = t.mode === 'dark';
@@ -235,12 +250,15 @@
       '--accent-soft': hexA(t.accent, dark ? 0.16 : 0.11),
       '--accent-2': t.accent2,
       '--pattern': pattern(t),
+      '--motifs': motifs(t, dark ? 0.13 : 0.16),
+      '--motifs-strong': motifs(t, dark ? 0.32 : 0.36),
       '--font-display': `"${t.font}", Georgia, serif`,
       '--shadow': dark ? '0 20px 50px rgba(0,0,0,.5)' : '0 20px 50px rgba(20,20,40,.14)',
       'color-scheme': t.mode,
     };
   }
-  const styleAttr = (t) => Object.entries(vars(t)).map(([k, v]) => `${k}:${v}`).join(';');
+  // для атрибута style="…": кавычки внутри значений (шрифт, картинка узора) экранируем
+  const styleAttr = (t) => Object.entries(vars(t)).map(([k, v]) => `${k}:${v}`).join(';').replace(/"/g, '&quot;');
 
   function apply(id) {
     const t = get(id);
@@ -252,9 +270,11 @@
     if (meta) meta.setAttribute('content', t.bg);
     return t;
   }
+  // Элементы на фоне можно выключить в настройках
+  try { if (localStorage.getItem('cg-motifs') === 'off') document.documentElement.dataset.motifs = 'off'; } catch {}
   function stored() { try { return localStorage.getItem('cg-char') || ''; } catch { return ''; } }
   function store(id) { try { localStorage.setItem('cg-char', id); } catch {} }
 
-  window.CG = { THEMES, CATS, FONTS, PATTERNS, get, has, add, remove, apply, vars, styleAttr, pattern, stored, store, hexA, contrast, mix, lum };
+  window.CG = { THEMES, CATS, FONTS, PATTERNS, MOTIFS, motifs, get, has, add, remove, apply, vars, styleAttr, pattern, stored, store, hexA, contrast, mix, lum };
   apply(stored() || 'classic');
 })();

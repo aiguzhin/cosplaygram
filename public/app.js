@@ -1983,6 +1983,7 @@ async function pageSettings() {
     <section class="section"><h2 style="margin-bottom:12px">Персонаж</h2>
       <div class="cur-char">${charCard(t, true)}<div class="stack" style="gap:8px"><p class="muted">Сайт оформлен в стиле <b style="color:var(--ink)">${esc(t.name)}</b>. Обложка вашего профиля тоже в этом стиле.</p>
         <div class="row" style="gap:8px;flex-wrap:wrap"><button class="btn" data-act="picker">${ic.palette}Сменить персонажа</button><button class="btn" data-act="mychar">${ic.plus}Свой персонаж</button></div>
+        <label class="check"><input type="checkbox" id="motifsOn" ${document.documentElement.dataset.motifs === 'off' ? '' : 'checked'}> Элементы мира персонажа на фоне</label>
         <p class="hint">Есть косплей на персонажа, которого нет в каталоге? Сделайте свою тему из фото — с вашими цветами и вашим фото на обложке.</p></div></div>
       <div class="ach-list" id="myThemes" style="margin-top:12px"></div></section>
     <section class="section"><h2 style="margin-bottom:12px">Профиль</h2>
@@ -2026,6 +2027,11 @@ async function pageSettings() {
       ${isStandalone() ? '' : `<button class="btn" data-act="install">${ic.phone}Установить</button>`}</section>
     <section class="section"><button class="btn ghost danger" data-act="logout">${ic.logout}Выйти из аккаунта</button></section></div>`;
   bindEyes(view());
+  $('#motifsOn').onchange = (e) => {
+    const on = e.target.checked;
+    if (on) delete document.documentElement.dataset.motifs; else document.documentElement.dataset.motifs = 'off';
+    try { localStorage.setItem('cg-motifs', on ? 'on' : 'off'); } catch {}
+  };
   // Мои персонажи
   const mineT = CG.THEMES.filter((x) => x.custom && x.mine && x.id !== 'my-preview');
   $('#myThemes').innerHTML = mineT.map((x) => `<div class="ach-item"><span class="tm-mini" style="${CG.styleAttr(x)}">${x.photo ? `<img src="${esc(x.photo)}" alt="">` : ''}</span>
