@@ -163,7 +163,11 @@
   "q": "Katsura Kotaro cosplay",
   "must": [
    "katsura"
-  ]
+  ],
+  "skip": [
+   "File:Cosplayer of Hinagiku Katsura, Hayate the Combat Butler at CWT T11 20140301.jpg"
+  ],
+  "off": true
  },
  "luffy": {
   "q": "Luffy cosplay One Piece",
@@ -352,7 +356,11 @@
   "must": [
    "ace",
    "trappola"
-  ]
+  ],
+  "skip": [
+   "File:Montreal Comiccon 2015 - Ace Ventura (18835946894).jpg"
+  ],
+  "off": true
  },
  "2b": {
   "q": "2B NieR Automata cosplay",
@@ -445,8 +453,10 @@
    "power"
   ],
   "skip": [
-   "File:Cosplay of Denji and Power from Chainsaw Man at Necronomi’Con 2023.jpg"
-  ]
+   "File:Cosplay of Denji and Power from Chainsaw Man at Necronomi’Con 2023.jpg",
+   "File:Cosplay of White Power Ranger at Florida Supercon 2013 (9358576081).jpg"
+  ],
+  "off": true
  },
  "denji": {
   "q": "Denji Chainsaw Man cosplay",
@@ -691,7 +701,11 @@
   "must": [
    "eleven",
    "stranger things"
-  ]
+  ],
+  "skip": [
+   "File:Maomao and Liliel passing 7-Eleven Gangjie Store 20260207.jpg"
+  ],
+  "off": true
  },
  "daenerys": {
   "q": "Daenerys Targaryen cosplay",
