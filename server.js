@@ -301,7 +301,7 @@ async function main() {
   const OPEN = new Set(['/register', '/login', '/logout', '/me', '/characters', '/auth/providers', '/auth/google', '/auth/telegram', '/auth/complete']);
   // Гостям открыт просмотр: профили, работы, мероприятия с итогами и форум (писать — только после регистрации)
   const GUEST_GET = [/^\/themes(\/[a-z0-9-]+)?$/, /^\/users\/[^/]+$/, /^\/posts\/[^/]+$/, /^\/events$/, /^\/events\/[^/]+\/results$/, /^\/forum(\/[^/]+)?$/];
-  const guestOk = (req) => req.method === 'GET' && GUEST_GET.some((r) => r.test(req.path));
+  const guestOk = (req) => req.method === 'GET' && (GUEST_GET.some((r) => r.test(req.path)) || (req.path === '/feed' && !!req.query.char)); // гостям — косплеи конкретного персонажа
   app.use('/api', (req, _res, next) => (OPEN.has(req.path) || guestOk(req) || req.user ? next() : next(new HttpError(401, 'Зарегистрируйтесь или войдите, чтобы пользоваться Cosplaygram'))));
   // Защита от спама: не больше 120 действий в минуту от одного участника
   app.use('/api', (req, _res, next) => {

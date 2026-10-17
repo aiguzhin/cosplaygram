@@ -145,6 +145,7 @@ const ic = {
   trophy: I('<path d="M8 4h8v5a4 4 0 0 1-8 0zM8 6H4.5a3 3 0 0 0 3.5 4M16 6h3.5a3 3 0 0 1-3.5 4M12 13v4M8 21h8M9 17h6"/>'),
   back: I('<path d="m15 5-7 7 7 7"/>'),
   right: I('<path d="m9 5 7 7-7 7"/>'),
+  left: I('<path d="m15 5-7 7 7 7"/>'),
   up: I('<path d="m6 15 6-6 6 6"/>'),
   check: I('<path d="m5 12.5 4.5 4.5L19 7.5"/>'),
   trophy: I('<path d="M8 21h8M12 17v4M7 4h10v5a5 5 0 0 1-10 0z"/><path d="M17 5h3v2a3 3 0 0 1-3 3M7 5H4v2a3 3 0 0 0 3 3"/>'),
@@ -199,6 +200,11 @@ async function loadChars(force) {
   Object.assign(charData, { site, commons, loaded: true });
   return charData;
 }
+// На карточке — сам персонаж: эмблема в его цветах или арт, загруженный модератором. Косплеи — по нажатию.
+function charArt(id) {
+  const s = charData.site[id];
+  return s?.cover && s.photo ? { src: s.photo, credit: 'Арт Cosplaygram' } : null;
+}
 function charPhoto(id) {
   const ct = CG.get(id);
   if (ct.custom && ct.id === id && ct.photo) return { src: ct.photo, credit: `Косплей: @${ct.by}` };
@@ -211,11 +217,11 @@ function charPhoto(id) {
 const charStats = (id) => charData.site[id] || { cosplays: 0, fans: 0 };
 
 function charCard(t, on) {
-  const ph = charPhoto(t.id);
+  const ph = charArt(t.id);
   const st = charStats(t.id);
   const meta = [t.from + (t.cat ? ' · ' + CG.CATS[t.cat] : ''), st.cosplays ? `${st.cosplays} ${plural(st.cosplays, 'косплей', 'косплея', 'косплеев')}` : ''].filter(Boolean).join(' · ');
   return `<button type="button" class="char ${on ? 'on' : ''} ${ph ? 'has-photo' : ''}" data-char="${t.id}" style="${CG.styleAttr(t)}" aria-pressed="${!!on}" aria-label="${esc(t.name)}${t.from ? ', ' + esc(t.from) : ''}">
-    <span class="art">${ph ? `<img src="${esc(ph.src)}" alt="" loading="lazy" decoding="async"><span class="cr">${esc(ph.credit)}</span>` : `<b>${esc(t.name.trim().charAt(0))}</b>`}<span class="sw"><i style="background:${t.accent}"></i><i style="background:${t.accent2}"></i><i style="background:${t.ink}"></i></span></span>
+    <span class="art">${ph ? `<img src="${esc(ph.src)}" alt="" loading="lazy" decoding="async"><span class="cr">${esc(ph.credit)}</span>` : `<i class="mono" aria-hidden="true">${esc(t.name.trim().charAt(0))}</i><b>${esc(t.name.trim().charAt(0))}</b>`}${st.cosplays ? `<span class="cnt">${ic.image}${st.cosplays}</span>` : ''}<span class="sw"><i style="background:${t.accent}"></i><i style="background:${t.accent2}"></i><i style="background:${t.ink}"></i></span></span>
     <span class="meta"><span class="nm">${esc(t.name)}</span><span class="fr">${esc(meta)}</span></span>
     <span class="ok">${ic.check}</span></button>`;
 }
@@ -260,14 +266,52 @@ function bindCharPicker(holder, onPick) {
     draw();
   }));
   loadChars().then(draw);
+  // Детали персонажа: сам персонаж сверху, ниже — косплеи участников; стиль включается кнопкой
+  const detail = document.createElement('div');
+  detail.className = 'char-detail';
+  detail.hidden = true;
+  grid.after(detail);
+  const chrome = () => [grid, search, ...$$('[data-ctab]', holder).map((b) => b.parentElement)].filter(Boolean);
+  const showGrid = () => { detail.hidden = true; chrome().forEach((el) => (el.hidden = false)); CG.apply(holder.dataset.sel || 'classic'); };
+  const choose = (id) => {
+    holder.dataset.sel = id;
+    CG.apply(id);
+    onPick(CG.get(id));
+    draw();
+    showGrid();
+  };
+  async function openDetail(id) {
+    const t = CG.get(id);
+    const ph = charArt(id);
+    const inOverlay = !!holder.closest('.overlay');
+    chrome().forEach((el) => (el.hidden = true));
+    detail.hidden = false;
+    CG.apply(id);
+    detail.innerHTML = `<button type="button" class="btn sm ghost" data-back>${ic.left || '←'} Все персонажи</button>
+      <div class="cd-head" style="${CG.styleAttr(t)}"><span class="cd-art">${ph ? `<img src="${esc(ph.src)}" alt="">` : `<b>${esc(t.name.trim().charAt(0))}</b>`}</span>
+        <span class="cd-t"><span class="small">${t.cat ? esc(CG.CATS[t.cat]) : 'Стиль Cosplaygram'}</span><b>${esc(t.name)}</b><span>${esc(t.from)}</span></span></div>
+      <button type="button" class="btn primary block" data-choose>${holder.dataset.sel === id ? `${ic.check}Это ваш стиль` : `Выбрать стиль «${esc(t.name)}»`}</button>
+      <h3 class="cd-h">Косплеи</h3><div class="cd-grid" id="cdG"><div class="skel" style="height:140px"></div></div>`;
+    $('[data-back]', detail).onclick = showGrid;
+    $('[data-choose]', detail).onclick = () => choose(id);
+    detail.scrollIntoView({ block: 'nearest' });
+    let posts = [];
+    if (t.cat) { try { posts = (await api(feedQuery('char:' + id))).posts || []; } catch {} }
+    if (detail.hidden) return;
+    const tiles = posts.map((p) => `<button type="button" class="cd-tile" ${inOverlay ? '' : `data-open="${p.id}"`} aria-label="${esc(p.character)} — @${esc(p.author?.username)}"><img src="${esc(p.slides?.[0]?.image || '')}" alt="" loading="lazy"><span>@${esc(p.author?.username || '')}</span></button>`);
+    const c = charData.commons[id];
+    if (c) tiles.push(`<span class="cd-tile"><img src="/chars/${esc(id)}.jpg" alt="" loading="lazy"><span>${esc(c.author)}, ${esc(c.license)}</span></span>`);
+    if (t.custom && t.photo) tiles.unshift(`<span class="cd-tile"><img src="${esc(t.photo)}" alt="" loading="lazy"><span>@${esc(t.by)}</span></span>`);
+    $('#cdG', detail).innerHTML = tiles.join('') || `<p class="muted" style="grid-column:1/-1">Пока никто не показал косплей ${esc(t.name)}. Станьте первым!</p>`;
+    if (!inOverlay) bindCards(detail);
+  }
   grid.addEventListener('click', (e) => {
     if (e.target.closest('[data-newchar]')) return openThemeMaker(null, (search?.value || '').trim());
     const c = e.target.closest('[data-char]');
     if (!c) return;
-    holder.dataset.sel = c.dataset.char;
-    $$('.char', grid).forEach((x) => { x.classList.toggle('on', x === c); x.setAttribute('aria-pressed', String(x === c)); });
-    CG.apply(c.dataset.char);
-    onPick(CG.get(c.dataset.char));
+    // «Классика» — без персонажа: выбирается сразу
+    if (!CG.get(c.dataset.char).cat) return choose(c.dataset.char);
+    openDetail(c.dataset.char);
   });
   draw();
 }
@@ -1304,7 +1348,7 @@ function pageLanding() {
       <div><b>Весь мир</b><span>Косплееры из ${C.LIST.length} стран: лента и чат вашей страны, мероприятия по всему миру.</span></div>
       <div><b><a class="link" href="#/events">Мероприятия и итоги →</a></b><span>Фестивали, косплей-шоу и встречи — с отметкой «Пойду».</span></div>
     </div>
-    <p class="hint">Фото на карточках — косплей участников и свободные фото с Wikimedia Commons. <a class="link" href="#/credits">Авторы фото</a></p>
+    <p class="hint">Нажмите на персонажа, чтобы увидеть косплеи участников и свободные фото с Wikimedia Commons. <a class="link" href="#/credits">Авторы фото</a></p>
   </section>`;
   bindCharPicker($('#land'), (t) => { CG.store(t.id); $('#lnN').textContent = t.name; });
 }
@@ -2065,7 +2109,7 @@ async function pageAdmin() {
       <button class="btn sm" data-res="${r.id}">Закрыть</button></div>`).join('') || '<div class="empty"><p>Жалоб нет.</p></div>'}</div>
     <section class="section"><h2 style="margin-bottom:6px">Персонажи от участников</h2><p class="muted small" style="margin-bottom:12px">Свои персонажи, которых участники предложили в общий каталог. После одобрения появятся у всех в выборе стиля.</p>
       <div class="list" id="adThemes"><div class="skel" style="height:80px"></div></div></section>
-    <section class="section"><h2>Фото персонажей</h2><p class="muted small" style="margin:6px 0 12px">Загрузите обложку для карточки персонажа — например, фото косплея участника с его разрешения. Обложка важнее остальных фото.</p>
+    <section class="section"><h2>Арт персонажей</h2><p class="muted small" style="margin:6px 0 12px">Картинка на карточке персонажа вместо эмблемы. Загружайте только изображения, на которые у вас есть права: официальные арты и кадры из аниме, фильмов и игр защищены авторским правом. Косплеи участников показываются по нажатию на карточку.</p>
       <div class="char-grid" id="adChars"></div><input type="file" id="adFile" accept="image/*" hidden></section>
   </div>`;
   bindCards(view());

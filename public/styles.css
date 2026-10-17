@@ -641,3 +641,29 @@ body:has(.guest-bar) .main { padding-bottom: 96px; }
 .cover.has-photo .cv-img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: 50% 25%; }
 .cover.has-photo .ch { background: color-mix(in srgb, var(--bg) 78%, transparent); padding: 6px 10px; border-radius: 10px; backdrop-filter: blur(6px); }
 @media (max-width: 420px) { .tm-top { grid-template-columns: 1fr 1fr; } }
+
+/* ===== карточка персонажа: эмблема вместо фото ===== */
+.char .art .mono { position: absolute; right: -6%; top: -8%; font-style: normal; font-family: var(--font-display); font-weight: 600; font-size: 9rem; line-height: 1; color: var(--accent); opacity: .14; pointer-events: none; }
+.char .art .cnt { position: absolute; z-index: 1; top: 8px; left: 8px; display: inline-flex; align-items: center; gap: 4px; padding: 3px 7px; border-radius: 999px; font: 600 .7rem/1 var(--font-body, inherit); color: var(--ink); background: color-mix(in srgb, var(--bg) 70%, transparent); backdrop-filter: blur(4px); }
+.char .art .cnt svg { width: 12px; height: 12px; }
+.char.has-photo .art .cnt { top: 30px; }
+.char.on .art .cnt { left: 8px; }
+
+/* ===== детали персонажа: персонаж сверху, косплеи ниже ===== */
+.char-detail { display: flex; flex-direction: column; gap: 12px; margin-top: 4px; }
+.char-detail [data-back] { align-self: flex-start; }
+.char-detail [data-back] svg { width: 16px; height: 16px; }
+.cd-head { display: flex; gap: 14px; align-items: center; padding: 14px; border-radius: var(--r-lg); background: var(--pattern), var(--bg); color: var(--ink); box-shadow: 0 0 0 1px var(--line); }
+.cd-art { width: 96px; flex: none; aspect-ratio: 4 / 5; border-radius: 14px; overflow: hidden; display: grid; place-items: center; background: var(--surface); border: 2px solid var(--accent); }
+.cd-art img { width: 100%; height: 100%; object-fit: cover; }
+.cd-art b { font-family: var(--font-display); font-weight: 600; font-size: 3rem; color: var(--accent); }
+.cd-t { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.cd-t .small { color: var(--muted); }
+.cd-t b { font-family: var(--font-display); font-weight: 600; font-size: 1.35rem; line-height: 1.15; overflow-wrap: anywhere; }
+.cd-t > span:last-child { color: var(--muted); font-size: .88rem; }
+.cd-h { font-size: 1rem; margin-top: 4px; }
+.cd-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)); gap: 8px; }
+.cd-tile { position: relative; display: block; padding: 0; border: 0; border-radius: 12px; overflow: hidden; aspect-ratio: 4 / 5; background: var(--surface-2); cursor: default; }
+button.cd-tile { cursor: pointer; }
+.cd-tile img { width: 100%; height: 100%; object-fit: cover; object-position: 50% 22%; }
+.cd-tile span { position: absolute; left: 0; right: 0; bottom: 0; padding: 14px 6px 5px; font-size: .62rem; line-height: 1.25; color: #fff; text-align: left; background: linear-gradient(transparent, rgba(0,0,0,.75)); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
