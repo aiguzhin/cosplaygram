@@ -5,11 +5,11 @@ gojo: Gojo Satoru cosplay
   commons: 0 подходящих
   — подходящего свободного фото нет
 dazai: Dazai Osamu cosplay
-  commons: 0 подходящих
-  — подходящего свободного фото нет
+  commons: 1 подходящих
+  ✓ File:Dazai Osamu cosplay.jpg — CC BY-SA 4.0
 katsura: Katsura Kotaro cosplay
-  commons: 0 подходящих
-  — подходящего свободного фото нет
+  commons: 3 подходящих
+  ✓ File:Cosplayer of Hinagiku Katsura, Hayate the Combat Butler at CWT T11 20140301.jpg — CC BY 2.0
 vermouth: Vermouth Detective Conan cosplay
   commons: 0 подходящих
   — подходящего свободного фото нет
@@ -23,47 +23,26 @@ paul: Paul Atreides cosplay
   commons: 0 подходящих
   — подходящего свободного фото нет
 ace: Ace Trappola Twisted Wonderland cosplay
-  commons: 0 подходящих
-  — подходящего свободного фото нет
+  commons: 37 подходящих
+  ✓ File:Montreal Comiccon 2015 - Ace Ventura (18835946894).jpg — CC BY-SA 2.0
 sukuna: Sukuna cosplay jujutsu
-  commons: 0 подходящих
-  — подходящего свободного фото нет
+  commons: 8 подходящих
+  ✓ File:Cosplay of Ryomen Sukuna at Made in Asia 2022 (52167641228).jpg — CC BY-SA 2.0
 power: Power Chainsaw Man cosplay
-  commons: 0 подходящих
-  — подходящего свободного фото нет
+  commons: 42 подходящих
+  ✓ File:Cosplay of White Power Ranger at Florida Supercon 2013 (9358576081).jpg — CC BY 2.0
 ash: Ash Ketchum cosplay pokemon trainer
-  commons: 0 подходящих
-  — подходящего свободного фото нет
+  commons: 43 подходящих
+  ✓ File:Tekkoshocon 2010 cosplay 142.JPG — CC BY-SA 3.0
 eleven: Eleven Stranger Things cosplay
-  commons: 0 подходящих
-  — подходящего свободного фото нет
-xielian: Xie Lian cosplay
-  commons: 2 подходящих
-  ✓ File:Cosplay Contest at Copenhagen Sakura Festival 2026 09.jpg — CC BY-SA 4.0
+  commons: 4 подходящих
+  ✓ File:Maomao and Liliel passing 7-Eleven Gangjie Store 20260207.jpg — CC BY-SA 4.0
 huacheng: Hua Cheng cosplay
   commons: 0 подходящих
   — подходящего свободного фото нет
-hermione: Hermione Granger cosplay
-  commons: 7 подходящих
-  ✓ File:Cosplayer of Hermione Granger 20140222.jpg — CC BY 2.0
-alice: Alice in Wonderland cosplay
-  commons: 19 подходящих
-  ✓ File:Alice in Wonderland Cosplay @ HamaCon '14 (14452061041).jpg — CC BY 2.0
-hatter: Mad Hatter cosplay
-  commons: 30 подходящих
-  ✓ File:Cosplayer as Mad Hatter at j-pop-con 2014-03-29.jpg — CC BY-SA 3.0
 woland: Woland cosplay
   commons: 0 подходящих
   — подходящего свободного фото нет
-margarita: Margarita cosplay Master
-  commons: 1 подходящих
-  ✓ File:100th anniversary of Mikhail Bulgakov 06.jpg — CC BY 4.0
-sherlock: Sherlock Holmes cosplay
-  commons: 6 подходящих
-  ✓ File:SDCC13 - Sherlock (9345260635).jpg — CC BY-SA 2.0
-katniss: Katniss Everdeen cosplay
-  commons: 14 подходящих
-  ✓ File:WonderCon 2012 - Katniss from the Hunger Games (6873355224).jpg — CC BY 2.0
 percy: Percy Jackson cosplay
   commons: 0 подходящих
   — подходящего свободного фото нет
