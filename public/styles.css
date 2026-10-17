@@ -48,7 +48,8 @@ p { margin: 0; }
 }
 .logo { display: flex; align-items: center; gap: 9px; font-family: var(--font-display); font-size: 1.25rem; font-weight: 500; flex: none; }
 .logo-mark { width: 28px; height: 28px; }
-.topnav { display: flex; gap: 2px; flex: 1; min-width: 0; }
+.topnav { display: flex; gap: 2px; flex: 1; min-width: 0; overflow-x: auto; scrollbar-width: none; -webkit-mask-image: linear-gradient(90deg, #000 calc(100% - 28px), transparent); mask-image: linear-gradient(90deg, #000 calc(100% - 28px), transparent); }
+.topnav::-webkit-scrollbar { display: none; }
 .topnav a { padding: 8px 10px; border-radius: 10px; color: var(--muted); font-weight: 500; white-space: nowrap; transition: color .15s; }
 .topnav a.active { color: var(--ink); box-shadow: inset 0 -2px 0 var(--accent); border-radius: 0; }
 .header-actions { display: flex; align-items: center; gap: 4px; margin-left: auto; flex: none; }
@@ -88,6 +89,7 @@ p { margin: 0; }
   .bottombar .badge { top: 3px; right: calc(50% - 22px); }
 }
 @media (min-width: 861px) { .mob-only { display: none !important; } }
+@media (min-width: 861px) and (max-width: 1180px) { .header-in { gap: 12px; } .topnav a { padding: 8px 7px; font-size: .94rem; } .logo { font-size: 1.1rem; } }
 @media (hover: hover) {
   .topnav a:hover { color: var(--ink); }
   .iconbtn:hover { background: var(--surface-2); }
