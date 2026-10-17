@@ -322,7 +322,7 @@ function openPicker({ onboarding = false } = {}) {
   const o = openOverlay(`<div class="sheet wide picker" role="dialog" aria-modal="true" aria-labelledby="pkT" data-sel="${esc(prev)}">
     <div class="grab"></div>
     <div class="head"><h2 class="display" id="pkT" style="font-size:1.7rem">${onboarding ? 'Кто вы сегодня?' : 'Выберите персонажа'}</h2>
-      <p class="muted">Сайт оденется в цвета и шрифт персонажа. Поменять можно в любой момент в меню профиля.</p></div>
+      <p class="muted">Нажмите на персонажа — откроются его косплеи и кнопка «Выбрать стиль». Сайт оденется в цвета и шрифт персонажа.</p></div>
     <div class="tabs">${charTabs()}</div>
     <div class="body"><div class="char-grid"></div></div>
     <div class="foot"><div class="t"><span class="small muted">Ваш стиль</span><b id="pkN">${esc(CG.get(prev).name)}</b></div>
