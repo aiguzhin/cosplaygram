@@ -200,14 +200,11 @@ async function loadChars(force) {
   Object.assign(charData, { site, commons, loaded: true });
   return charData;
 }
-// Превью карточки: арт, загруженный модератором, иначе свободное фото с Wikimedia Commons, иначе эмблема.
-// Косплеи участников — по нажатию на карточку.
+// Превью карточки: только изображение самого персонажа (арт, загруженный в админ-панели), иначе эмблема.
+// Любые косплеи — участников и свободные фото с Commons — по нажатию на карточку.
 function charArt(id) {
   const s = charData.site[id];
-  if (s?.cover && s.photo) return { src: s.photo, credit: 'Арт Cosplaygram' };
-  const c = charData.commons[id];
-  if (c) return { src: `/chars/${id}.jpg`, credit: `Фото: ${c.author}, ${c.license}` };
-  return null;
+  return s?.cover && s.photo ? { src: s.photo, credit: '' } : null;
 }
 function charPhoto(id) {
   const ct = CG.get(id);
@@ -225,7 +222,7 @@ function charCard(t, on) {
   const st = charStats(t.id);
   const meta = [t.from + (t.cat ? ' · ' + CG.CATS[t.cat] : ''), st.cosplays ? `${st.cosplays} ${plural(st.cosplays, 'косплей', 'косплея', 'косплеев')}` : ''].filter(Boolean).join(' · ');
   return `<button type="button" class="char ${on ? 'on' : ''} ${ph ? 'has-photo' : ''}" data-char="${t.id}" style="${CG.styleAttr(t)}" aria-pressed="${!!on}" aria-label="${esc(t.name)}${t.from ? ', ' + esc(t.from) : ''}">
-    <span class="art">${ph ? `<img src="${esc(ph.src)}" alt="" loading="lazy" decoding="async"><span class="cr">${esc(ph.credit)}</span>` : `<i class="mono" aria-hidden="true">${esc(t.name.trim().charAt(0))}</i><b>${esc(t.name.trim().charAt(0))}</b>`}${st.cosplays ? `<span class="cnt">${ic.image}${st.cosplays}</span>` : ''}<span class="sw"><i style="background:${t.accent}"></i><i style="background:${t.accent2}"></i><i style="background:${t.ink}"></i></span></span>
+    <span class="art">${ph ? `<img src="${esc(ph.src)}" alt="" loading="lazy" decoding="async">${ph.credit ? `<span class="cr">${esc(ph.credit)}</span>` : ''}` : `<i class="mono" aria-hidden="true">${esc(t.name.trim().charAt(0))}</i><b>${esc(t.name.trim().charAt(0))}</b>`}${st.cosplays ? `<span class="cnt">${ic.image}${st.cosplays}</span>` : ''}<span class="sw"><i style="background:${t.accent}"></i><i style="background:${t.accent2}"></i><i style="background:${t.ink}"></i></span></span>
     <span class="meta"><span class="nm">${esc(t.name)}</span><span class="fr">${esc(meta)}</span></span>
     <span class="ok">${ic.check}</span></button>`;
 }
@@ -1352,7 +1349,7 @@ function pageLanding() {
       <div><b>Весь мир</b><span>Косплееры из ${C.LIST.length} стран: лента и чат вашей страны, мероприятия по всему миру.</span></div>
       <div><b><a class="link" href="#/events">Мероприятия и итоги →</a></b><span>Фестивали, косплей-шоу и встречи — с отметкой «Пойду».</span></div>
     </div>
-    <p class="hint">Фото на карточках — свободные фото косплея с Wikimedia Commons. Нажмите на персонажа, чтобы увидеть косплеи участников Cosplaygram. <a class="link" href="#/credits">Авторы фото</a></p>
+    <p class="hint">Нажмите на персонажа, чтобы увидеть косплеи участников и свободные фото с Wikimedia Commons. <a class="link" href="#/credits">Авторы фото</a></p>
   </section>`;
   bindCharPicker($('#land'), (t) => { CG.store(t.id); $('#lnN').textContent = t.name; });
 }
