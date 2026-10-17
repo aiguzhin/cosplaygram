@@ -200,10 +200,14 @@ async function loadChars(force) {
   Object.assign(charData, { site, commons, loaded: true });
   return charData;
 }
-// На карточке — сам персонаж: эмблема в его цветах или арт, загруженный модератором. Косплеи — по нажатию.
+// Превью карточки: арт, загруженный модератором, иначе свободное фото с Wikimedia Commons, иначе эмблема.
+// Косплеи участников — по нажатию на карточку.
 function charArt(id) {
   const s = charData.site[id];
-  return s?.cover && s.photo ? { src: s.photo, credit: 'Арт Cosplaygram' } : null;
+  if (s?.cover && s.photo) return { src: s.photo, credit: 'Арт Cosplaygram' };
+  const c = charData.commons[id];
+  if (c) return { src: `/chars/${id}.jpg`, credit: `Фото: ${c.author}, ${c.license}` };
+  return null;
 }
 function charPhoto(id) {
   const ct = CG.get(id);
@@ -1348,7 +1352,7 @@ function pageLanding() {
       <div><b>Весь мир</b><span>Косплееры из ${C.LIST.length} стран: лента и чат вашей страны, мероприятия по всему миру.</span></div>
       <div><b><a class="link" href="#/events">Мероприятия и итоги →</a></b><span>Фестивали, косплей-шоу и встречи — с отметкой «Пойду».</span></div>
     </div>
-    <p class="hint">Нажмите на персонажа, чтобы увидеть косплеи участников и свободные фото с Wikimedia Commons. <a class="link" href="#/credits">Авторы фото</a></p>
+    <p class="hint">Фото на карточках — свободные фото косплея с Wikimedia Commons. Нажмите на персонажа, чтобы увидеть косплеи участников Cosplaygram. <a class="link" href="#/credits">Авторы фото</a></p>
   </section>`;
   bindCharPicker($('#land'), (t) => { CG.store(t.id); $('#lnN').textContent = t.name; });
 }

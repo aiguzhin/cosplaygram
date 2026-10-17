@@ -75,7 +75,7 @@ def candidates(q, must, skip):
             if BAD_WORDS.search(page["title"] + " " + desc):
                 continue
             w, h = ii.get("width", 0), ii.get("height", 0)
-            if w < 450 or h < 450 or h < w * 0.85:  # нужен вертикальный или квадратный кадр
+            if w < 450 or h < 450 or h < w * 0.5:  # горизонтальные кадры обрезаем по центру до 4:5
                 continue
             out.append({
                 "title": page["title"],
@@ -83,7 +83,7 @@ def candidates(q, must, skip):
                 "page": ii.get("descriptionurl"),
                 "author": strip(meta.get("Artist", {}).get("value"))[:80] or "Автор не указан",
                 "license": lic,
-                "score": (h / max(w, 1) > 1.15) * 2 + (w >= 1000),
+                "score": (h / max(w, 1) > 1.15) * 2 + (h >= w * 0.85) * 2 + (w >= 1000),
             })
     out.sort(key=lambda c: -c["score"])
     return out
@@ -149,6 +149,10 @@ def main():
         found = False
         must, skip = [m.lower() for m in spec.get("must", [])], set(spec.get("skip", []))
         cands = candidates(spec["q"], must, skip)
+        if must:  # второй запрос: «имя cosplay» — так файлы на Commons называют чаще всего
+            seen = {c["title"] for c in cands}
+            cands += [c for c in candidates(f"{must[0]} cosplay", must, skip) if c["title"] not in seen]
+            cands.sort(key=lambda c: -c["score"])
         log(f"  commons: {len(cands)} подходящих")
         for c in cands[:8]:
             try:
@@ -156,8 +160,13 @@ def main():
                 data = urllib.request.urlopen(req, timeout=40).read()
                 im = Image.open(BytesIO(data)).convert("RGB")
                 w, h = im.size
-                if w < 450 or h < 450 or h < w * 0.85:
+                if w < 450 or h < 450 or h < w * 0.5:
                     continue
+                if w > h * 0.8:  # широкий кадр: берём центр 4:5
+                    nw = int(h * 0.8)
+                    left = (w - nw) // 2
+                    im = im.crop((left, 0, left + nw, h))
+                    w = nw
                 th = int(w * 5 / 4)
                 if h > th:  # кадр 4:5, чуть выше центра — там обычно лицо
                     top = int((h - th) * 0.25)
