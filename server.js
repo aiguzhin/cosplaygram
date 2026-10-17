@@ -1263,6 +1263,9 @@ async function main() {
     page(req, res, { title: `${e.title}${w.length ? ' — итоги' : ''} · Cosplaygram`,
       description: short(w.length ? w.map((r) => `${r.nomination}: ${r.place} — ${r.who}`).join('; ') : [e.date.split('-').reverse().join('.'), e.city, COUNTRIES.name(e.country), e.note].filter(Boolean).join(' · ')) });
   }));
+  // Политика конфиденциальности и правила (нужны Google для кнопки входа)
+  app.get('/privacy', (_req, res) => res.sendFile(path.join(__dirname, 'public', 'privacy.html')));
+  app.get('/terms', (_req, res) => res.sendFile(path.join(__dirname, 'public', 'terms.html')));
   app.get('/robots.txt', (req, res) => res.type('text').send(`User-agent: *\nAllow: /\nDisallow: /api/\nSitemap: ${origin(req)}/sitemap.xml\n`));
   app.get('/sitemap.xml', wrap(async (req, res) => {
     const o = origin(req);

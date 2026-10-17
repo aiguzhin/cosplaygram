@@ -485,6 +485,7 @@ function openAuth(mode = 'login', after) {
       <p class="error" id="authErr" role="alert" hidden></p>
       <button class="btn primary lg block" type="submit">${reg ? 'Создать профиль' : 'Войти'}</button>
       <button type="button" class="btn ghost block" id="authSwitch">${reg ? 'Уже есть профиль? Войти' : 'Нет профиля? Зарегистрироваться'}</button>
+      <p class="hint" style="text-align:center">Продолжая, вы соглашаетесь с <a href="/terms" target="_blank" rel="noopener">правилами</a> и <a href="/privacy" target="_blank" rel="noopener">политикой конфиденциальности</a>.</p>
     </form>`));
   bindEyes(o);
   mountSocial($('#socBox', o), { after });
@@ -591,6 +592,7 @@ function openSocialSignup(s, after) {
         <div class="field"><label for="sg-city">Город</label><input class="input" id="sg-city" name="city" placeholder="Необязательно"></div></div>
       <p class="error" id="sgErr" role="alert" hidden></p>
       <button class="btn primary lg block" type="submit">Создать профиль</button>
+      <p class="hint" style="text-align:center">Создавая профиль, вы соглашаетесь с <a href="/terms" target="_blank" rel="noopener">правилами</a> и <a href="/privacy" target="_blank" rel="noopener">политикой конфиденциальности</a>.</p>
     </form>`));
   $('#sgF', o).onsubmit = async (e) => {
     e.preventDefault();
