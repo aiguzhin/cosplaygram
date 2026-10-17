@@ -206,7 +206,10 @@ async function loadChars(force) {
 function charArt(id) {
   const s = charData.site[id];
   if (s?.cover && s.photo) return { src: s.photo, credit: '' };
-  return charData.art.has(id) ? { src: `/chars/art/${id}.jpg`, credit: '' } : null;
+  if (charData.art.has(id)) return { src: `/chars/art/${id}.jpg`, credit: '' };
+  // картинки персонажа нет — лучше свободное фото косплея с Commons, чем пустая карточка
+  const c = charData.commons[id];
+  return c ? { src: `/chars/${id}.jpg`, credit: `Фото: ${c.author}, ${c.license}` } : null;
 }
 function charPhoto(id) {
   const ct = CG.get(id);
