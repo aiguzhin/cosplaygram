@@ -116,6 +116,13 @@ async function main() {
   });
 
   // ---------- картинки ----------
+  // Проверка фото до сохранения (чтобы не создать профиль с битым фото)
+  const IMG_RE = /^data:(image\/(?:png|jpe?g|webp|gif));base64,([A-Za-z0-9+/=]+)$/;
+  function checkImage(dataUri) {
+    const m = IMG_RE.exec(dataUri || '');
+    if (!m) throw new HttpError(400, 'Фото должно быть в формате JPG, PNG, WEBP или GIF');
+    if (m[2].length > 4_000_000) throw new HttpError(400, 'Фото слишком большое: максимум около 3 МБ');
+  }
   async function saveImage(dataUri, ownerId) {
     const m = /^data:(image\/(?:png|jpe?g|webp|gif));base64,([A-Za-z0-9+/=]+)$/.exec(dataUri || '');
     if (!m) throw new HttpError(400, 'Фото должно быть в формате JPG, PNG, WEBP или GIF');
@@ -323,6 +330,7 @@ async function main() {
     if (!/^[a-z0-9_.]{3,30}$/.test(username)) throw new HttpError(400, 'Ник: от 3 до 30 символов — латиница, цифры, точка или _');
     if (password.length < 8) throw new HttpError(400, 'Пароль должен быть не короче 8 символов');
     if (await one('SELECT 1 FROM users WHERE username = $1', [username])) throw new HttpError(409, 'Этот ник уже занят');
+    if (req.body.avatar) checkImage(req.body.avatar);
     const real = await one('SELECT count(*)::int AS n FROM users WHERE demo = FALSE');
     const role = DEVS.includes(username) ? 'dev' : ADMINS.includes(username) || real.n === 0 ? 'admin' : 'user';
     const id = newId();
@@ -332,6 +340,7 @@ async function main() {
       [id, username, hashPassword(password), clean(req.body.name, 60) || username, clean(req.body.city, 40),
         clean(req.body.specialty, 60), COLORS[Math.floor(Math.random() * COLORS.length)], role, now(), themeId(req.body.theme), COUNTRIES.valid(req.body.country), role === 'dev']
     );
+    if (req.body.avatar) await q('UPDATE users SET avatar_id = $2 WHERE id = $1', [id, await saveImage(req.body.avatar, id)]);
     remember('reg:' + req.ip);
     await startSession(req, res, id);
     res.json({ user: await meView(id) });
@@ -439,7 +448,7 @@ async function main() {
       await startSession(req, res, known.user_id);
       return res.json({ user: await meView(known.user_id) });
     }
-    res.json({ signup: { ticket: signTicket(p), provider: p.provider, name: p.name, username: await freeUsername(p.suggest) } });
+    res.json({ signup: { ticket: signTicket(p), provider: p.provider, name: p.name, avatar: /^https:\/\//.test(p.avatar || '') ? p.avatar : null, username: await freeUsername(p.suggest) } });
   }
   const socialLimit = (req) => {
     const k = 'soc:' + req.ip;
@@ -500,6 +509,7 @@ async function main() {
     if (!/^[a-z0-9_.]{3,30}$/.test(username)) throw new HttpError(400, 'Ник: от 3 до 30 символов — латиница, цифры, точка или _');
     if (await one('SELECT 1 FROM users WHERE username = $1', [username])) throw new HttpError(409, 'Этот ник уже занят');
     if (await one('SELECT 1 FROM identities WHERE provider = $1 AND subject = $2', [t.provider, t.subject])) throw new HttpError(409, 'Этот аккаунт уже зарегистрирован — просто войдите');
+    if (req.body.avatar) checkImage(req.body.avatar);
     const real = await one('SELECT count(*)::int AS n FROM users WHERE demo = FALSE');
     const role = DEVS.includes(username) ? 'dev' : ADMINS.includes(username) || real.n === 0 ? 'admin' : 'user';
     const id = newId();
@@ -511,10 +521,9 @@ async function main() {
     );
     await q('INSERT INTO identities (provider, subject, user_id, label, created_at) VALUES ($1,$2,$3,$4,$5)', [t.provider, t.subject, id, t.label || '', now()]);
     remember('reg:' + req.ip);
-    if (t.avatar) {
-      const av = await fetchAvatar(t.avatar, id);
-      if (av) await q('UPDATE users SET avatar_id = $2 WHERE id = $1', [id, av]);
-    }
+    // своё фото важнее фото из Google/Telegram
+    const av = req.body.avatar ? await saveImage(req.body.avatar, id) : t.avatar ? await fetchAvatar(t.avatar, id) : null;
+    if (av) await q('UPDATE users SET avatar_id = $2 WHERE id = $1', [id, av]);
     await startSession(req, res, id);
     res.json({ user: await meView(id) });
   }));
@@ -689,6 +698,35 @@ async function main() {
   }));
 
   // ----- люди -----
+  // Кого подписаться: свой город и страна, кто подписан на вас, общие подписки, активные и подтверждённые
+  app.get('/api/suggestions', auth, wrap(async (req, res) => {
+    const me = req.user;
+    const limit = Math.min(30, Math.max(1, parseInt(req.query.limit, 10) || 12));
+    const rows = await q(
+      `SELECT ${userCols},
+         (SELECT count(*)::int FROM follows f WHERE f.followee_id = u.id) AS followers,
+         (SELECT count(*)::int FROM posts p WHERE p.author_id = u.id) AS posts,
+         EXISTS (SELECT 1 FROM follows f WHERE f.follower_id = u.id AND f.followee_id = $1) AS follows_me,
+         (SELECT count(*)::int FROM follows a JOIN follows b ON b.follower_id = a.followee_id WHERE a.follower_id = $1 AND b.followee_id = u.id) AS mutual
+       FROM users u
+       WHERE u.id <> $1 AND u.demo = FALSE
+         AND NOT EXISTS (SELECT 1 FROM follows f WHERE f.follower_id = $1 AND f.followee_id = u.id)
+       ORDER BY u.created_at DESC LIMIT 400`, [me.id]);
+    const city = String(me.city || '').trim().toLowerCase();
+    const scored = rows.map((r) => {
+      const sameCity = city && String(r.city || '').trim().toLowerCase() === city;
+      const sameCountry = me.country && r.country === me.country;
+      const score = (r.follows_me ? 6 : 0) + Math.min(r.mutual, 5) * 2 + (sameCity ? 4 : sameCountry ? 2 : 0) + (r.verified ? 2 : 0)
+        + Math.min(r.followers, 50) * 0.08 + Math.min(r.posts, 30) * 0.12 + (r.avatar_id ? 0.5 : 0) + (r.orders_open ? 0.5 : 0);
+      const reason = r.follows_me ? 'Подписан(а) на вас' : r.mutual ? `Общих подписок: ${r.mutual}` : sameCity ? 'Из вашего города'
+        : sameCountry ? 'Из вашей страны' : r.verified ? 'Подтверждённый косплеер' : r.posts ? 'Публикует работы' : 'Новый участник';
+      return { ...userView(r), followers: r.followers, posts: r.posts, reason, score };
+    });
+    scored.sort((a, b) => b.score - a.score);
+    const { n } = await one('SELECT count(*)::int AS n FROM follows WHERE follower_id = $1', [me.id]);
+    res.json({ users: scored.slice(0, limit).map(({ score, ...u }) => u), following: n });
+  }));
+
   app.get('/api/users', wrap(async (req, res) => {
     const rows = await q(
       `SELECT ${userCols}, (SELECT count(*)::int FROM follows f WHERE f.followee_id = u.id) AS followers,

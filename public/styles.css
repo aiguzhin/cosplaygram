@@ -600,3 +600,23 @@ body:has(.guest-bar) .main { padding-bottom: 96px; }
 .soc-btn iframe { max-width: 100%; }
 .or { display: flex; align-items: center; gap: 12px; width: 100%; margin-top: 4px; color: var(--muted); font-size: .85rem; }
 .or::before, .or::after { content: ''; flex: 1; height: 1px; background: var(--line); }
+
+/* ===== фото при регистрации ===== */
+.ph-pick { display: flex; gap: 14px; align-items: center; }
+.ph-ava { width: 76px; height: 76px; flex: none; border-radius: 50%; overflow: hidden; cursor: pointer; display: flex; align-items: center; justify-content: center; background: var(--surface-2); color: var(--muted); border: 1.5px dashed var(--line); }
+.ph-ava img { width: 100%; height: 100%; object-fit: cover; object-position: 50% 20%; }
+.ph-ava svg { width: 26px; height: 26px; }
+
+/* ===== рекомендации подписок ===== */
+.sugg { margin: 0 0 22px; }
+.sugg-h { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 10px; }
+.sugg-h h2 { font-size: 1.05rem; }
+.sugg-row { display: flex; gap: 10px; overflow-x: auto; padding-bottom: 6px; scroll-snap-type: x mandatory; scrollbar-width: none; }
+.sugg-row::-webkit-scrollbar { display: none; }
+.sugg-card { flex: 0 0 152px; scroll-snap-align: start; display: flex; flex-direction: column; align-items: center; gap: 8px; padding: 14px 10px 12px; text-align: center; background: var(--surface); border: 1px solid var(--line); border-radius: var(--r-lg); }
+.sugg-card > a { display: flex; flex-direction: column; align-items: center; gap: 6px; width: 100%; min-width: 0; color: inherit; text-decoration: none; }
+.sugg-card b { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: .92rem; }
+.sugg-card .meta { font-size: .76rem; line-height: 1.3; }
+.sugg-card .btn { width: 100%; }
+.sugg-item > a { color: inherit; text-decoration: none; }
+[data-fol].on { background: var(--surface-2); color: var(--ink); }

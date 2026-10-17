@@ -276,7 +276,7 @@ function openPicker({ onboarding = false } = {}) {
     onClose: () => {
       if (chosen) return;
       CG.apply(prev);
-      if (onboarding) saveTheme(prev, true);
+      if (onboarding) { saveTheme(prev, true); nextOnboard(); }
     },
   });
   const holder = $('.picker', o);
@@ -287,6 +287,7 @@ function openPicker({ onboarding = false } = {}) {
     closeOverlay();
     await saveTheme(id);
     toast(`Стиль «${CG.get(id).name}» включён`);
+    if (onboarding) nextOnboard();
   };
 }
 async function saveTheme(id, silent) {
@@ -474,6 +475,7 @@ function openAuth(mode = 'login', after) {
     <p class="muted" style="margin-bottom:16px">${reg ? `Ваш стиль: <b style="color:var(--accent)">${esc(t.name)}</b>. Его можно поменять потом.` : 'С возвращением! Войдите удобным способом.'}</p>
     <div class="social" id="socBox" hidden></div>
     <form class="form" id="authForm" novalidate>
+      ${reg ? photoField('au-ph', null, 'Необязательно — можно добавить потом') : ''}
       <div class="field"><label for="au-user">Ник</label><input class="input" id="au-user" name="username" autocomplete="username" autocapitalize="none" autocorrect="off" spellcheck="false" required placeholder="например, aru.cos"></div>
       ${reg ? `<div class="field"><label for="au-name">Имя</label><input class="input" id="au-name" name="name" autocomplete="given-name" placeholder="Как вас называть"></div>
         <div class="field"><label for="au-spec">Ваше лучшее качество</label><input class="input" id="au-spec" name="specialty" maxlength="60" placeholder="Необязательно">
@@ -488,6 +490,8 @@ function openAuth(mode = 'login', after) {
       <p class="hint" style="text-align:center">Продолжая, вы соглашаетесь с <a href="/terms" target="_blank" rel="noopener">правилами</a> и <a href="/privacy" target="_blank" rel="noopener">политикой конфиденциальности</a>.</p>
     </form>`));
   bindEyes(o);
+  let avatar = null;
+  if (reg) bindPhoto(o, 'au-ph', (d) => (avatar = d));
   mountSocial($('#socBox', o), { after });
   $('#authSwitch', o).onclick = () => openAuth(reg ? 'login' : 'register', after);
   $('#authForm', o).onsubmit = async (e) => {
@@ -496,13 +500,14 @@ function openAuth(mode = 'login', after) {
     const err = $('#authErr', o);
     const body = Object.fromEntries(new FormData(e.target));
     body.username = String(body.username || '').trim().toLowerCase().replace(/^@/, '');
-    if (reg) body.theme = CG.stored() || '';
+    if (reg) { body.theme = CG.stored() || ''; if (avatar) body.avatar = avatar; }
     btn.disabled = true;
     try {
       const { user } = await api(reg ? '/register' : '/login', { body });
       state.me = user;
       closeOverlay();
       toast(reg ? `Добро пожаловать, ${user.name}!` : `Привет, ${user.name}!`);
+      if (reg) state.onboard = !after;
       await afterLogin();
       if (after) after(); else route();
     } catch (ex) {
@@ -583,6 +588,7 @@ function openSocialSignup(s, after) {
   const o = openOverlay(sheet('Почти готово', `
     <p class="muted" style="margin-bottom:16px">Вы вошли через ${PROV[s.provider] || s.provider}. Осталось выбрать ник — по нему вас будут находить. Пароль не нужен.</p>
     <form class="form" id="sgF" novalidate>
+      ${photoField('sg-ph', s.avatar, s.avatar ? `Фото из ${PROV[s.provider] || 'аккаунта'} — можно поменять` : 'Необязательно — можно добавить потом')}
       <div class="field"><label for="sg-user">Ник</label><input class="input" id="sg-user" name="username" value="${esc(s.username || '')}" autocapitalize="none" autocorrect="off" spellcheck="false" required maxlength="30">
         <p class="hint">Латиницей, от 3 символов: буквы, цифры, точка или _.</p></div>
       <div class="field"><label for="sg-name">Имя</label><input class="input" id="sg-name" name="name" value="${esc(s.name || '')}" maxlength="60" placeholder="Как вас называть"></div>
@@ -594,6 +600,8 @@ function openSocialSignup(s, after) {
       <button class="btn primary lg block" type="submit">Создать профиль</button>
       <p class="hint" style="text-align:center">Создавая профиль, вы соглашаетесь с <a href="/terms" target="_blank" rel="noopener">правилами</a> и <a href="/privacy" target="_blank" rel="noopener">политикой конфиденциальности</a>.</p>
     </form>`));
+  let avatar = null;
+  bindPhoto(o, 'sg-ph', (d) => (avatar = d));
   $('#sgF', o).onsubmit = async (e) => {
     e.preventDefault();
     const btn = e.target.querySelector('[type=submit]');
@@ -602,12 +610,14 @@ function openSocialSignup(s, after) {
     body.username = String(body.username || '').trim().toLowerCase().replace(/^@/, '');
     body.ticket = s.ticket;
     body.theme = CG.stored() || '';
+    if (avatar) body.avatar = avatar;
     btn.disabled = true;
     try {
       const { user } = await api('/auth/complete', { body });
       state.me = user;
       closeOverlay();
       toast(`Добро пожаловать, ${user.name}!`);
+      state.onboard = !after;
       await afterLogin();
       if (after) after(); else route();
     } catch (ex) { err.textContent = ex.message; err.hidden = false; btn.disabled = false; }
@@ -617,10 +627,72 @@ function openSocialSignup(s, after) {
 async function afterLogin() {
   await refreshMe();
   if (!state.me) return;
-  if (state.me.theme) { CG.apply(state.me.theme); CG.store(state.me.theme); }
-  else if (CG.stored()) await saveTheme(CG.stored(), true);
+  if (state.me.theme) { CG.apply(state.me.theme); CG.store(state.me.theme); nextOnboard(); }
+  else if (CG.stored()) { await saveTheme(CG.stored(), true); nextOnboard(); }
   else setTimeout(() => openPicker({ onboarding: true }), 400);
 }
+// После регистрации (и выбора персонажа) — предложить, на кого подписаться
+function nextOnboard() {
+  if (!state.onboard) return;
+  state.onboard = false;
+  setTimeout(() => openFollowSuggest(true), 700);
+}
+
+/* ----- фото профиля при регистрации ----- */
+const photoField = (id, src, hint) => `<div class="ph-pick">
+    <label for="${id}" class="ph-ava" id="${id}-p" aria-label="Выбрать фото профиля">${src ? `<img src="${esc(src)}" alt="" referrerpolicy="no-referrer">` : ic.image}</label>
+    <div class="stack" style="gap:4px;min-width:0"><span class="label">Фото профиля</span>
+      <label for="${id}" class="btn sm" style="align-self:flex-start">${ic.image}${src ? 'Сменить фото' : 'Выбрать фото'}</label>
+      <span class="hint">${esc(hint)}</span></div>
+    <input type="file" id="${id}" accept="image/*" hidden></div>`;
+function bindPhoto(root, id, cb) {
+  $('#' + id, root).onchange = async (e) => {
+    try {
+      const d = await readImage(e.target.files[0], 480);
+      $('#' + id + '-p', root).innerHTML = `<img src="${d}" alt="">`;
+      cb(d);
+    } catch (x) { toast(x.message); }
+  };
+}
+
+/* ----- рекомендации: на кого подписаться ----- */
+async function toggleFollow(b) {
+  b.disabled = true;
+  try {
+    const r = await api(`/users/${encodeURIComponent(b.dataset.fol)}/follow`, { method: 'POST' });
+    b.classList.toggle('on', r.following);
+    b.classList.toggle('primary', !r.following);
+    b.textContent = r.following ? 'Вы подписаны' : 'Подписаться';
+  } catch (e) { toast(e.message); }
+  b.disabled = false;
+}
+function bindFollow(root) {
+  $$('[data-fol]', root).forEach((b) => (b.onclick = (e) => { e.preventDefault(); e.stopPropagation(); toggleFollow(b); }));
+}
+const suggItem = (u) => `<div class="item sugg-item"><a href="${userLink(u)}" data-close>${ava(u, 46)}</a>
+  <span style="min-width:0;flex:1"><a href="${userLink(u)}" data-close><h3>${esc(u.name)}${vmark(u)}</h3></a>
+    <span class="meta">@${esc(u.username)} · ${esc(u.reason)}</span></span>
+  <button class="btn sm primary" data-fol="${esc(u.username)}">Подписаться</button></div>`;
+const suggCard = (u) => `<div class="sugg-card"><a href="${userLink(u)}">${ava(u, 64)}<b>${esc(u.name)}${vmark(u)}</b><span class="meta">${esc(u.reason)}</span></a>
+  <button class="btn sm primary" data-fol="${esc(u.username)}">Подписаться</button></div>`;
+async function openFollowSuggest(onboarding = false) {
+  let r;
+  try { r = await api('/suggestions?limit=15'); } catch { return; }
+  if (!r.users.length) { if (!onboarding) toast('Пока некого посоветовать — вы подписаны на всех'); return; }
+  const o = openOverlay(sheet(onboarding ? 'На кого подписаться' : 'Рекомендации', `
+    <p class="muted" style="margin-bottom:12px">${onboarding ? 'Подпишитесь на косплееров — их' : 'Их'} новые работы будут в ленте «Подписки».</p>
+    <div class="list">${r.users.map(suggItem).join('')}</div>
+    <div class="row" style="gap:8px;margin-top:16px;flex-wrap:wrap"><button class="btn" id="sgAll">Подписаться на всех</button>
+      <button class="btn primary" data-close style="flex:1">${onboarding ? 'Готово' : 'Закрыть'}</button></div>`));
+  bindFollow(o);
+  $('#sgAll', o).onclick = async (e) => {
+    e.currentTarget.disabled = true;
+    for (const b of $$('[data-fol]', o)) if (!b.classList.contains('on')) await toggleFollow(b);
+    toast('Вы подписались');
+  };
+}
+const SUGG_KEY = 'cg-sugg-hide';
+const suggHidden = () => { try { return Date.now() - Number(localStorage.getItem(SUGG_KEY) || 0) < 7 * 864e5; } catch { return false; } };
 
 async function logout() {
   await api('/logout', { method: 'POST' }).catch(() => {});
@@ -1108,9 +1180,11 @@ async function pageFeed(params) {
   if (charF) return pageCharFeed(charF);
   const f = FILTERS.some(([k]) => k === params.get('f')) ? params.get('f') : '';
   view().innerHTML = '<div class="skel" style="height:90px;margin-bottom:20px"></div><div class="skel" style="height:260px"></div>';
-  const [wip, { posts }, contest, { events }] = await Promise.all([
+  const [wip, { posts }, contest, { events }, sugg] = await Promise.all([
     wipRow(), api(feedQuery(f)), f ? { top: [] } : api('/contest'), f ? { events: [] } : api('/events'),
+    state.me && !f && !suggHidden() ? api('/suggestions?limit=10').catch(() => ({ users: [] })) : { users: [] },
   ]);
+  const showSugg = sugg.users.length > 0 && sugg.following < 30;
   const next = events.find((e) => e.date >= todayLocal());
   const label = FILTERS.find(([k]) => k === f)[1];
   const empty = {
@@ -1122,11 +1196,19 @@ async function pageFeed(params) {
     ${wip}
     ${f ? '' : spotlight(contest.top, contest.month)}
     ${next ? `<a class="next-ev" href="#/events"><span class="muted" style="width:22px;display:inline-flex">${ic.calendar}</span><span class="d">${+next.date.slice(8)} ${MONTHS[+next.date.slice(5, 7) - 1]}</span><span class="t"><b>${esc(next.title)}</b><span>${esc(next.city)}${next.goingCount ? ` · идут ${next.goingCount}` : ''}</span></span><span class="muted" style="width:18px;display:inline-flex">${ic.right}</span></a>` : ''}
+    ${showSugg ? `<section class="sugg" id="sugg"><div class="sugg-h"><h2>Рекомендуем подписаться</h2>
+      <span style="display:flex;gap:4px"><button class="btn sm ghost" id="sgMore">Все</button><button class="iconbtn" id="sgHide" aria-label="Скрыть рекомендации">${ic.close}</button></span></div>
+      <div class="sugg-row">${sugg.users.map(suggCard).join('')}</div></section>` : ''}
     <div class="filters"><div class="chips" role="tablist" aria-label="Фильтр работ">${FILTERS.filter(([k]) => k !== 'near' || C.valid(state.me?.country)).map(([k, v]) => [k, k === 'near' ? `${flag(state.me.country)} ${C.name(state.me.country)}` : v]).map(([k, v]) => `<a class="chip ${k === f ? 'on' : ''}" href="#/${k ? '?f=' + k : ''}" role="tab" aria-selected="${k === f}">${v}</a>`).join('')}</div></div>
     ${posts.length ? `<div class="grid" id="cards">${posts.map(card).join('')}</div><div class="more" id="more"></div>`
       : `<div class="empty"><h2>${empty[0]}</h2><p>${empty[1]}</p>${empty[2]}</div>`}`;
   $$('[data-story]').forEach((b) => (b.onclick = () => openStory(+b.dataset.story)));
   bindCards(view());
+  if (showSugg) {
+    bindFollow($('#sugg'));
+    $('#sgMore').onclick = () => openFollowSuggest(false);
+    $('#sgHide').onclick = () => { try { localStorage.setItem(SUGG_KEY, String(Date.now())); } catch {} $('#sugg').remove(); toast('Скрыли на неделю'); };
+  }
   if (posts.length >= 20) infinite(posts, f);
 }
 function infinite(posts, f) {
@@ -1200,7 +1282,7 @@ async function pagePeople(params) {
   const onlyOrders = params.get('orders') === '1';
   const inCountry = users.filter((u) => (!country || u.country === country) && (!onlyOrders || u.ordersOpen));
   const cities = country ? [...new Set(inCountry.map((u) => u.city).filter(Boolean))] : [];
-  view().innerHTML = `<div class="narrow"><div class="page-head"><div><h1>Мастера</h1><p class="muted">Косплееры, швеи, реквизиторы, мастера париков и фотографы.</p></div></div>
+  view().innerHTML = `<div class="narrow"><div class="page-head"><div><h1>Мастера</h1><p class="muted">Косплееры, швеи, реквизиторы, мастера париков и фотографы.</p></div>${state.me ? '<button class="btn sm" id="ppSugg">Рекомендации</button>' : ''}</div>
     <input class="input" id="pq" type="search" placeholder="Имя, ник или специальность" aria-label="Найти мастера" style="margin-bottom:10px">
     <div class="chips" style="margin-bottom:8px"><a class="chip ${onlyOrders ? 'on' : ''}" href="${onlyOrders ? href({ country }) : href({ country }) + (country ? '&' : '?') + 'orders=1'}">${ic.bag}Принимают заказы</a></div>
     <div class="chips" style="margin-bottom:8px">${countryChips(users.map((u) => u.country), country, (c) => href({ country: c }) + (onlyOrders ? (c ? '&' : '?') + 'orders=1' : ''))}</div>
@@ -1212,6 +1294,7 @@ async function pagePeople(params) {
     $('#pl').innerHTML = list.map(personItem).join('') || '<div class="empty"><p>Никого не нашли. Попробуйте другое слово.</p></div>';
   };
   $('#pq').oninput = draw;
+  if ($('#ppSugg')) $('#ppSugg').onclick = () => openFollowSuggest(false);
   draw();
 }
 
