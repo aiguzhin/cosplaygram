@@ -241,6 +241,24 @@ CREATE TABLE IF NOT EXISTS identities (
   PRIMARY KEY (provider, subject)
 );
 CREATE INDEX IF NOT EXISTS identities_user ON identities (user_id);
+-- Свои персонажи участников: тема оформления из фото их косплея
+CREATE TABLE IF NOT EXISTS custom_themes (
+  id TEXT PRIMARY KEY,
+  owner_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  name TEXT NOT NULL,
+  fandom TEXT NOT NULL DEFAULT '',
+  cat TEXT NOT NULL DEFAULT '',
+  mode TEXT NOT NULL DEFAULT 'dark',
+  bg TEXT NOT NULL,
+  accent TEXT NOT NULL,
+  accent2 TEXT NOT NULL,
+  font TEXT NOT NULL DEFAULT 'Unbounded',
+  pattern TEXT NOT NULL DEFAULT 'dots',
+  image_id TEXT,
+  status TEXT NOT NULL DEFAULT 'private',
+  created_at DOUBLE PRECISION NOT NULL
+);
+CREATE INDEX IF NOT EXISTS custom_themes_owner ON custom_themes (owner_id);
 -- Настройки сайта, которые разработчик меняет в админ-панели (ключи входа и т. п.)
 CREATE TABLE IF NOT EXISTS settings (
   key TEXT PRIMARY KEY,
@@ -286,7 +304,7 @@ async function connect() {
 // Перенос всех данных из старой базы в новую (по порядку, чтобы не сломать связи между таблицами)
 const TABLES = ['users', 'sessions', 'images', 'posts', 'post_images', 'likes', 'saves', 'comments', 'follows', 'stories',
   'threads', 'replies', 'events', 'event_going', 'event_results', 'achievements', 'messages', 'notifications', 'reports',
-  'dms', 'char_covers', 'services', 'orders', 'reviews', 'identities', 'settings'];
+  'dms', 'char_covers', 'services', 'orders', 'reviews', 'identities', 'settings', 'custom_themes'];
 async function copyAll(src, dst, log = console.log) {
   for (const t of TABLES) {
     const [ex] = await src.query('SELECT to_regclass($1) AS r', ['public.' + t]);

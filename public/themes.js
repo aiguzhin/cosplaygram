@@ -181,6 +181,28 @@
 
   const byId = Object.fromEntries(THEMES.map((t) => [t.id, t]));
   const get = (id) => byId[id] || byId.classic;
+  const has = (id) => !!byId[id];
+
+  // Свои персонажи участников: тема из фото их косплея (id начинается с «my-»)
+  const FONTS = ['Unbounded', 'Cormorant Garamond', 'Yeseva One', 'Comfortaa', 'JetBrains Mono'];
+  const PATTERNS = ['dots', 'stars', 'diamond', 'check', 'stripes', 'grid', 'rain', 'waves', 'rings', 'stitch'];
+  function add(d) {
+    const t = Object.assign(
+      T(d.id, d.name, d.from || '', d.cat || '', d.mode === 'light' ? 'light' : 'dark', d.bg, d.accent, d.accent2,
+        FONTS.includes(d.font) ? d.font : 'Unbounded', PATTERNS.includes(d.pattern) ? d.pattern : 'dots'),
+      { custom: true, photo: d.photo || null, by: d.by || null, status: d.status || 'private', mine: !!d.mine, raw: d });
+    const i = THEMES.findIndex((x) => x.id === t.id);
+    if (i >= 0) THEMES[i] = t; else THEMES.push(t);
+    byId[t.id] = t;
+    return t;
+  }
+  function remove(id) {
+    const i = THEMES.findIndex((x) => x.id === id && x.custom);
+    if (i >= 0) THEMES.splice(i, 1);
+    if (byId[id]?.custom) delete byId[id];
+  }
+  // Последний выбранный свой персонаж хранится в браузере, чтобы тема включалась сразу, ещё до загрузки с сервера
+  try { const c = JSON.parse(localStorage.getItem('cg-custom') || 'null'); if (c && /^my-[a-z0-9]+$/.test(c.id || '')) add(c); } catch {}
 
   function pattern(t, strength = 0.18) {
     const A = hexA(t.accent, strength);
@@ -233,6 +255,6 @@
   function stored() { try { return localStorage.getItem('cg-char') || ''; } catch { return ''; } }
   function store(id) { try { localStorage.setItem('cg-char', id); } catch {} }
 
-  window.CG = { THEMES, CATS, get, apply, vars, styleAttr, pattern, stored, store, hexA, contrast };
+  window.CG = { THEMES, CATS, FONTS, PATTERNS, get, has, add, remove, apply, vars, styleAttr, pattern, stored, store, hexA, contrast, mix, lum };
   apply(stored() || 'classic');
 })();

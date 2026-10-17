@@ -200,6 +200,8 @@ async function loadChars(force) {
   return charData;
 }
 function charPhoto(id) {
+  const ct = CG.get(id);
+  if (ct.custom && ct.id === id && ct.photo) return { src: ct.photo, credit: `Косплей: @${ct.by}` };
   const s = charData.site[id];
   if (s?.photo) return { src: s.photo, credit: s.cover ? 'Обложка Cosplaygram' : `Косплей: @${s.by}` };
   const c = charData.commons[id];
@@ -218,10 +220,14 @@ function charCard(t, on) {
     <span class="ok">${ic.check}</span></button>`;
 }
 const CHAR_TABS = [['', 'Популярные'], ['anime', 'Аниме'], ['manga', 'Манга'], ['book', 'Книги'], ['film', 'Фильмы и сериалы'], ['game', 'Игры'], ['classic', 'Классика']];
+const charTabList = () => (state.me ? [CHAR_TABS[0], ['mine', 'Свои'], ...CHAR_TABS.slice(1)] : CHAR_TABS);
 function charsFor(cat, query = '') {
   const qq = query.trim().toLowerCase();
-  let list = CG.THEMES.filter((t) => (cat === '' ? true : cat === 'classic' ? !t.cat : t.cat === cat));
-  if (qq) list = CG.THEMES.filter((t) => (t.name + ' ' + t.from).toLowerCase().includes(qq));
+  // свои персонажи участников видны всем после проверки модератором; свои — всегда во вкладке «Свои»
+  const pub = CG.THEMES.filter((t) => t.id !== 'my-preview' && (!t.custom || t.status === 'public'));
+  if (cat === 'mine') return CG.THEMES.filter((t) => t.custom && t.mine && t.id !== 'my-preview');
+  let list = pub.filter((t) => (cat === '' ? true : cat === 'classic' ? !t.cat : t.cat === cat));
+  if (qq) list = CG.THEMES.filter((t) => t.id !== 'my-preview' && (!t.custom || t.status === 'public' || t.mine) && (t.name + ' ' + t.from).toLowerCase().includes(qq));
   if (cat === '' && !qq) {
     // «Популярные»: сначала те, кого чаще косплеят и выбирают на Cosplaygram, затем общий рейтинг каталога
     const rank = (t) => charStats(t.id).cosplays * 3 + charStats(t.id).fans;
@@ -231,7 +237,7 @@ function charsFor(cat, query = '') {
   return list;
 }
 const charTabs = () => `<input class="input" type="search" data-csearch placeholder="Найти персонажа или произведение" aria-label="Найти персонажа" style="margin-bottom:10px">
-  <div class="chips" role="tablist" aria-label="Категории персонажей">${CHAR_TABS.map(([k, v], i) => `<button type="button" class="chip ${i ? '' : 'on'}" data-ctab="${k}">${v}</button>`).join('')}</div>`;
+  <div class="chips" role="tablist" aria-label="Категории персонажей">${charTabList().map(([k, v], i) => `<button type="button" class="chip ${i ? '' : 'on'}" data-ctab="${k}">${v}</button>`).join('')}</div>`;
 
 // Сетка выбора: поиск, вкладки и живой предпросмотр темы. holder хранит выбор в data-sel.
 function bindCharPicker(holder, onPick) {
@@ -240,7 +246,11 @@ function bindCharPicker(holder, onPick) {
   const search = $('[data-csearch]', holder);
   const draw = () => {
     const list = charsFor(cat, search?.value || '');
-    grid.innerHTML = list.map((t) => charCard(t, t.id === holder.dataset.sel)).join('') || '<p class="muted">Такого персонажа пока нет в каталоге. Выберите похожий стиль или «Классику».</p>';
+    const mk = state.me && (cat === 'mine' || (search?.value || '').trim())
+      ? `<button type="button" class="char char-new" data-newchar><span class="art">${ic.plus}</span><span class="meta"><span class="nm">Свой персонаж</span><span class="fr">Тема из фото вашего косплея</span></span></button>` : '';
+    const cards = list.map((t) => charCard(t, t.id === holder.dataset.sel)).join('');
+    // во вкладке «Свои» — кнопка создания первой, в поиске — последней
+    grid.innerHTML = (cat === 'mine' ? mk + cards : cards + mk) || '<p class="muted">Такого персонажа пока нет в каталоге. Выберите похожий стиль, «Классику» или создайте своего во вкладке «Свои».</p>';
   };
   if (search) search.oninput = draw;
   $$('[data-ctab]', holder).forEach((b) => (b.onclick = () => {
@@ -251,6 +261,7 @@ function bindCharPicker(holder, onPick) {
   }));
   loadChars().then(draw);
   grid.addEventListener('click', (e) => {
+    if (e.target.closest('[data-newchar]')) return openThemeMaker(null, (search?.value || '').trim());
     const c = e.target.closest('[data-char]');
     if (!c) return;
     holder.dataset.sel = c.dataset.char;
@@ -290,15 +301,164 @@ function openPicker({ onboarding = false } = {}) {
     if (onboarding) nextOnboard();
   };
 }
+function rememberCustom(id) {
+  try { const t = CG.get(id); if (t.custom && t.id === id) localStorage.setItem('cg-custom', JSON.stringify(t.raw)); else localStorage.removeItem('cg-custom'); } catch {}
+}
 async function saveTheme(id, silent) {
   CG.store(id);
   CG.apply(id);
+  rememberCustom(id);
   if (!state.me) return;
   try {
     const { user } = await api('/me', { method: 'PATCH', body: { theme: id } });
     state.me = user;
     renderChrome();
   } catch (e) { if (!silent) toast(e.message); }
+}
+
+/* ================= свой персонаж: тема из фото своего косплея ================= */
+async function loadThemes() {
+  try { for (const d of (await api('/themes')).themes) CG.add(d); } catch {}
+}
+async function ensureTheme(id) {
+  if (/^my-[a-z0-9]+$/.test(id || '') && !CG.has(id)) { try { CG.add((await api('/themes/' + id)).theme); } catch {} }
+}
+// Цвета из фото: самые заметные и непохожие друг на друга
+function photoPalette(src) {
+  return new Promise((ok) => {
+    const img = new Image();
+    img.onload = () => {
+      const W = 64, H = Math.max(1, Math.round((64 * img.height) / img.width));
+      const c = document.createElement('canvas');
+      c.width = W; c.height = H;
+      const x = c.getContext('2d');
+      x.drawImage(img, 0, 0, W, H);
+      const d = x.getImageData(0, 0, W, H).data;
+      const bins = new Map();
+      let light = 0;
+      for (let i = 0; i < d.length; i += 4) {
+        const r = d[i], g = d[i + 1], b = d[i + 2];
+        light += (0.2126 * r + 0.7152 * g + 0.0722 * b) / 255;
+        const k = ((r >> 4) << 8) | ((g >> 4) << 4) | (b >> 4);
+        const e = bins.get(k) || [0, 0, 0, 0];
+        e[0] += r; e[1] += g; e[2] += b; e[3]++;
+        bins.set(k, e);
+      }
+      const cols = [...bins.values()].map(([r, g, b, n]) => {
+        r /= n; g /= n; b /= n;
+        const mx = Math.max(r, g, b), mn = Math.min(r, g, b), sat = mx ? (mx - mn) / mx : 0, v = mx / 255;
+        return { r, g, b, score: n * (0.12 + sat * sat) * (v > 0.18 && v < 0.97 ? 1 : 0.15) };
+      }).sort((a, b) => b.score - a.score);
+      const out = [];
+      for (const k of cols) { if (out.every((o) => Math.hypot(o.r - k.r, o.g - k.g, o.b - k.b) > 64)) out.push(k); if (out.length >= 8) break; }
+      const hex = (k) => '#' + [k.r, k.g, k.b].map((v) => Math.round(v).toString(16).padStart(2, '0')).join('');
+      ok({ colors: out.map(hex), dark: light / (d.length / 4) < 0.55 });
+    };
+    img.onerror = () => ok({ colors: [], dark: true });
+    img.src = src;
+  });
+}
+const PAT_NAMES = { dots: 'Горошек', stars: 'Звёзды', diamond: 'Ромбы', check: 'Клетка', stripes: 'Полосы', grid: 'Сетка', rain: 'Дождь', waves: 'Волны', rings: 'Кольца', stitch: 'Строчка' };
+const T_STATUS = { private: 'Только у вас', pending: 'На проверке', public: 'В общем каталоге', rejected: 'Не прошёл проверку' };
+const bgFor = (d) => (d.mode === 'light' ? CG.mix(d.accent, '#FFFFFF', 0.94) : CG.mix(d.accent, '#09090F', 0.9));
+
+function openThemeMaker(edit = null, name = '') {
+  if (!state.me) return openAuth('register');
+  const prev = state.me.theme || CG.stored() || 'classic';
+  const d = edit ? { ...edit.raw } : { name, from: '', cat: 'anime', mode: 'dark', accent: '#E0508F', accent2: '#E9B530', font: 'Unbounded', pattern: 'dots', photo: null };
+  let image = null, colors = [], saved = false;
+  const o = openOverlay(sheet(edit ? 'Мой персонаж' : 'Свой персонаж', `
+    <p class="muted" style="margin-bottom:14px">Загрузите фото своего косплея — сайт возьмёт из него цвета и оденется в стиль вашего персонажа. Фото станет обложкой вашего профиля и карточки персонажа.</p>
+    <form class="form" id="tmF" novalidate>
+      <div class="tm-top"><label for="tm-ph" class="tm-photo" id="tm-pv">${d.photo ? `<img src="${esc(d.photo)}" alt="">` : `${ic.image}<span>Фото косплея</span>`}</label>
+        <input type="file" id="tm-ph" accept="image/*" hidden><div class="tm-card" id="tm-card"></div></div>
+      <div class="row"><div class="field"><label for="tm-n">Персонаж</label><input class="input" id="tm-n" name="name" maxlength="60" required value="${esc(d.name)}" placeholder="Например, Синобу Кочо"></div>
+        <div class="field"><label for="tm-f">Произведение</label><input class="input" id="tm-f" name="from" maxlength="80" value="${esc(d.from)}" placeholder="Например, Клинок, рассекающий демонов"></div></div>
+      <p class="hint" id="tm-hint" hidden></p>
+      <div class="field"><label for="tm-c">Раздел</label><select class="input" id="tm-c" name="cat">${Object.entries(CG.CATS).map(([k, v]) => `<option value="${k}" ${k === d.cat ? 'selected' : ''}>${v}</option>`).join('')}</select></div>
+      <div class="field"><span class="label">Главный цвет</span><div class="sw-row" id="tm-a"></div></div>
+      <div class="field"><span class="label">Второй цвет</span><div class="sw-row" id="tm-a2"></div></div>
+      <div class="field"><span class="label">Фон</span><div class="chips" id="tm-m"><button type="button" class="chip" data-m="dark">Тёмный</button><button type="button" class="chip" data-m="light">Светлый</button></div></div>
+      <div class="field"><span class="label">Шрифт заголовков</span><div class="chips" id="tm-fo">${CG.FONTS.map((f) => `<button type="button" class="chip" data-fo="${esc(f)}" style="font-family:'${esc(f)}'">${esc(f)}</button>`).join('')}</div></div>
+      <div class="field"><span class="label">Узор</span><div class="chips" id="tm-pa"></div></div>
+      ${edit?.status === 'public' ? '<p class="hint">Персонаж в общем каталоге. После правок он снова пройдёт проверку.</p>'
+        : `<label class="check"><input type="checkbox" id="tm-sub" ${edit?.status === 'pending' ? 'checked' : ''}> Предложить в общий каталог</label>
+      <p class="hint">После проверки модератором персонаж появится у всех в выборе стиля — с вашим фото и подписью «Косплей: @${esc(state.me.username)}».</p>`}
+      <p class="error" id="tmErr" role="alert" hidden></p>
+      <div class="row" style="gap:8px;flex-wrap:wrap"><button class="btn primary lg" style="flex:1" type="submit">${edit ? 'Сохранить' : 'Создать и включить'}</button>
+        ${edit ? '<button type="button" class="btn ghost danger" id="tmDel">Удалить</button>' : ''}</div>
+    </form>`, 'wide'), { onClose: () => { CG.remove('my-preview'); if (!saved) CG.apply(prev); } });
+
+  const swRow = (el, key) => {
+    const list = [...new Set([...colors, d[key]].map((c) => c.toLowerCase()))];
+    el.innerHTML = list.map((c) => `<button type="button" class="sw ${c === d[key].toLowerCase() ? 'on' : ''}" data-c="${c}" style="background:${c}" aria-label="Цвет ${c}"></button>`).join('')
+      + `<label class="sw sw-pick" aria-label="Свой цвет"><input type="color" value="${d[key]}">${ic.palette}</label>`;
+    $$('[data-c]', el).forEach((b) => (b.onclick = () => { d[key] = b.dataset.c; refresh(); }));
+    $('input[type=color]', el).oninput = (e) => { d[key] = e.target.value; refresh(true); };
+  };
+  const refresh = (live) => {
+    d.name = $('#tm-n', o).value.trim(); d.from = $('#tm-f', o).value.trim(); d.cat = $('#tm-c', o).value;
+    d.bg = bgFor(d);
+    const t = CG.add({ ...d, id: 'my-preview', name: d.name || 'Ваш персонаж', photo: image || d.photo, by: state.me.username, mine: true });
+    CG.apply('my-preview');
+    $('#tm-card', o).innerHTML = charCard(t, true);
+    if (!live) { swRow($('#tm-a', o), 'accent'); swRow($('#tm-a2', o), 'accent2'); }
+    $$('[data-m]', o).forEach((b) => b.classList.toggle('on', b.dataset.m === d.mode));
+    $$('[data-fo]', o).forEach((b) => b.classList.toggle('on', b.dataset.fo === d.font));
+    $('#tm-pa', o).innerHTML = CG.PATTERNS.map((pt) => `<button type="button" class="chip pat ${pt === d.pattern ? 'on' : ''}" data-pa="${pt}"><i style="background:${CG.pattern({ accent: d.accent, pattern: pt }, 0.6)}"></i>${PAT_NAMES[pt]}</button>`).join('');
+    $$('[data-pa]', o).forEach((b) => (b.onclick = () => { d.pattern = b.dataset.pa; refresh(); }));
+    const same = CG.THEMES.find((x) => !x.custom && d.name && x.name.toLowerCase() === d.name.toLowerCase());
+    const hint = $('#tm-hint', o);
+    hint.hidden = !same;
+    if (same) hint.textContent = `«${same.name}» уже есть в каталоге. Опубликуйте косплей и отметьте этого персонажа — самое популярное фото попадёт на его карточку. А свою тему с вашими цветами всё равно можно сделать здесь.`;
+  };
+  $$('[data-m]', o).forEach((b) => (b.onclick = () => { d.mode = b.dataset.m; refresh(); }));
+  $$('[data-fo]', o).forEach((b) => (b.onclick = () => { d.font = b.dataset.fo; refresh(); }));
+  ['#tm-n', '#tm-f'].forEach((k) => ($(k, o).oninput = () => refresh(true)));
+  $('#tm-c', o).onchange = () => refresh(true);
+  $('#tm-ph', o).onchange = async (e) => {
+    try {
+      image = await readImage(e.target.files[0], 1200);
+      $('#tm-pv', o).innerHTML = `<img src="${image}" alt="">`;
+      const pal = await photoPalette(image);
+      colors = pal.colors;
+      if (colors[0]) { d.accent = colors[0]; d.accent2 = colors[1] || CG.mix(colors[0], '#FFFFFF', 0.45); }
+      d.mode = pal.dark ? 'dark' : 'light';
+      refresh();
+      toast('Цвета взяты из фото — можно поменять');
+    } catch (x) { toast(x.message); }
+  };
+  $('#tmDel', o)?.addEventListener('click', confirmTwice(async () => {
+    await api('/themes/' + edit.id, { method: 'DELETE' });
+    CG.remove(edit.id);
+    saved = true;
+    closeOverlay();
+    if ((state.me.theme || CG.stored()) === edit.id) await saveTheme('classic', true); else CG.apply(prev);
+    toast('Персонаж удалён');
+    route();
+  }, 'Нажмите ещё раз — персонаж удалится'));
+  $('#tmF', o).onsubmit = async (e) => {
+    e.preventDefault();
+    refresh(true);
+    const err = $('#tmErr', o), btn = e.target.querySelector('[type=submit]');
+    err.hidden = true;
+    if (!d.name) { err.textContent = 'Напишите, какой это персонаж'; err.hidden = false; return; }
+    if (!image && !d.photo) { err.textContent = 'Загрузите фото своего косплея'; err.hidden = false; return; }
+    const body = { name: d.name, from: d.from, cat: d.cat, mode: d.mode, bg: d.bg, accent: d.accent, accent2: d.accent2, font: d.font, pattern: d.pattern, submit: !!$('#tm-sub', o)?.checked };
+    if (image) body.image = image;
+    btn.disabled = true;
+    try {
+      const r = edit ? await api('/themes/' + edit.id, { method: 'PATCH', body }) : await api('/themes', { body });
+      CG.remove('my-preview');
+      const t = CG.add(r.theme);
+      saved = true;
+      closeOverlay();
+      await saveTheme(t.id);
+      toast(r.theme.status === 'pending' ? `«${t.name}» включён и отправлен на проверку` : `Стиль «${t.name}» включён`);
+      if (location.hash.startsWith('#/settings') || location.hash.startsWith('#/u/')) route();
+    } catch (x) { err.textContent = x.message; err.hidden = false; btn.disabled = false; }
+  };
+  refresh();
 }
 
 /* ================= оверлеи (листы) ================= */
@@ -422,6 +582,7 @@ document.addEventListener('click', (e) => {
   if (a === 'register') openAuth('register');
   if (a === 'logout') logout();
   if (a === 'picker') openPicker();
+  if (a === 'mychar') requireAuth(() => openThemeMaker());
   if (a === 'install') install();
   if (a === 'lang') openLang();
 });
@@ -627,6 +788,8 @@ function openSocialSignup(s, after) {
 async function afterLogin() {
   await refreshMe();
   if (!state.me) return;
+  await loadThemes();
+  await ensureTheme(state.me.theme);
   if (state.me.theme) { CG.apply(state.me.theme); CG.store(state.me.theme); nextOnboard(); }
   else if (CG.stored()) { await saveTheme(CG.stored(), true); nextOnboard(); }
   else setTimeout(() => openPicker({ onboarding: true }), 400);
@@ -1308,10 +1471,11 @@ async function pageProfile(username) {
   const services = d.services || [], reviews = d.reviews || [], rating = d.rating || { count: 0 };
   let following = d.isFollowing;
   const mine = state.me?.id === u.id;
+  await ensureTheme(u.theme);
   const t = themeOf(u);
   const procN = posts.filter((p) => p.kind === 'process').length;
   view().innerHTML = `
-    <div class="cover" style="${CG.styleAttr(t)}"><div class="ch"><span>Персонаж</span><b>${esc(t.name)}</b><span>${esc(t.from)}</span></div></div>
+    <div class="cover ${t.photo ? 'has-photo' : ''}" style="${CG.styleAttr(t)}">${t.photo ? `<img class="cv-img" src="${esc(t.photo)}" alt="">` : ''}<div class="ch"><span>${t.custom ? 'Свой персонаж' : 'Персонаж'}</span><b>${esc(t.name)}</b><span>${esc(t.from)}</span></div></div>
     <div class="prof">${ava(u, 96)}<div class="nm"><h1>${esc(u.name)}${vmark(u)}</h1>
       <div class="muted">@${esc(u.username)} ${rolePill(u)} ${u.ordersOpen ? '<span class="pill accent">Принимает заказы</span>' : ''}</div>
       ${rating.count ? `<div class="small" style="margin-top:2px">${stars(rating.avg)} <b>${String(rating.avg).replace('.', ',')}</b> <span class="muted">· ${rating.count} ${plural(rating.count, 'отзыв', 'отзыва', 'отзывов')}</span></div>` : ''}</div></div>
@@ -1481,7 +1645,7 @@ async function pageChat(params) {
 }
 
 /* ================= уведомления ================= */
-const NTEXT = { order: 'отправил(а) вам заявку на заказ', order_accepted: 'принял(а) ваш заказ в работу', order_declined: 'отклонил(а) ваш заказ', order_done: 'отметил(а) заказ выполненным — оставьте отзыв', order_cancelled: 'отменил(а) заказ', review: 'оставил(а) отзыв о вашей работе', like: 'отметил(а) вашу работу', comment: 'прокомментировал(а) вашу работу', follow: 'подписался(-ась) на вас', reply: 'ответил(а) в вашей теме' };
+const NTEXT = { theme_ok: 'одобрил(а) вашего персонажа — теперь он в общем каталоге', theme_no: 'не одобрил(а) вашего персонажа для общего каталога — он остался у вас', order: 'отправил(а) вам заявку на заказ', order_accepted: 'принял(а) ваш заказ в работу', order_declined: 'отклонил(а) ваш заказ', order_done: 'отметил(а) заказ выполненным — оставьте отзыв', order_cancelled: 'отменил(а) заказ', review: 'оставил(а) отзыв о вашей работе', like: 'отметил(а) вашу работу', comment: 'прокомментировал(а) вашу работу', follow: 'подписался(-ась) на вас', reply: 'ответил(а) в вашей теме' };
 async function pageNotifications() {
   const { items } = await api('/notifications');
   view().innerHTML = `<div class="narrow"><div class="page-head"><div><h1>Уведомления</h1></div></div>
@@ -1768,7 +1932,9 @@ async function pageSettings() {
   view().innerHTML = `<div class="narrow"><div class="page-head"><div><h1>Настройки</h1></div><a class="btn sm" href="${userLink(u)}">Мой профиль</a></div>
     <section class="section"><h2 style="margin-bottom:12px">Персонаж</h2>
       <div class="cur-char">${charCard(t, true)}<div class="stack" style="gap:8px"><p class="muted">Сайт оформлен в стиле <b style="color:var(--ink)">${esc(t.name)}</b>. Обложка вашего профиля тоже в этом стиле.</p>
-        <button class="btn" data-act="picker" style="align-self:flex-start">${ic.palette}Сменить персонажа</button></div></div></section>
+        <div class="row" style="gap:8px;flex-wrap:wrap"><button class="btn" data-act="picker">${ic.palette}Сменить персонажа</button><button class="btn" data-act="mychar">${ic.plus}Свой персонаж</button></div>
+        <p class="hint">Есть косплей на персонажа, которого нет в каталоге? Сделайте свою тему из фото — с вашими цветами и вашим фото на обложке.</p></div></div>
+      <div class="ach-list" id="myThemes" style="margin-top:12px"></div></section>
     <section class="section"><h2 style="margin-bottom:12px">Профиль</h2>
       <form class="form" id="pf">
         <div style="display:flex;gap:16px;align-items:center;flex-wrap:wrap"><span id="avP">${ava(u, 84)}</span>
@@ -1810,6 +1976,13 @@ async function pageSettings() {
       ${isStandalone() ? '' : `<button class="btn" data-act="install">${ic.phone}Установить</button>`}</section>
     <section class="section"><button class="btn ghost danger" data-act="logout">${ic.logout}Выйти из аккаунта</button></section></div>`;
   bindEyes(view());
+  // Мои персонажи
+  const mineT = CG.THEMES.filter((x) => x.custom && x.mine && x.id !== 'my-preview');
+  $('#myThemes').innerHTML = mineT.map((x) => `<div class="ach-item"><span class="tm-mini" style="${CG.styleAttr(x)}">${x.photo ? `<img src="${esc(x.photo)}" alt="">` : ''}</span>
+    <span class="at"><b>${esc(x.name)}</b><span>${esc(x.from || CG.CATS[x.cat] || '')} · ${T_STATUS[x.status] || ''}</span></span>
+    <span style="display:flex;gap:6px">${x.id === t.id ? '' : `<button class="btn sm" data-tuse="${x.id}">Включить</button>`}<button class="btn sm ghost" data-tedit="${x.id}">Изменить</button></span></div>`).join('');
+  $$('[data-tuse]').forEach((b) => (b.onclick = async () => { await saveTheme(b.dataset.tuse); toast('Стиль включён'); route(); }));
+  $$('[data-tedit]').forEach((b) => (b.onclick = () => openThemeMaker(CG.get(b.dataset.tedit))));
   // Привязанные способы входа
   Promise.all([getProviders(), api('/me/identities')]).then(([pv, r]) => {
     if (!r.hasPassword) { $('#pwCur')?.remove(); $('#pwNo').hidden = false; $('#pwH').textContent = 'Задать пароль'; }
@@ -1890,6 +2063,8 @@ async function pageAdmin() {
       <span class="meta" style="display:block">${kinds[r.type] || r.type} · от @${esc(r.reporter?.username)}, ${ago(r.createdAt)}</span>
       ${r.type === 'post' ? `<button class="btn sm" style="margin-top:6px" data-open="${esc(r.targetId)}">Открыть</button>` : r.type === 'thread' ? `<a class="btn sm" style="margin-top:6px" href="#/forum/${esc(r.targetId)}">Открыть</a>` : ''}</span>
       <button class="btn sm" data-res="${r.id}">Закрыть</button></div>`).join('') || '<div class="empty"><p>Жалоб нет.</p></div>'}</div>
+    <section class="section"><h2 style="margin-bottom:6px">Персонажи от участников</h2><p class="muted small" style="margin-bottom:12px">Свои персонажи, которых участники предложили в общий каталог. После одобрения появятся у всех в выборе стиля.</p>
+      <div class="list" id="adThemes"><div class="skel" style="height:80px"></div></div></section>
     <section class="section"><h2>Фото персонажей</h2><p class="muted small" style="margin:6px 0 12px">Загрузите обложку для карточки персонажа — например, фото косплея участника с его разрешения. Обложка важнее остальных фото.</p>
       <div class="char-grid" id="adChars"></div><input type="file" id="adFile" accept="image/*" hidden></section>
   </div>`;
@@ -1936,6 +2111,18 @@ async function pageAdmin() {
     $('#auF').onsubmit = (e) => { e.preventDefault(); save(Object.fromEntries(new FormData(e.target))); };
     $$('[data-aoff]').forEach((b) => (b.onclick = confirmTwice(() => save({ clear: b.dataset.aoff }), 'Нажмите ещё раз — кнопка пропадёт с сайта')));
   };
+  const loadAdThemes = async () => {
+    const { themes } = await api('/admin/themes');
+    for (const x of themes) CG.add({ ...x, mine: x.mine });
+    $('#adThemes').innerHTML = themes.map((x) => `<div class="item adm-u"><span class="tm-mini" style="${CG.styleAttr(CG.get(x.id))}">${x.photo ? `<img src="${esc(x.photo)}" alt="">` : ''}</span>
+      <span style="min-width:0"><b>${esc(x.name)}</b> <span class="pill ${x.status === 'public' ? 'accent' : ''}">${T_STATUS[x.status]}</span>
+        <span class="meta" style="display:block">${esc(x.from || '')}${x.cat ? ' · ' + CG.CATS[x.cat] : ''} · косплей @${esc(x.by)}</span>
+        <span class="adm-acts">${x.status === 'pending' ? `<button class="btn sm primary" data-tok="${x.id}">Одобрить</button><button class="btn sm ghost" data-tno="${x.id}">Отклонить</button>` : `<button class="btn sm ghost" data-tno="${x.id}">Убрать из каталога</button>`}
+          ${x.photo ? `<a class="btn sm ghost" href="${esc(x.photo)}" target="_blank" rel="noopener">Фото</a>` : ''}</span></span></div>`).join('') || '<div class="empty"><p>Пока никто не предлагал.</p></div>';
+    $$('[data-tok]').forEach((b) => (b.onclick = async () => { try { await api('/admin/themes/' + b.dataset.tok, { body: { status: 'public' } }); toast('Персонаж в каталоге'); loadAdThemes(); } catch (e) { toast(e.message); } }));
+    $$('[data-tno]').forEach((b) => (b.onclick = async () => { try { await api('/admin/themes/' + b.dataset.tno, { body: { status: 'rejected' } }); toast('Отклонено'); loadAdThemes(); } catch (e) { toast(e.message); } }));
+  };
+  loadAdThemes().catch(() => {});
   if (dev) api('/admin/auth').then(drawAuth).catch((x) => { const b = $('#authAdm'); if (b) b.textContent = x.message; });
   let tq;
   const loadUsers = async () => drawUsers((await api('/admin/users?q=' + encodeURIComponent($('#auQ').value.trim()))).users);
@@ -2020,7 +2207,8 @@ window.addEventListener('hashchange', route);
   const pm = /^\/(u|p|e)\/([^/?#]+)\/?$/.exec(location.pathname);
   if (pm) history.replaceState(null, '', '/#/' + (pm[1] === 'e' ? 'events?open=' + pm[2] : `${pm[1]}/${pm[2]}`));
   await refreshMe();
-  if (state.me?.theme) { CG.apply(state.me.theme); CG.store(state.me.theme); }
+  await loadThemes();
+  if (state.me?.theme) { await ensureTheme(state.me.theme); CG.apply(state.me.theme); CG.store(state.me.theme); rememberCustom(state.me.theme); }
   await route();
   if (state.me && !state.me.theme) {
     if (CG.stored()) saveTheme(CG.stored(), true);

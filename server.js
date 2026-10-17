@@ -300,7 +300,7 @@ async function main() {
   // сайт закрыт для гостей: без входа доступны только регистрация, вход и проверка сессии
   const OPEN = new Set(['/register', '/login', '/logout', '/me', '/characters', '/auth/providers', '/auth/google', '/auth/telegram', '/auth/complete']);
   // Гостям открыт просмотр: профили, работы, мероприятия с итогами и форум (писать — только после регистрации)
-  const GUEST_GET = [/^\/users\/[^/]+$/, /^\/posts\/[^/]+$/, /^\/events$/, /^\/events\/[^/]+\/results$/, /^\/forum(\/[^/]+)?$/];
+  const GUEST_GET = [/^\/themes(\/[a-z0-9-]+)?$/, /^\/users\/[^/]+$/, /^\/posts\/[^/]+$/, /^\/events$/, /^\/events\/[^/]+\/results$/, /^\/forum(\/[^/]+)?$/];
   const guestOk = (req) => req.method === 'GET' && GUEST_GET.some((r) => r.test(req.path));
   app.use('/api', (req, _res, next) => (OPEN.has(req.path) || guestOk(req) || req.user ? next() : next(new HttpError(401, 'Зарегистрируйтесь или войдите, чтобы пользоваться Cosplaygram'))));
   // Защита от спама: не больше 120 действий в минуту от одного участника
@@ -1044,6 +1044,93 @@ async function main() {
   }));
   app.delete('/api/admin/characters/:id/photo', auth, admin, wrap(async (req, res) => {
     await q('DELETE FROM char_covers WHERE char_id = $1', [themeId(req.params.id)]);
+    res.json({ ok: true });
+  }));
+
+  // ----- свои персонажи: тема оформления из фото своего косплея -----
+  const T_FONTS = ['Unbounded', 'Cormorant Garamond', 'Yeseva One', 'Comfortaa', 'JetBrains Mono'];
+  const T_PATTERNS = ['dots', 'stars', 'diamond', 'check', 'stripes', 'grid', 'rain', 'waves', 'rings', 'stitch'];
+  const T_CATS = ['anime', 'manga', 'book', 'film', 'game'];
+  const HEX = /^#[0-9a-f]{6}$/i;
+  const themeView = (r, me) => ({
+    id: r.id, name: r.name, from: r.fandom, cat: r.cat, mode: r.mode, bg: r.bg, accent: r.accent, accent2: r.accent2,
+    font: r.font, pattern: r.pattern, photo: imgUrl(r.image_id), by: r.username, status: r.status, mine: !!me && me.id === r.owner_id,
+  });
+  const themeFields = (b, old = {}) => {
+    const f = {
+      name: clean(b.name ?? old.name, 60), fandom: clean(b.from ?? old.fandom, 80),
+      cat: T_CATS.includes(b.cat) ? b.cat : b.cat === undefined ? old.cat || '' : '',
+      mode: (b.mode ?? old.mode) === 'light' ? 'light' : 'dark',
+      bg: String(b.bg ?? old.bg ?? ''), accent: String(b.accent ?? old.accent ?? ''), accent2: String(b.accent2 ?? old.accent2 ?? ''),
+      font: T_FONTS.includes(b.font) ? b.font : old.font || 'Unbounded', pattern: T_PATTERNS.includes(b.pattern) ? b.pattern : old.pattern || 'dots',
+    };
+    if (!f.name) throw new HttpError(400, 'Напишите, какой это персонаж');
+    if (![f.bg, f.accent, f.accent2].every((c) => HEX.test(c))) throw new HttpError(400, 'Цвета темы указаны неверно');
+    return f;
+  };
+  const THEME_SEL = 'SELECT t.*, u.username FROM custom_themes t JOIN users u ON u.id = t.owner_id';
+
+  app.get('/api/themes', wrap(async (req, res) => {
+    const rows = await q(`${THEME_SEL} WHERE t.status = 'public' OR t.owner_id = $1 ORDER BY t.created_at`, [req.user?.id || '']);
+    res.setHeader('Cache-Control', 'no-cache');
+    res.json({ themes: rows.map((r) => themeView(r, req.user)) });
+  }));
+  app.get('/api/themes/:id', wrap(async (req, res) => {
+    const r = await one(`${THEME_SEL} WHERE t.id = $1`, [req.params.id]);
+    if (!r) throw new HttpError(404, 'Такого персонажа нет');
+    res.json({ theme: themeView(r, req.user) });
+  }));
+  app.post('/api/themes', auth, wrap(async (req, res) => {
+    const f = themeFields(req.body || {});
+    checkImage(req.body.image);
+    const { n } = await one('SELECT count(*)::int AS n FROM custom_themes WHERE owner_id = $1', [req.user.id]);
+    if (n >= 12) throw new HttpError(400, 'Можно создать до 12 своих персонажей — удалите ненужного');
+    const id = 'my-' + crypto.randomBytes(5).toString('hex');
+    const imageId = await saveImage(req.body.image, req.user.id);
+    await q(`INSERT INTO custom_themes (id, owner_id, name, fandom, cat, mode, bg, accent, accent2, font, pattern, image_id, status, created_at)
+      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14)`,
+      [id, req.user.id, f.name, f.fandom, f.cat, f.mode, f.bg, f.accent, f.accent2, f.font, f.pattern, imageId, req.body.submit ? 'pending' : 'private', now()]);
+    res.json({ theme: themeView(await one(`${THEME_SEL} WHERE t.id = $1`, [id]), req.user) });
+  }));
+  app.patch('/api/themes/:id', auth, wrap(async (req, res) => {
+    const old = await one('SELECT * FROM custom_themes WHERE id = $1', [req.params.id]);
+    if (!old) throw new HttpError(404, 'Такого персонажа нет');
+    if (old.owner_id !== req.user.id) throw new HttpError(403, 'Менять можно только своего персонажа');
+    const f = themeFields(req.body || {}, old);
+    if (req.body.image) checkImage(req.body.image);
+    const imageId = req.body.image ? await saveImage(req.body.image, req.user.id) : old.image_id;
+    // опубликованный персонаж после правок снова проходит проверку
+    const status = req.body.submit ? 'pending' : old.status === 'public' || old.status === 'pending' ? 'pending' : old.status === 'rejected' ? 'private' : old.status;
+    await q(`UPDATE custom_themes SET name=$2, fandom=$3, cat=$4, mode=$5, bg=$6, accent=$7, accent2=$8, font=$9, pattern=$10, image_id=$11, status=$12 WHERE id=$1`,
+      [old.id, f.name, f.fandom, f.cat, f.mode, f.bg, f.accent, f.accent2, f.font, f.pattern, imageId, status]);
+    res.json({ theme: themeView(await one(`${THEME_SEL} WHERE t.id = $1`, [old.id]), req.user) });
+  }));
+  app.post('/api/themes/:id/submit', auth, wrap(async (req, res) => {
+    const old = await one('SELECT owner_id, status FROM custom_themes WHERE id = $1', [req.params.id]);
+    if (!old || old.owner_id !== req.user.id) throw new HttpError(404, 'Такого персонажа нет');
+    if (old.status !== 'public') await q("UPDATE custom_themes SET status = 'pending' WHERE id = $1", [req.params.id]);
+    res.json({ theme: themeView(await one(`${THEME_SEL} WHERE t.id = $1`, [req.params.id]), req.user) });
+  }));
+  app.delete('/api/themes/:id', auth, wrap(async (req, res) => {
+    const old = await one('SELECT owner_id FROM custom_themes WHERE id = $1', [req.params.id]);
+    if (!old) throw new HttpError(404, 'Такого персонажа нет');
+    if (old.owner_id !== req.user.id && !isAdmin(req)) throw new HttpError(403, 'Удалять можно только своего персонажа');
+    await q("UPDATE users SET theme = '' WHERE theme = $1", [req.params.id]);
+    await q('DELETE FROM custom_themes WHERE id = $1', [req.params.id]);
+    res.json({ ok: true });
+  }));
+  // Модерация: персонажи, которых предложили в общий каталог
+  app.get('/api/admin/themes', auth, admin, wrap(async (req, res) => {
+    const rows = await q(`${THEME_SEL} WHERE t.status IN ('pending', 'public') ORDER BY t.status DESC, t.created_at DESC LIMIT 200`);
+    res.json({ themes: rows.map((r) => themeView(r, req.user)) });
+  }));
+  app.post('/api/admin/themes/:id', auth, admin, wrap(async (req, res) => {
+    const st = { public: 'public', rejected: 'rejected', pending: 'pending' }[req.body.status];
+    if (!st) throw new HttpError(400, 'Неизвестное решение');
+    const old = await one('SELECT owner_id FROM custom_themes WHERE id = $1', [req.params.id]);
+    if (!old) throw new HttpError(404, 'Такого персонажа нет');
+    await q('UPDATE custom_themes SET status = $2 WHERE id = $1', [req.params.id, st]);
+    if (st !== 'pending') await notify(old.owner_id, req.user.id, st === 'public' ? 'theme_ok' : 'theme_no');
     res.json({ ok: true });
   }));
 
