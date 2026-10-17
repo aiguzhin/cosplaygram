@@ -593,3 +593,10 @@ body { top: 0 !important; }
 .guest-bar span { flex: 1; min-width: 0; font-size: .9rem; color: var(--muted); }
 .guest-bar b { color: var(--ink); }
 body:has(.guest-bar) .main { padding-bottom: 96px; }
+
+/* ===== вход через Google и Telegram ===== */
+.social { display: flex; flex-direction: column; align-items: center; gap: 10px; margin-bottom: 18px; }
+.soc-btn { width: 100%; min-height: 44px; display: flex; justify-content: center; align-items: center; }
+.soc-btn iframe { max-width: 100%; }
+.or { display: flex; align-items: center; gap: 12px; width: 100%; margin-top: 4px; color: var(--muted); font-size: .85rem; }
+.or::before, .or::after { content: ''; flex: 1; height: 1px; background: var(--line); }

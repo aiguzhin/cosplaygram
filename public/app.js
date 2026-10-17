@@ -22,8 +22,8 @@ async function api(path, opts = {}) {
     throw new Error('Нет соединения с интернетом. Проверьте сеть и попробуйте ещё раз.');
   }
   const data = await res.json().catch(() => ({}));
-  if (res.status === 401 && !state.me && !['/login', '/register', '/me'].includes(path)) setTimeout(() => openAuth('register'), 0);
-  if (res.status === 401 && state.me && !['/login', '/register', '/me/password'].includes(path)) {
+  if (res.status === 401 && !state.me && !['/login', '/register', '/me'].includes(path) && !path.startsWith('/auth/')) setTimeout(() => openAuth('register'), 0);
+  if (res.status === 401 && state.me && !['/login', '/register', '/me/password'].includes(path) && !path.startsWith('/auth/')) {
     state.me = null;
     toast('Сессия закончилась. Войдите снова.');
     setTimeout(route, 0);
@@ -471,7 +471,8 @@ function openAuth(mode = 'login', after) {
   const reg = mode === 'register';
   const t = CG.get(CG.stored() || 'classic');
   const o = openOverlay(sheet(reg ? 'Регистрация' : 'Вход', `
-    <p class="muted" style="margin-bottom:16px">${reg ? `Ваш стиль: <b style="color:var(--accent)">${esc(t.name)}</b>. Его можно поменять потом.` : 'С возвращением! Введите ник и пароль.'}</p>
+    <p class="muted" style="margin-bottom:16px">${reg ? `Ваш стиль: <b style="color:var(--accent)">${esc(t.name)}</b>. Его можно поменять потом.` : 'С возвращением! Войдите удобным способом.'}</p>
+    <div class="social" id="socBox" hidden></div>
     <form class="form" id="authForm" novalidate>
       <div class="field"><label for="au-user">Ник</label><input class="input" id="au-user" name="username" autocomplete="username" autocapitalize="none" autocorrect="off" spellcheck="false" required placeholder="например, aru.cos"></div>
       ${reg ? `<div class="field"><label for="au-name">Имя</label><input class="input" id="au-name" name="name" autocomplete="given-name" placeholder="Как вас называть"></div>
@@ -486,6 +487,7 @@ function openAuth(mode = 'login', after) {
       <button type="button" class="btn ghost block" id="authSwitch">${reg ? 'Уже есть профиль? Войти' : 'Нет профиля? Зарегистрироваться'}</button>
     </form>`));
   bindEyes(o);
+  mountSocial($('#socBox', o), { after });
   $('#authSwitch', o).onclick = () => openAuth(reg ? 'login' : 'register', after);
   $('#authForm', o).onsubmit = async (e) => {
     e.preventDefault();
@@ -509,6 +511,105 @@ function openAuth(mode = 'login', after) {
     }
   };
   if (!isMobile()) setTimeout(() => $('#au-user', o)?.focus(), 80);
+}
+
+/* ----- вход через Google и Telegram ----- */
+const PROV = { google: 'Google', telegram: 'Telegram' };
+let providersP = null;
+const getProviders = () => (providersP ||= api('/auth/providers').catch(() => { providersP = null; return {}; }));
+const loadScript = (src) => new Promise((ok, fail) => {
+  const s = document.createElement('script');
+  s.src = src; s.async = true; s.onload = ok;
+  s.onerror = () => { s.remove(); fail(new Error('Не удалось загрузить кнопку входа')); };
+  document.head.appendChild(s);
+});
+const social = { after: null };
+let gsiP = null;
+function loadGsi(clientId) {
+  return (gsiP ||= loadScript('https://accounts.google.com/gsi/client').then(() => {
+    window.google.accounts.id.initialize({
+      client_id: clientId, ux_mode: 'popup', auto_select: false, cancel_on_tap_outside: true,
+      callback: (r) => socialAuth('google', { credential: r.credential }),
+    });
+  }).catch((e) => { gsiP = null; throw e; }));
+}
+window.cgTg = (user) => socialAuth('telegram', user);
+
+// Кнопки Google и Telegram в контейнере box. link — привязка к уже открытому профилю (в настройках)
+async function mountSocial(box, { after = null, link = false, only = null } = {}) {
+  const pv = await getProviders();
+  const want = (k) => pv[k] && (!only || only.includes(k));
+  if (!box?.isConnected || (!want('google') && !want('telegram'))) return false;
+  social.after = after;
+  box.hidden = false;
+  box.innerHTML = `${want('google') ? '<div class="soc-btn notranslate" translate="no" data-g></div>' : ''}${want('telegram') ? '<div class="soc-btn notranslate" translate="no" data-tg></div>' : ''}
+    ${link ? '' : '<div class="or"><span>или по нику и паролю</span></div>'}`;
+  if (want('telegram')) {
+    const sc = document.createElement('script');
+    sc.async = true;
+    sc.src = 'https://telegram.org/js/telegram-widget.js?22';
+    Object.assign(sc.dataset, { telegramLogin: pv.telegram, size: 'large', radius: '20', onauth: 'cgTg(user)', requestAccess: 'write', userpic: 'false', lang: 'ru' });
+    $('[data-tg]', box).appendChild(sc);
+  }
+  if (want('google')) {
+    const el = $('[data-g]', box);
+    try {
+      await loadGsi(pv.google);
+      const lang = window.CGLang ? CGLang.current() : 'ru';
+      window.google.accounts.id.renderButton(el, { type: 'standard', theme: 'filled_black', size: 'large', shape: 'pill', text: 'continue_with', locale: lang, width: Math.max(220, Math.min(380, box.clientWidth || 320)) });
+    } catch { el.remove(); }
+  }
+  return true;
+}
+
+async function socialAuth(provider, body) {
+  try {
+    const r = await api('/auth/' + provider, { body });
+    if (r.signup) return openSocialSignup(r.signup, social.after);
+    state.me = r.user;
+    if (r.linked) { toast(`Готово — теперь можно входить через ${PROV[provider]}`); return route(); }
+    closeOverlay();
+    toast(`Привет, ${r.user.name}!`);
+    await afterLogin();
+    const a = social.after;
+    social.after = null;
+    if (a) a(); else route();
+  } catch (e) { toast(e.message); }
+}
+
+// Первый вход через Google/Telegram: выбрать ник — и профиль готов
+function openSocialSignup(s, after) {
+  const o = openOverlay(sheet('Почти готово', `
+    <p class="muted" style="margin-bottom:16px">Вы вошли через ${PROV[s.provider] || s.provider}. Осталось выбрать ник — по нему вас будут находить. Пароль не нужен.</p>
+    <form class="form" id="sgF" novalidate>
+      <div class="field"><label for="sg-user">Ник</label><input class="input" id="sg-user" name="username" value="${esc(s.username || '')}" autocapitalize="none" autocorrect="off" spellcheck="false" required maxlength="30">
+        <p class="hint">Латиницей, от 3 символов: буквы, цифры, точка или _.</p></div>
+      <div class="field"><label for="sg-name">Имя</label><input class="input" id="sg-name" name="name" value="${esc(s.name || '')}" maxlength="60" placeholder="Как вас называть"></div>
+      <div class="field"><label for="sg-spec">Ваше лучшее качество</label><input class="input" id="sg-spec" name="specialty" maxlength="60" placeholder="Необязательно">
+        <p class="hint">Крафт, вигмейкинг, грим, сценическое выступление, макияж и т. д.</p></div>
+      <div class="row"><div class="field"><label for="sg-country">Страна</label><select class="input" id="sg-country" name="country">${countryOptions(C.guess())}</select></div>
+        <div class="field"><label for="sg-city">Город</label><input class="input" id="sg-city" name="city" placeholder="Необязательно"></div></div>
+      <p class="error" id="sgErr" role="alert" hidden></p>
+      <button class="btn primary lg block" type="submit">Создать профиль</button>
+    </form>`));
+  $('#sgF', o).onsubmit = async (e) => {
+    e.preventDefault();
+    const btn = e.target.querySelector('[type=submit]');
+    const err = $('#sgErr', o);
+    const body = Object.fromEntries(new FormData(e.target));
+    body.username = String(body.username || '').trim().toLowerCase().replace(/^@/, '');
+    body.ticket = s.ticket;
+    body.theme = CG.stored() || '';
+    btn.disabled = true;
+    try {
+      const { user } = await api('/auth/complete', { body });
+      state.me = user;
+      closeOverlay();
+      toast(`Добро пожаловать, ${user.name}!`);
+      await afterLogin();
+      if (after) after(); else route();
+    } catch (ex) { err.textContent = ex.message; err.hidden = false; btn.disabled = false; }
+  };
 }
 
 async function afterLogin() {
@@ -1607,9 +1708,13 @@ async function pageSettings() {
         <div class="row"><div class="field"><label for="sv-d">Срок, дней</label><input class="input" id="sv-d" name="days" inputmode="numeric" maxlength="3"></div>
           <div class="field"><label for="sv-n">Примечание</label><input class="input" id="sv-n" name="note" maxlength="200" placeholder="Материалы мои / ваши"></div></div>
         <button class="btn" style="align-self:flex-start">${ic.plus}Добавить услугу</button></form></section>
-    <section class="section"><h2 style="margin-bottom:12px">Пароль</h2>
+    <section class="section" id="idSec" hidden><h2 style="margin-bottom:6px">Вход через Google и Telegram</h2>
+      <p class="muted" style="margin-bottom:10px">Привяжите аккаунт — и входите в Cosplaygram одной кнопкой, без пароля.</p>
+      <div class="ach-list" id="idL"></div><div class="social" id="idBox" hidden style="margin-top:12px"></div></section>
+    <section class="section"><h2 style="margin-bottom:12px" id="pwH">Пароль</h2>
       <form class="form" id="pw"><input type="text" name="username" value="${esc(u.username)}" autocomplete="username" hidden>
-        <div class="row"><div class="field"><label for="pw-c">Текущий пароль</label>${pwField('pw-c', 'current', 'current-password', '')}</div>
+        <p class="hint" id="pwNo" hidden>Сейчас вы входите через Google или Telegram. Задайте пароль, чтобы входить и по нику.</p>
+        <div class="row"><div class="field" id="pwCur"><label for="pw-c">Текущий пароль</label>${pwField('pw-c', 'current', 'current-password', '')}</div>
           <div class="field"><label for="pw-n">Новый пароль</label>${pwField('pw-n', 'next', 'new-password', 'Не короче 8 символов')}</div></div>
         <button class="btn" style="align-self:flex-start">Сменить пароль</button></form></section>
     <section class="section"><h2 style="margin-bottom:6px">Язык</h2>
@@ -1620,6 +1725,20 @@ async function pageSettings() {
       ${isStandalone() ? '' : `<button class="btn" data-act="install">${ic.phone}Установить</button>`}</section>
     <section class="section"><button class="btn ghost danger" data-act="logout">${ic.logout}Выйти из аккаунта</button></section></div>`;
   bindEyes(view());
+  // Привязанные способы входа
+  Promise.all([getProviders(), api('/me/identities')]).then(([pv, r]) => {
+    if (!r.hasPassword) { $('#pwCur')?.remove(); $('#pwNo').hidden = false; $('#pwH').textContent = 'Задать пароль'; }
+    const linked = r.identities.map((x) => x.provider);
+    const missing = Object.keys(PROV).filter((k) => pv[k] && !linked.includes(k));
+    if (!linked.length && !missing.length) return;
+    $('#idSec').hidden = false;
+    $('#idL').innerHTML = r.identities.map((x) => `<div class="ach-item"><span class="at"><b>${PROV[x.provider] || esc(x.provider)} ✓</b><span>${esc(x.label || 'привязан')}</span></span>
+      <button class="btn sm ghost" data-unl="${esc(x.provider)}">Отвязать</button></div>`).join('');
+    $$('[data-unl]').forEach((b) => (b.onclick = confirmTwice(async () => {
+      try { await api('/me/identities/' + b.dataset.unl, { method: 'DELETE' }); toast('Отвязано'); route(); } catch (e) { toast(e.message); }
+    }, 'Нажмите ещё раз, чтобы отвязать')));
+    if (missing.length) mountSocial($('#idBox'), { link: true, only: missing });
+  }).catch(() => {});
   const drawSv = (list) => {
     $('#svL').innerHTML = list.map((x) => `<div class="ach-item"><span class="at"><b>${esc(x.title)}</b><span>${priceText(x)}${x.days ? ` · ${x.days} дн.` : ''}${x.note ? ' · ' + esc(x.note) : ''}</span></span><button class="iconbtn" data-dsv="${x.id}" aria-label="Удалить услугу">${ic.trash}</button></div>`).join('');
     $$('[data-dsv]').forEach((b) => (b.onclick = async () => drawSv((await api('/me/services/' + b.dataset.dsv, { method: 'DELETE' })).services)));
@@ -1675,10 +1794,9 @@ async function pageAdmin() {
       <div><b class="num">${stats.threads}</b><span class="small muted">тем</span></div><div><b class="num">${stats.messages}</b><span class="small muted">сообщений в чате</span></div></div>
     ${dev ? `<section class="section"><h2 style="margin-bottom:6px">Резервная копия</h2><p class="muted small" style="margin-bottom:10px">Все данные сайта одним файлом (без самих фото и паролей). Скачивайте раз в неделю.</p>
       <a class="btn" href="/api/admin/backup" download>${ic.save}Скачать копию</a></section>` : ''}
-    ${dev ? `<section class="section"><h2 style="margin-bottom:6px">Переезд на новый сервер</h2><p class="muted small" style="margin-bottom:10px">Отправит всех участников, работы, фото, мероприятия и заказы на новый сервер. Код показывает установщик на новом сервере.</p>
-      <form class="form" id="mgF"><div class="row"><div class="field"><label for="mg-t">Адрес нового сервера</label><input class="input" id="mg-t" name="target" value="https://cosplaygram.kz" autocapitalize="none" spellcheck="false"></div>
-        <div class="field"><label for="mg-c">Код переезда</label><input class="input" id="mg-c" name="code" inputmode="numeric" maxlength="20" autocomplete="off"></div></div>
-        <p class="hint" id="mgR"></p><button class="btn primary" style="align-self:flex-start">Перенести данные</button></form></section>` : ''}
+    ${dev ? `<section class="section"><h2 style="margin-bottom:6px">Вход через Google и Telegram</h2>
+      <p class="muted small" style="margin-bottom:10px">Кнопки «Продолжить с Google» и «Войти через Telegram» появятся на сайте, как только здесь будут ключи.</p>
+      <div id="authAdm"><div class="skel" style="height:90px"></div></div></section>` : ''}
     <section class="section"><h2 style="margin-bottom:8px">Участники</h2>
       <input class="input" id="auQ" type="search" placeholder="Ник или имя" aria-label="Найти участника" style="margin-bottom:8px">
       <div class="list" id="auL"><div class="skel" style="height:120px"></div></div></section>
@@ -1704,17 +1822,36 @@ async function pageAdmin() {
     $$('[data-role]').forEach((sel) => (sel.onchange = async () => { try { await api('/admin/users/' + sel.dataset.role, { body: { role: sel.value } }); toast('Роль изменена'); loadUsers(); } catch (e) { toast(e.message); } }));
     $$('[data-delu]').forEach((b) => (b.onclick = confirmTwice(async () => { try { await api('/admin/users/' + b.dataset.delu, { method: 'DELETE' }); toast('Аккаунт удалён'); loadUsers(); } catch (e) { toast(e.message); } }, 'Нажмите ещё раз: аккаунт и все его публикации удалятся')));
   };
-  $('#mgF')?.addEventListener('submit', async (e) => {
-    e.preventDefault();
-    const btn = e.target.querySelector('button'), out = $('#mgR');
-    btn.disabled = true; out.textContent = 'Переношу… это может занять минуту';
-    try {
-      const r = await api('/admin/migrate/push', { body: Object.fromEntries(new FormData(e.target)) });
-      out.textContent = 'Готово! Перенесено: ' + Object.entries(r.done || {}).map(([k, v]) => `${k} ${v}`).join(', ');
-      toast('Данные на новом сервере');
-    } catch (x) { out.textContent = x.message; }
-    btn.disabled = false;
-  });
+  // Ключи входа через Google и Telegram
+  const drawAuth = (a) => {
+    const box = $('#authAdm');
+    if (!box) return;
+    const n = (k) => (a.counts?.[k] ? ` · привязано профилей: ${a.counts[k]}` : '');
+    box.innerHTML = `<form class="form" id="auF">
+      <div class="field"><label for="ak-g">Google — Client ID ${a.google ? '<span class="pill">включён</span>' : ''}</label>
+        <input class="input" id="ak-g" name="google" value="${esc(a.google || '')}" autocomplete="off" autocapitalize="none" spellcheck="false" placeholder="1234567890-abc….apps.googleusercontent.com">
+        <p class="hint">Google Cloud → APIs &amp; Services → Credentials → OAuth client ID (Web application). В «Authorized JavaScript origins» добавьте https://cosplaygram.kz${n('google')}</p></div>
+      <div class="field"><label for="ak-t">Telegram — токен бота ${a.telegramToken ? `<span class="pill">включён · @${esc(a.telegramBot)}</span>` : ''}</label>
+        <input class="input" id="ak-t" name="telegramToken" type="password" autocomplete="off" spellcheck="false" placeholder="${a.telegramToken ? 'Сохранён. Вставьте новый, чтобы заменить' : '1234567890:AAH…'}">
+        <p class="hint">В Telegram: @BotFather → /newbot → скопируйте токен сюда. Потом там же /setdomain → выберите бота → cosplaygram.kz${n('telegram')}</p></div>
+      <p class="hint" id="auR"></p>
+      <div class="row" style="gap:8px;flex-wrap:wrap"><button class="btn primary" style="align-self:flex-start">Сохранить</button>
+        ${a.google ? '<button type="button" class="btn ghost danger" data-aoff="google">Выключить Google</button>' : ''}
+        ${a.telegramToken ? '<button type="button" class="btn ghost danger" data-aoff="telegram">Выключить Telegram</button>' : ''}</div></form>`;
+    const save = async (body) => {
+      const out = $('#auR');
+      out.textContent = 'Сохраняю…';
+      try {
+        const r = await api('/admin/auth', { body });
+        providersP = null;
+        drawAuth({ ...a, ...r });
+        toast('Сохранено');
+      } catch (x) { out.textContent = x.message; }
+    };
+    $('#auF').onsubmit = (e) => { e.preventDefault(); save(Object.fromEntries(new FormData(e.target))); };
+    $$('[data-aoff]').forEach((b) => (b.onclick = confirmTwice(() => save({ clear: b.dataset.aoff }), 'Нажмите ещё раз — кнопка пропадёт с сайта')));
+  };
+  if (dev) api('/admin/auth').then(drawAuth).catch((x) => { const b = $('#authAdm'); if (b) b.textContent = x.message; });
   let tq;
   const loadUsers = async () => drawUsers((await api('/admin/users?q=' + encodeURIComponent($('#auQ').value.trim()))).users);
   $('#auQ').oninput = () => { clearTimeout(tq); tq = setTimeout(loadUsers, 250); };

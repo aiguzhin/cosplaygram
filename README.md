@@ -88,3 +88,12 @@ curl -sL cosplaygram.kz/i | sudo bash
 ```
 
 Скрипт ставит Docker, запускает сайт + Postgres + Caddy (https сам) и показывает код переезда: его вводят в «Админ-панель → Переезд на новый сервер» на старом сайте, и все данные переносятся; включает автообновление с GitHub каждые 5 минут и ночные копии базы в `/opt/backups`. В DNS домена: A-записи `@` и `www` → IP сервера.
+
+## Вход через Google и Telegram
+
+Кнопки «Продолжить с Google» и «Войти через Telegram» появляются в окнах входа и регистрации, как только разработчик вставит ключи в «Админ-панель → Вход через Google и Telegram» (или задаст переменные `GOOGLE_CLIENT_ID`, `TELEGRAM_BOT_TOKEN`, `TELEGRAM_BOT_NAME`).
+
+- **Google**: Google Cloud → APIs & Services → Credentials → OAuth client ID (Web application), в «Authorized JavaScript origins» — `https://cosplaygram.kz`. Нужен только Client ID, секрет не нужен: сервер проверяет вход через Google.
+- **Telegram**: @BotFather → `/newbot` → токен в админ-панель (сервер сам узнает имя бота), затем `/setdomain` → `cosplaygram.kz`.
+- Первый вход создаёт профиль: человек выбирает ник, страну и город, пароль не нужен (задать его можно потом в настройках). В настройках можно привязать или отвязать Google и Telegram к уже существующему профилю.
+- Instagram для входа на сторонних сайтах больше не годится: Meta закрыла Instagram Basic Display API 4 декабря 2024 года.

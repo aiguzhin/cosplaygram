@@ -100,6 +100,21 @@ async function main() {
   await q("UPDATE messages SET room = 'kz' WHERE room IN ('almaty', 'astana', 'shymkent', 'aktobe', 'karaganda')");
   console.log(`База: ${db.kind}`);
 
+  // ---------- настройки сайта (меняются в админ-панели) ----------
+  const settings = {};
+  for (const r of await q('SELECT key, value FROM settings')) settings[r.key] = r.value;
+  async function setSetting(key, value) {
+    settings[key] = value;
+    await q('INSERT INTO settings (key, value) VALUES ($1,$2) ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value', [key, value]);
+  }
+  if (!settings.auth_secret) await setSetting('auth_secret', crypto.randomBytes(32).toString('hex'));
+  // Ключи входа: переменные окружения важнее настроек из админ-панели
+  const authCfg = () => ({
+    google: process.env.GOOGLE_CLIENT_ID || settings.google_client_id || '',
+    tgToken: process.env.TELEGRAM_BOT_TOKEN || settings.telegram_token || '',
+    tgBot: process.env.TELEGRAM_BOT_NAME || settings.telegram_bot || '',
+  });
+
   // ---------- картинки ----------
   async function saveImage(dataUri, ownerId) {
     const m = /^data:(image\/(?:png|jpe?g|webp|gif));base64,([A-Za-z0-9+/=]+)$/.exec(dataUri || '');
@@ -203,8 +218,12 @@ async function main() {
   // Сайт переехал на cosplaygram.kz: старый адрес на Render пересылает все ссылки туда же
   const CANONICAL = (process.env.CANONICAL_URL || 'https://cosplaygram.kz').replace(/\/+$/, '');
   app.use((req, res, next) => {
-    if (!/\.onrender\.com$/i.test(req.hostname || '') || req.path === '/healthz') return next();
-    res.redirect(req.method === 'GET' || req.method === 'HEAD' ? 301 : 308, CANONICAL + req.originalUrl);
+    const host = req.hostname || '';
+    const code = req.method === 'GET' || req.method === 'HEAD' ? 301 : 308;
+    // www.cosplaygram.kz → cosplaygram.kz (вход через Telegram привязан к одному адресу)
+    if (/^www\./i.test(host)) return res.redirect(code, `${req.protocol}://${host.slice(4)}${req.originalUrl}`);
+    if (!/\.onrender\.com$/i.test(host) || req.path === '/healthz') return next();
+    res.redirect(code, CANONICAL + req.originalUrl);
   });
   // ----- переезд на новый сервер -----
   // Новый сервер (пустая база) принимает данные один раз — только с кодом, который показал установщик.
@@ -272,7 +291,7 @@ async function main() {
   }));
   const auth = (req, _res, next) => (req.user ? next() : next(new HttpError(401, 'Войдите, чтобы продолжить')));
   // сайт закрыт для гостей: без входа доступны только регистрация, вход и проверка сессии
-  const OPEN = new Set(['/register', '/login', '/logout', '/me', '/characters']);
+  const OPEN = new Set(['/register', '/login', '/logout', '/me', '/characters', '/auth/providers', '/auth/google', '/auth/telegram', '/auth/complete']);
   // Гостям открыт просмотр: профили, работы, мероприятия с итогами и форум (писать — только после регистрации)
   const GUEST_GET = [/^\/users\/[^/]+$/, /^\/posts\/[^/]+$/, /^\/events$/, /^\/events\/[^/]+\/results$/, /^\/forum(\/[^/]+)?$/];
   const guestOk = (req) => req.method === 'GET' && GUEST_GET.some((r) => r.test(req.path));
@@ -359,10 +378,193 @@ async function main() {
 
   app.post('/api/me/password', auth, wrap(async (req, res) => {
     const u = await one('SELECT password FROM users WHERE id = $1', [req.user.id]);
-    if (!checkPassword(String(req.body.current || ''), u.password)) throw new HttpError(400, 'Текущий пароль указан неверно');
+    // Кто зарегистрировался через Google/Telegram, задаёт пароль впервые — без текущего
+    if (u.password && !checkPassword(String(req.body.current || ''), u.password)) throw new HttpError(400, 'Текущий пароль указан неверно');
     if (String(req.body.next || '').length < 8) throw new HttpError(400, 'Новый пароль должен быть не короче 8 символов');
     await q('UPDATE users SET password = $2 WHERE id = $1', [req.user.id, hashPassword(String(req.body.next))]);
     res.json({ ok: true });
+  }));
+
+  // ----- вход через Google и Telegram -----
+  const PROVIDERS = { google: 'Google', telegram: 'Telegram' };
+  const b64u = (b) => Buffer.from(b).toString('base64url');
+  // Билет на регистрацию: подписанный сервером, живёт 30 минут
+  const signTicket = (data) => {
+    const body = b64u(JSON.stringify({ ...data, exp: now() + 30 * 60e3 }));
+    return body + '.' + crypto.createHmac('sha256', settings.auth_secret).update(body).digest('base64url');
+  };
+  const readTicket = (t) => {
+    const [body, sig] = String(t || '').split('.');
+    const good = body && sig && crypto.createHmac('sha256', settings.auth_secret).update(body).digest('base64url');
+    if (!good || sig.length !== good.length || !crypto.timingSafeEqual(Buffer.from(sig), Buffer.from(good))) throw new HttpError(400, 'Начните вход заново');
+    const d = JSON.parse(Buffer.from(body, 'base64url').toString());
+    if (!(d.exp > now())) throw new HttpError(400, 'Время вышло — начните вход заново');
+    return d;
+  };
+  // Свободный ник по имени из Google/Telegram
+  async function freeUsername(raw) {
+    let base = String(raw || '').toLowerCase().replace(/[^a-z0-9_.]/g, '').replace(/^[._]+|[._]+$/g, '').slice(0, 24);
+    if (base.length < 3) base = 'cosplayer';
+    for (let i = 0; i < 20; i++) {
+      const name = i ? `${base}${Math.floor(Math.random() * 9000) + 100}` : base;
+      if (!(await one('SELECT 1 FROM users WHERE username = $1', [name]))) return name;
+    }
+    return 'cosplayer' + newId().slice(0, 6);
+  }
+  // Аватар из Google/Telegram — только с их серверов
+  async function fetchAvatar(url, ownerId) {
+    try {
+      const u = new URL(url);
+      if (u.protocol !== 'https:' || !/(^|\.)(googleusercontent\.com|t\.me|telegram\.org|telesco\.pe)$/i.test(u.hostname)) return null;
+      const r = await fetch(u, { signal: AbortSignal.timeout(8000) });
+      const type = (r.headers.get('content-type') || '').split(';')[0];
+      if (!r.ok || !/^image\/(jpeg|png|webp)$/.test(type)) return null;
+      const buf = Buffer.from(await r.arrayBuffer());
+      if (buf.length > 2_500_000) return null;
+      return await saveImage(`data:${type};base64,${buf.toString('base64')}`, ownerId);
+    } catch { return null; }
+  }
+  // Общий шаг: войти, привязать к текущему профилю или выдать билет на регистрацию
+  async function socialDone(req, res, p) {
+    const known = await one('SELECT user_id FROM identities WHERE provider = $1 AND subject = $2', [p.provider, p.subject]);
+    if (req.user) {
+      if (known && known.user_id !== req.user.id) throw new HttpError(409, `Этот аккаунт ${PROVIDERS[p.provider]} уже привязан к другому профилю Cosplaygram`);
+      if (!known) {
+        await q('DELETE FROM identities WHERE user_id = $1 AND provider = $2', [req.user.id, p.provider]);
+        await q('INSERT INTO identities (provider, subject, user_id, label, created_at) VALUES ($1,$2,$3,$4,$5)', [p.provider, p.subject, req.user.id, p.label, now()]);
+      }
+      return res.json({ user: await meView(req.user.id), linked: true });
+    }
+    if (known) {
+      await startSession(req, res, known.user_id);
+      return res.json({ user: await meView(known.user_id) });
+    }
+    res.json({ signup: { ticket: signTicket(p), provider: p.provider, name: p.name, username: await freeUsername(p.suggest) } });
+  }
+  const socialLimit = (req) => {
+    const k = 'soc:' + req.ip;
+    if (tooMany(k, 40, 600e3)) throw new HttpError(429, 'Слишком много попыток входа. Подождите 10 минут.');
+    remember(k);
+  };
+
+  app.get('/api/auth/providers', (_req, res) => {
+    const c = authCfg();
+    res.json({ google: c.google || null, telegram: c.tgToken && c.tgBot ? c.tgBot : null });
+  });
+
+  app.post('/api/auth/google', wrap(async (req, res) => {
+    socialLimit(req);
+    const { google } = authCfg();
+    if (!google) throw new HttpError(400, 'Вход через Google ещё не включён');
+    const cred = clean(req.body.credential, 5000);
+    if (!cred) throw new HttpError(400, 'Google не прислал данные входа');
+    let p;
+    try {
+      const r = await fetch((process.env.GOOGLE_TOKENINFO_URL || 'https://oauth2.googleapis.com/tokeninfo') + '?id_token=' + encodeURIComponent(cred), { signal: AbortSignal.timeout(10000) });
+      p = r.ok ? await r.json() : null;
+    } catch { throw new HttpError(502, 'Google не отвечает. Попробуйте ещё раз.'); }
+    if (!p || p.aud !== google || !['accounts.google.com', 'https://accounts.google.com'].includes(p.iss) || !(Number(p.exp) * 1000 > now()) || !p.sub)
+      throw new HttpError(401, 'Google не подтвердил вход. Попробуйте ещё раз.');
+    await socialDone(req, res, {
+      provider: 'google', subject: String(p.sub), label: clean(p.email, 120), name: clean(p.name || p.given_name, 60),
+      avatar: clean(p.picture, 500), suggest: String(p.email || '').split('@')[0],
+    });
+  }));
+
+  app.post('/api/auth/telegram', wrap(async (req, res) => {
+    socialLimit(req);
+    const { tgToken } = authCfg();
+    if (!tgToken) throw new HttpError(400, 'Вход через Telegram ещё не включён');
+    const d = req.body && typeof req.body === 'object' ? req.body : {};
+    const fields = Object.entries(d).filter(([k, v]) => k !== 'hash' && /^[a-z_]{1,30}$/.test(k) && ['string', 'number'].includes(typeof v));
+    const check = fields.sort(([a], [b]) => (a < b ? -1 : 1)).map(([k, v]) => `${k}=${v}`).join('\n');
+    const secret = crypto.createHash('sha256').update(tgToken).digest();
+    const good = crypto.createHmac('sha256', secret).update(check).digest('hex');
+    const hash = String(d.hash || '');
+    if (hash.length !== good.length || !crypto.timingSafeEqual(Buffer.from(hash), Buffer.from(good))) throw new HttpError(401, 'Telegram не подтвердил вход. Попробуйте ещё раз.');
+    if (!(Number(d.auth_date) * 1000 > now() - 86400e3)) throw new HttpError(401, 'Вход через Telegram устарел — нажмите кнопку ещё раз');
+    if (!/^\d{1,20}$/.test(String(d.id))) throw new HttpError(400, 'Telegram прислал странные данные');
+    const name = clean([d.first_name, d.last_name].filter(Boolean).join(' '), 60);
+    await socialDone(req, res, {
+      provider: 'telegram', subject: String(d.id), label: d.username ? '@' + clean(d.username, 40) : name, name,
+      avatar: clean(d.photo_url, 500), suggest: d.username || '',
+    });
+  }));
+
+  // Регистрация после Google/Telegram: ник, страна, город — пароль не нужен
+  app.post('/api/auth/complete', wrap(async (req, res) => {
+    const t = readTicket(req.body.ticket);
+    if (!PROVIDERS[t.provider]) throw new HttpError(400, 'Начните вход заново');
+    if (tooMany('reg:' + req.ip, 30, 3600e3)) throw new HttpError(429, 'Слишком много регистраций из этой сети. Попробуйте через час.');
+    const username = clean(req.body.username, 30).toLowerCase().replace(/^@/, '');
+    if (!/^[a-z0-9_.]{3,30}$/.test(username)) throw new HttpError(400, 'Ник: от 3 до 30 символов — латиница, цифры, точка или _');
+    if (await one('SELECT 1 FROM users WHERE username = $1', [username])) throw new HttpError(409, 'Этот ник уже занят');
+    if (await one('SELECT 1 FROM identities WHERE provider = $1 AND subject = $2', [t.provider, t.subject])) throw new HttpError(409, 'Этот аккаунт уже зарегистрирован — просто войдите');
+    const real = await one('SELECT count(*)::int AS n FROM users WHERE demo = FALSE');
+    const role = DEVS.includes(username) ? 'dev' : ADMINS.includes(username) || real.n === 0 ? 'admin' : 'user';
+    const id = newId();
+    await q(
+      `INSERT INTO users (id, username, password, name, city, specialty, color, role, created_at, theme, country, verified)
+       VALUES ($1,$2,NULL,$3,$4,$5,$6,$7,$8,$9,$10,$11)`,
+      [id, username, clean(req.body.name, 60) || t.name || username, clean(req.body.city, 40), clean(req.body.specialty, 60),
+        COLORS[Math.floor(Math.random() * COLORS.length)], role, now(), themeId(req.body.theme), COUNTRIES.valid(req.body.country), role === 'dev']
+    );
+    await q('INSERT INTO identities (provider, subject, user_id, label, created_at) VALUES ($1,$2,$3,$4,$5)', [t.provider, t.subject, id, t.label || '', now()]);
+    remember('reg:' + req.ip);
+    if (t.avatar) {
+      const av = await fetchAvatar(t.avatar, id);
+      if (av) await q('UPDATE users SET avatar_id = $2 WHERE id = $1', [id, av]);
+    }
+    await startSession(req, res, id);
+    res.json({ user: await meView(id) });
+  }));
+
+  // Какие способы входа привязаны к моему профилю
+  app.get('/api/me/identities', auth, wrap(async (req, res) => {
+    const rows = await q('SELECT provider, label, created_at FROM identities WHERE user_id = $1 ORDER BY created_at', [req.user.id]);
+    const u = await one('SELECT password FROM users WHERE id = $1', [req.user.id]);
+    res.json({ identities: rows.map((r) => ({ provider: r.provider, label: r.label, createdAt: r.created_at })), hasPassword: !!u.password });
+  }));
+  app.delete('/api/me/identities/:provider', auth, wrap(async (req, res) => {
+    const rows = await q('SELECT provider FROM identities WHERE user_id = $1', [req.user.id]);
+    const u = await one('SELECT password FROM users WHERE id = $1', [req.user.id]);
+    if (!u.password && rows.filter((r) => r.provider !== req.params.provider).length === 0)
+      throw new HttpError(400, 'Сначала задайте пароль ниже — иначе не сможете войти в профиль');
+    await q('DELETE FROM identities WHERE user_id = $1 AND provider = $2', [req.user.id, req.params.provider]);
+    res.json({ ok: true });
+  }));
+
+  // Ключи входа — только разработчик
+  app.get('/api/admin/auth', auth, admin, wrap(async (req, res) => {
+    if (req.user.role !== 'dev') throw new HttpError(403, 'Только для разработчика');
+    const c = authCfg();
+    const counts = Object.fromEntries((await q('SELECT provider, count(*)::int AS n FROM identities GROUP BY provider')).map((r) => [r.provider, r.n]));
+    res.json({ google: c.google, telegramBot: c.tgBot, telegramToken: !!c.tgToken, counts, origin: `${req.protocol}://${req.hostname}` });
+  }));
+  app.post('/api/admin/auth', auth, admin, wrap(async (req, res) => {
+    if (req.user.role !== 'dev') throw new HttpError(403, 'Только для разработчика');
+    const b = req.body || {};
+    if (b.clear === 'google') await setSetting('google_client_id', '');
+    if (b.clear === 'telegram') { await setSetting('telegram_token', ''); await setSetting('telegram_bot', ''); }
+    if (typeof b.google === 'string' && b.google.trim()) {
+      const id = b.google.trim();
+      if (!/^\d+-[a-z0-9]+\.apps\.googleusercontent\.com$/.test(id)) throw new HttpError(400, 'Client ID Google выглядит так: 1234567890-abc123.apps.googleusercontent.com');
+      await setSetting('google_client_id', id);
+    }
+    if (typeof b.telegramToken === 'string' && b.telegramToken.trim()) {
+      const token = b.telegramToken.trim();
+      if (!/^\d{5,15}:[A-Za-z0-9_-]{30,50}$/.test(token)) throw new HttpError(400, 'Токен бота выглядит так: 1234567890:AAH… — скопируйте его из сообщения @BotFather целиком');
+      let bot = null;
+      try {
+        const r = await fetch(`https://api.telegram.org/bot${token}/getMe`, { signal: AbortSignal.timeout(10000) });
+        bot = (await r.json()).result;
+      } catch { throw new HttpError(502, 'Telegram не отвечает. Попробуйте ещё раз.'); }
+      if (!bot?.username) throw new HttpError(400, 'Telegram не принял этот токен — проверьте, что скопировали его целиком');
+      await setSetting('telegram_token', token);
+      await setSetting('telegram_bot', bot.username);
+    }
+    const c = authCfg();
+    res.json({ google: c.google, telegramBot: c.tgBot, telegramToken: !!c.tgToken });
   }));
 
   // ----- посты -----
@@ -960,7 +1162,7 @@ async function main() {
     if (req.user.role !== 'dev') throw new HttpError(403, 'Только для разработчика');
     const { TABLES } = require('./db');
     const out = { createdAt: new Date().toISOString(), tables: {} };
-    for (const t of TABLES.filter((x) => x !== 'sessions')) {
+    for (const t of TABLES.filter((x) => x !== 'sessions' && x !== 'settings')) {
       out.tables[t] = t === 'images' ? await q('SELECT id, mime, owner_id, created_at, url FROM images') : t === 'users'
         ? await q('SELECT id, username, name, city, country, specialty, bio, avatar_id, color, role, verified, socials, theme, orders_open, created_at FROM users') : await q(`SELECT * FROM ${t}`);
     }

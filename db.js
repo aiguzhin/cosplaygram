@@ -231,6 +231,21 @@ CREATE TABLE IF NOT EXISTS reports (
   resolved BOOLEAN NOT NULL DEFAULT FALSE,
   created_at DOUBLE PRECISION NOT NULL
 );
+-- Вход через Google, Telegram и т. п.: какой внешний аккаунт к какому участнику привязан
+CREATE TABLE IF NOT EXISTS identities (
+  provider TEXT NOT NULL,
+  subject TEXT NOT NULL,
+  user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  label TEXT NOT NULL DEFAULT '',
+  created_at DOUBLE PRECISION NOT NULL,
+  PRIMARY KEY (provider, subject)
+);
+CREATE INDEX IF NOT EXISTS identities_user ON identities (user_id);
+-- Настройки сайта, которые разработчик меняет в админ-панели (ключи входа и т. п.)
+CREATE TABLE IF NOT EXISTS settings (
+  key TEXT PRIMARY KEY,
+  value TEXT NOT NULL DEFAULT ''
+);
 `;
 
 // Postgres по адресу (Supabase, Render и т. п.)
@@ -271,7 +286,7 @@ async function connect() {
 // Перенос всех данных из старой базы в новую (по порядку, чтобы не сломать связи между таблицами)
 const TABLES = ['users', 'sessions', 'images', 'posts', 'post_images', 'likes', 'saves', 'comments', 'follows', 'stories',
   'threads', 'replies', 'events', 'event_going', 'event_results', 'achievements', 'messages', 'notifications', 'reports',
-  'dms', 'char_covers', 'services', 'orders', 'reviews'];
+  'dms', 'char_covers', 'services', 'orders', 'reviews', 'identities', 'settings'];
 async function copyAll(src, dst, log = console.log) {
   for (const t of TABLES) {
     const [ex] = await src.query('SELECT to_regclass($1) AS r', ['public.' + t]);
