@@ -190,21 +190,23 @@ const who = (u, sub, size = 36) =>
   `<a class="who" href="${userLink(u)}">${ava(u, size)}<span class="t"><b>${esc(u?.name || u?.username)}${vmark(u)}</b><span>@${esc(u?.username)}${sub ? ' · ' + esc(sub) : ''}</span></span></a>`;
 
 // Фото персонажа: обложка модератора → лучший косплей участников → свободное фото с Wikimedia Commons → эмблема
-const charData = { site: {}, commons: {}, loaded: false };
+const charData = { site: {}, commons: {}, art: new Set(), loaded: false };
 async function loadChars(force) {
   if (charData.loaded && !force) return charData;
-  const [site, commons] = await Promise.all([
+  const [site, commons, art] = await Promise.all([
     api('/characters').then((r) => r.characters).catch(() => ({})),
     fetch('/chars/credits.json', { cache: 'no-cache' }).then((r) => (r.ok ? r.json() : {})).catch(() => ({})),
+    fetch('/chars/art.json', { cache: 'no-cache' }).then((r) => (r.ok ? r.json() : [])).catch(() => []),
   ]);
-  Object.assign(charData, { site, commons, loaded: true });
+  Object.assign(charData, { site, commons, art: new Set(art), loaded: true });
   return charData;
 }
 // Превью карточки: только изображение самого персонажа (арт, загруженный в админ-панели), иначе эмблема.
 // Любые косплеи — участников и свободные фото с Commons — по нажатию на карточку.
 function charArt(id) {
   const s = charData.site[id];
-  return s?.cover && s.photo ? { src: s.photo, credit: '' } : null;
+  if (s?.cover && s.photo) return { src: s.photo, credit: '' };
+  return charData.art.has(id) ? { src: `/chars/art/${id}.jpg`, credit: '' } : null;
 }
 function charPhoto(id) {
   const ct = CG.get(id);

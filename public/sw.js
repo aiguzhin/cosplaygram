@@ -1,7 +1,7 @@
 // Cosplaygram service worker: сайт можно установить на телефон.
 // Всегда сначала сеть; кэш — только запасной вариант без интернета. Запросы к API не кэшируются.
-const CACHE = 'cg-v17';
-const SHELL = ['/', '/styles.css?v=17', '/countries.js?v=17', '/i18n.js?v=17', '/themes.js?v=17', '/app.js?v=17', '/favicon.svg', '/icon-192.png'];
+const CACHE = 'cg-v18';
+const SHELL = ['/', '/styles.css?v=18', '/countries.js?v=18', '/i18n.js?v=18', '/themes.js?v=18', '/app.js?v=18', '/favicon.svg', '/icon-192.png'];
 
 self.addEventListener('install', (e) => {
   e.waitUntil(caches.open(CACHE).then((c) => c.addAll(SHELL)).then(() => self.skipWaiting()));
