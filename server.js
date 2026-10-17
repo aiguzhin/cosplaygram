@@ -200,6 +200,12 @@ async function main() {
   // ---------- приложение ----------
   const app = express();
   app.set('trust proxy', 1);
+  // Сайт переехал на cosplaygram.kz: старый адрес на Render пересылает все ссылки туда же
+  const CANONICAL = (process.env.CANONICAL_URL || 'https://cosplaygram.kz').replace(/\/+$/, '');
+  app.use((req, res, next) => {
+    if (!/\.onrender\.com$/i.test(req.hostname || '') || req.path === '/healthz') return next();
+    res.redirect(req.method === 'GET' || req.method === 'HEAD' ? 301 : 308, CANONICAL + req.originalUrl);
+  });
   // ----- переезд на новый сервер -----
   // Новый сервер (пустая база) принимает данные один раз — только с кодом, который показал установщик.
   app.post('/api/migrate/import', express.json({ limit: '500mb' }), wrap(async (req, res) => {
@@ -1011,7 +1017,7 @@ async function main() {
   }));
 
   app.get('/healthz', (_req, res) => res.send('ok'));
-  // Короткая команда установки: curl -sL cosplaygram.onrender.com/i | bash
+  // Короткая команда установки: curl -sL cosplaygram.kz/i | sudo bash
   app.get('/i', (_req, res) => { res.type('text/plain'); res.sendFile(path.join(__dirname, 'deploy', 'install.sh')); });
   app.use('/api', (_req, _res, next) => next(new HttpError(404, 'Нет такого адреса API')));
   // Красивые ссылки с превью для Instagram, Telegram и поисковиков: /u/ник, /p/работа, /e/мероприятие

@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Установка Cosplaygram на сервер Ubuntu/Debian одной командой:
-#   curl -sL cosplaygram.onrender.com/i | bash
+#   curl -sL cosplaygram.kz/i | sudo bash
 # (под root). Домен по умолчанию cosplaygram.kz; другой: ... | bash -s example.kz
 set -euo pipefail
 DOMAIN_ARG="${1:-cosplaygram.kz}"

@@ -1,14 +1,14 @@
-name: Не давать сайту засыпать
+name: Проверка, что сайт работает
 
-# Бесплатный сервер Render засыпает после 15 минут тишины, и первый вход грузится ~50 секунд.
-# Раз в 5 минут заглядываем на сайт, чтобы он оставался бодрым.
+# Сайт живёт на своём сервере в Казахстане и не засыпает.
+# Раз в час проверяем, что https://cosplaygram.kz отвечает; если нет — проверка падает и GitHub присылает письмо.
 on:
   schedule:
-    - cron: '*/5 * * * *'
+    - cron: '17 * * * *'
   workflow_dispatch:
 
 jobs:
-  ping:
+  check:
     runs-on: ubuntu-latest
     steps:
-      - run: curl -fsS --max-time 90 https://cosplaygram.onrender.com/healthz || true
+      - run: curl -fsS --retry 3 --retry-delay 20 --max-time 30 https://cosplaygram.kz/healthz
