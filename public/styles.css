@@ -681,3 +681,5 @@ body { background-image: var(--motifs); background-attachment: fixed; }
 .char .art { background: var(--motifs), var(--pattern), var(--bg); }
 :root[data-motifs="off"] body { background-image: none; }
 :root[data-motifs="off"] .cover, :root[data-motifs="off"] .cd-head, :root[data-motifs="off"] .char .art { background: var(--pattern), var(--bg); }
+
+@media (max-width: 520px) { .hide-xs { display: none !important; } }

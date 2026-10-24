@@ -575,7 +575,7 @@ function renderChrome() {
        <a class="iconbtn" href="#/notifications" aria-label="Уведомления">${ic.bell}${badge(state.unread)}</a>
        <button class="iconbtn plus desk-only" data-act="create" aria-label="Опубликовать">${ic.plus}</button>
        <button class="me-btn" id="meBtn" aria-haspopup="true" aria-label="Меню профиля">${ava(me, 32)}</button>`
-    : `<button class="iconbtn lang-btn" data-act="lang" aria-label="Язык: ${esc(CGLang.name(CGLang.current()))}">${ic.globe}<span class="lang-code notranslate" translate="no">${CGLang.current().split('-')[0].toUpperCase()}</span></button><button class="btn ghost sm" data-act="login">Войти</button><button class="btn primary sm" data-act="register">Регистрация</button>`;
+    : `<button class="iconbtn lang-btn" data-act="lang" aria-label="Язык: ${esc(CGLang.name(CGLang.current()))}">${ic.globe}<span class="lang-code notranslate" translate="no">${CGLang.current().split('-')[0].toUpperCase()}</span></button><button class="btn ghost sm hide-xs" data-act="login">Войти</button><button class="btn primary sm" data-act="register">Регистрация</button>`;
   const bn = $('#bottomNav');
   bn.hidden = !me;
   bn.innerHTML = !me ? '' : `
@@ -610,6 +610,7 @@ function openMenu() {
     <div class="sep"></div>
     <button class="mi" data-act="picker">${ic.palette}Сменить персонажа<span class="r">${esc(t.name)}</span></button>
     <a href="#/settings">${ic.gear}Настройки профиля</a>
+    <a href="#/business">${ic.bag}Бизнес-план</a>
     <button class="mi" data-act="lang">${ic.globe}Язык<span class="r notranslate" translate="no">${esc(CGLang.name(CGLang.current()))}</span></button>
     ${canInstall ? `<button class="mi" data-act="install">${ic.phone}Установить приложение</button>` : ''}
     ${isMod(me) ? `<a href="#/admin">${ic.shield}Админ-панель</a>` : ''}
@@ -1368,7 +1369,7 @@ function pageLanding() {
       <div><b>Весь мир</b><span>Косплееры из ${C.LIST.length} стран: лента и чат вашей страны, мероприятия по всему миру.</span></div>
       <div><b><a class="link" href="#/events">Мероприятия и итоги →</a></b><span>Фестивали, косплей-шоу и встречи — с отметкой «Пойду».</span></div>
     </div>
-    <p class="hint">Нажмите на персонажа, чтобы увидеть косплеи участников и свободные фото с Wikimedia Commons. <a class="link" href="#/credits">Авторы фото</a></p>
+    <p class="hint">Нажмите на персонажа, чтобы увидеть косплеи участников и свободные фото с Wikimedia Commons. <a class="link" href="#/credits">Авторы фото</a> · <a class="link" href="#/business">Бизнес-план</a></p>
   </section>`;
   bindCharPicker($('#land'), (t) => { CG.store(t.id); $('#lnN').textContent = t.name; });
 }
@@ -2244,6 +2245,40 @@ async function pageCredits() {
     <p class="hint" style="margin-top:16px">Если вы автор фото и хотите его убрать, напишите модератору в чате «Срочная помощь».</p></div>`;
 }
 
+/* ================= бизнес-план ================= */
+const fmtKZT = (n) => Math.round(n).toLocaleString('ru-RU').replace(/,/g, ' ') + ' ₸';
+function pageBusiness() {
+  const sec = (h, body) => `<section class="section"><h2 style="margin-bottom:10px">${h}</h2>${body}</section>`;
+  const li = (a) => `<ul style="margin:0;padding-left:20px;display:flex;flex-direction:column;gap:6px">${a.map((x) => `<li>${x}</li>`).join('')}</ul>`;
+  const fld = (id, label, v, hint) => `<div class="field"><label for="${id}">${label}</label><input class="input" id="${id}" inputmode="numeric" value="${v}">${hint ? `<p class="hint">${hint}</p>` : ''}</div>`;
+  view().innerHTML = `<div class="narrow biz">
+    <div class="page-head"><div><h1>Бизнес-план Cosplaygram</h1>
+      <p class="muted">Как платформа будет зарабатывать и расти. Цены и проценты — наше предложение для старта, уточним их после запуска.</p></div></div>
+    ${sec('Что мы делаем', '<p>Cosplaygram — социальная сеть для косплееров: лента костюмов и процесса создания, мастера с заказами и отзывами, фестивали с итогами, форум и чаты по странам. Уникальная фишка — 125 персонажей: сайт перекрашивается в стиль выбранного героя. Уже работает на cosplaygram.kz, сервер в Казахстане.</p>')}
+    ${sec('Проблема', li(['Работы теряются в общих соцсетях, процесс создания почти не видно', 'Мастеров (швей, парики, реквизит, фото) ищут через чаты и знакомых', 'Анонсы и итоги фестивалей разбросаны по десяткам групп']))}
+    ${sec('Рынок', `<p>По данным Technavio, мировой рынок косплей-костюмов вырастет на <b>2,44 млрд долларов</b> за 2025–2030 годы, среднегодовой рост — <b>7,5%</b>. Это только костюмы — без фотосессий, фестивалей и услуг мастеров.</p><p class="hint" style="margin-top:6px">Источник: Technavio, «Global Cosplay Costumes Market 2025–2030».</p>`)}
+    ${sec('Для кого', li(['<b>Косплееры</b> — показывают работы, находят мастеров и фестивали (бесплатно)', '<b>Мастера</b> — получают заказы и отзывы', '<b>Организаторы фестивалей</b> — афиша, участники, итоги', '<b>Бренды</b> — магазины тканей, париков, линз и реквизита']))}
+    ${sec('Как зарабатываем', li(['<b>7% комиссия</b> с заказов у мастеров через платформу', '<b>«Мастер Про» — 1 990 ₸ в месяц</b>: выше в поиске, статистика, значок', '<b>Продвижение фестивалей — от 5 000 ₸</b>, позже продажа билетов', '<b>Реклама и спецпроекты брендов</b>', '<b>Премиум-оформление — 990 ₸</b>: свои темы персонажей, рамки профиля']))}
+    ${sec('Посчитайте сами', `<p class="muted" style="margin-bottom:12px">Поменяйте числа — доход пересчитается. Значения по умолчанию — пример, не прогноз.</p>
+      <form class="form" id="bizF" onsubmit="return false"><div class="row">${fld('bz-o', 'Заказов в месяц', 300)}${fld('bz-c', 'Средний чек, ₸', 25000)}${fld('bz-p', 'Комиссия, %', 7)}</div>
+      <div class="row">${fld('bz-m', 'Мастеров с «Про»', 50, '1 990 ₸ в месяц')}${fld('bz-a', 'Рекламных интеграций', 2, 'по 100 000 ₸')}${fld('bz-t', 'Покупок оформления', 100, 'по 990 ₸')}${fld('bz-e', 'Продвижений фестивалей', 6, 'по 10 000 ₸')}</div></form>
+      <div class="box pad" style="margin-top:14px" id="bizR"></div>`)}
+    ${sec('Расходы', li(['Сервер в Казахстане и домен cosplaygram.kz', 'Apple Developer Program — 99 $ в год (для App Store)', 'Google Play — разовый взнос 25 $', 'Продвижение: стенды на фестивалях, мерч, амбассадоры', 'Модерация контента']))}
+    ${sec('Продвижение', li(['Косплей-фестивали Казахстана: стенд, QR-код, конкурс', 'Амбассадоры — известные косплееры', 'TikTok и Instagram: процесс создания костюмов', '«Костюм месяца» и конкурсы с призами', 'Партнёрства с магазинами тканей и париков']))}
+    ${sec('План развития', li(['<b>Сейчас</b> — запуск в Казахстане, первые участники и мастера', '<b>Дальше</b> — приложения в App Store и Google Play', 'Онлайн-оплата заказов внутри платформы', 'Выход в страны СНГ', 'Продажа билетов на фестивали и международный рост']))}
+    ${sec('Риски и решения', li(['Авторские права → только фото участников и свободные фото', 'Спам и нарушения → жалобы, модерация, подтверждённые профили', 'Мало участников на старте → фестивали и амбассадоры', 'Большие соцсети → то, чего у них нет: стили персонажей и мастера']))}
+  </div>`;
+  const calc = () => {
+    const v = (id) => Math.max(0, Number(String($('#' + id).value).replace(/[^\d.,]/g, '').replace(',', '.')) || 0);
+    const rows = [['Комиссия с заказов', v('bz-o') * v('bz-c') * v('bz-p') / 100], ['«Мастер Про»', v('bz-m') * 1990], ['Реклама', v('bz-a') * 100000], ['Оформление', v('bz-t') * 990], ['Продвижение фестивалей', v('bz-e') * 10000]];
+    const sum = rows.reduce((s, r) => s + r[1], 0);
+    $('#bizR').innerHTML = rows.map(([k, n]) => `<div style="display:flex;justify-content:space-between;gap:12px;padding:4px 0"><span class="muted">${k}</span><b class="num">${fmtKZT(n)}</b></div>`).join('') +
+      `<div class="hr" style="margin:8px 0"></div><div style="display:flex;justify-content:space-between;gap:12px;align-items:baseline"><b>Доход в месяц</b><b class="num display" style="font-size:1.6rem;color:var(--accent)">${fmtKZT(sum)}</b></div><p class="hint" style="margin-top:4px">В год: ${fmtKZT(sum * 12)}</p>`;
+  };
+  $('#bizF').oninput = calc;
+  calc();
+}
+
 /* ================= роутер ================= */
 async function route() {
   clearInterval(state.timers.thread);
@@ -2259,6 +2294,7 @@ async function route() {
   renderChrome();
   window.scrollTo(0, 0);
   if (parts[0] === 'credits') { await pageCredits(); document.title = 'Авторы фото — Cosplaygram'; return; }
+  if (parts[0] === 'business') { pageBusiness(); document.title = 'Бизнес-план — Cosplaygram'; return; }
   // Гостю открыты профили, работы, мероприятия и форум — чтобы ссылки из Instagram и Telegram открывались
   const GUEST = ['u', 'p', 'events', 'forum'];
   if (!state.me && !GUEST.includes(parts[0])) {
