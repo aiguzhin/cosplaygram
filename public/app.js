@@ -1198,7 +1198,7 @@ function openCreate(kind = 'costume') {
       <div class="seg" role="tablist">
         <button type="button" data-kind="costume">Костюм</button>
         <button type="button" data-kind="process">Процесс</button>
-        <button type="button" data-kind="story">На 24 часа</button>
+        <button type="button" data-kind="story">История</button>
       </div>
       <p class="hint" id="crHint"></p>
       <label class="drop" id="drop" for="crFiles">${ic.image}<b>Добавить фото</b><span class="small">С телефона или компьютера</span></label>
@@ -1235,7 +1235,7 @@ function openCreate(kind = 'costume') {
     $('#postF', o).hidden = k === 'story';
     $('#storyF', o).hidden = k !== 'story';
     $('#crHint', o).textContent = k === 'process' ? 'Добавьте фото по порядку (до 10) и подпишите каждый шаг.'
-      : k === 'story' ? 'Одно фото незаконченной работы. Исчезнет через 24 часа.' : 'До 10 фото. Первое станет обложкой.';
+      : k === 'story' ? 'Одно фото незаконченной работы. История пропадёт через сутки.' : 'До 10 фото. Первое станет обложкой.';
     if (k === 'story') shots.splice(1);
     draw();
   };
@@ -1267,7 +1267,7 @@ function openCreate(kind = 'costume') {
     try {
       if (kind === 'story') {
         await api('/stories', { body: { image: shots[0].image, text: fd.text } });
-        toast('Опубликовано на 24 часа');
+        toast('История опубликована');
       } else {
         await api('/posts', { body: { ...fd, kind, slides: shots, charId: $('#crF', o).dataset.charId || '' } });
         toast('Опубликовано');
@@ -1314,13 +1314,13 @@ function openEdit(p) {
   };
 }
 
-/* ================= «На 24 часа» ================= */
+/* ================= истории ================= */
 function seenMap() { try { return JSON.parse(localStorage.getItem('cg-seen') || '{}'); } catch { return {}; } }
 async function wipRow() {
   const { groups } = await api('/stories');
   state.groups = groups;
   const seen = seenMap();
-  return `<div class="wip" aria-label="Работы в процессе, исчезают через 24 часа">
+  return `<div class="wip" aria-label="Истории участников">
     <button class="wip-item add" data-act="create-story"><span class="ring"><span class="add">${ic.plus}</span></span><span class="n">Ваша работа</span></button>
     ${groups.map((g, i) => `<button class="wip-item ${seen[g.author.id] === g.items.at(-1).id ? 'seen' : ''}" data-story="${i}" aria-label="Работа в процессе: ${esc(g.author.username)}">
       <span class="ring"><img src="${esc(g.items.at(-1).image)}" alt="" loading="lazy"></span><span class="n">${esc(g.author.username)}</span></button>`).join('')}</div>`;
