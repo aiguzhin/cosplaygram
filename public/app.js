@@ -177,7 +177,8 @@ const userLink = (u) => `#/u/${encodeURIComponent(u?.username || '')}`;
 // Роли и галочка подтверждённого аккаунта
 const isMod = (u) => ['admin', 'dev'].includes(u?.role);
 const ROLE_LABEL = { dev: 'Разработчик', admin: 'Модератор' };
-const vmark = (u) => (u?.verified || u?.role === 'dev' ? `<span class="vmark" title="Подтверждённый аккаунт" aria-label="Подтверждённый аккаунт">${ic.verified}</span>` : '');
+const vmark = (u) => (u?.verified || u?.role === 'dev' ? `<span class="vmark" title="Подтверждённый аккаунт" aria-label="Подтверждённый аккаунт">${ic.verified}</span>` : '') +
+  (u?.plan === 'pro' || u?.plan === 'max' ? `<span class="pmark ${u.plan}" title="Подписка ${u.plan === 'max' ? 'Макс' : 'Про'}">${u.plan.toUpperCase()}</span>` : '');
 const rolePill = (u) => (ROLE_LABEL[u?.role] ? `<span class="pill role-${u.role}">${ROLE_LABEL[u.role]}</span>` : '');
 const SOCIAL = { instagram: ['Instagram', 'https://instagram.com/'], tiktok: ['TikTok', 'https://www.tiktok.com/@'], telegram: ['Telegram', 'https://t.me/'], vk: ['VK', 'https://vk.com/'], youtube: ['YouTube', 'https://www.youtube.com/@'] };
 const ACH = { place: ['🏆', 'Призовое место'], jury: ['⚖️', 'Жюри'], guest: ['🎤', 'Приглашённый гость'], organizer: ['📣', 'Организатор'], other: ['⭐', 'Другое'] };
@@ -610,7 +611,7 @@ function openMenu() {
     <div class="sep"></div>
     <button class="mi" data-act="picker">${ic.palette}Сменить персонажа<span class="r">${esc(t.name)}</span></button>
     <a href="#/settings">${ic.gear}Настройки профиля</a>
-    <a href="#/business">${ic.bag}Бизнес-план</a>
+    <a href="#/plans">${ic.verified}Подписка: ${planOf(state.me).name}</a>
     <button class="mi" data-act="lang">${ic.globe}Язык<span class="r notranslate" translate="no">${esc(CGLang.name(CGLang.current()))}</span></button>
     ${canInstall ? `<button class="mi" data-act="install">${ic.phone}Установить приложение</button>` : ''}
     ${isMod(me) ? `<a href="#/admin">${ic.shield}Админ-панель</a>` : ''}
@@ -1369,7 +1370,7 @@ function pageLanding() {
       <div><b>Весь мир</b><span>Косплееры из ${C.LIST.length} стран: лента и чат вашей страны, мероприятия по всему миру.</span></div>
       <div><b><a class="link" href="#/events">Мероприятия и итоги →</a></b><span>Фестивали, косплей-шоу и встречи — с отметкой «Пойду».</span></div>
     </div>
-    <p class="hint">Нажмите на персонажа, чтобы увидеть косплеи участников и свободные фото с Wikimedia Commons. <a class="link" href="#/credits">Авторы фото</a> · <a class="link" href="#/business">Бизнес-план</a></p>
+    <p class="hint">Нажмите на персонажа, чтобы увидеть косплеи участников и свободные фото с Wikimedia Commons. <a class="link" href="#/credits">Авторы фото</a> · <a class="link" href="#/plans">Подписки</a></p>
   </section>`;
   bindCharPicker($('#land'), (t) => { CG.store(t.id); $('#lnN').textContent = t.name; });
 }
@@ -2028,6 +2029,9 @@ async function pageSettings() {
     <section class="section" id="idSec" hidden><h2 style="margin-bottom:6px">Вход через Google и Telegram</h2>
       <p class="muted" style="margin-bottom:10px">Привяжите аккаунт — и входите в Cosplaygram одной кнопкой, без пароля.</p>
       <div class="ach-list" id="idL"></div><div class="social" id="idBox" hidden style="margin-top:12px"></div></section>
+    <section class="section"><h2 style="margin-bottom:6px">Подписка</h2>
+      <p class="muted" style="margin-bottom:10px">Сейчас: <b style="color:var(--ink)">${planOf(u).name}</b>. Про и Макс — значок у имени, статистика и больше заметности для мастеров.</p>
+      <a class="btn" href="#/plans">Сравнить подписки</a></section>
     <section class="section"><h2 style="margin-bottom:6px">Почта</h2>
       <p class="muted" style="margin-bottom:10px">По почте и паролю можно входить в Cosplaygram. Другие участники её не видят.</p>
       <form class="form" id="emF"><div class="row"><div class="field"><label for="em-v">Почта</label><input class="input" id="em-v" name="email" type="email" inputmode="email" autocomplete="email" autocapitalize="none" spellcheck="false" required placeholder="name@mail.ru"></div></div>
@@ -2159,10 +2163,12 @@ async function pageAdmin() {
       return `<div class="item adm-u">${ava(u, 40)}<span style="min-width:0"><a href="${userLink(u)}"><b>${esc(u.name)}</b>${vmark(u)}</a> ${rolePill(u)}
         <span class="meta" style="display:block">@${esc(u.username)} · ${u.posts} ${plural(u.posts, 'работа', 'работы', 'работ')}${place(u) ? ' · ' + place(u) : ''}</span>
         <span class="adm-acts">${locked ? '' : `<button class="btn sm ${u.verified ? '' : 'primary'}" data-ver="${u.id}" data-v="${u.verified ? 0 : 1}">${u.verified ? 'Снять галочку' : '✓ Дать галочку'}</button>`}
+          ${locked ? '' : `<select class="input sm" data-uplan="${u.id}" aria-label="Подписка">${PLANS.map((p) => `<option value="${p.id}" ${(u.plan || 'free') === p.id ? 'selected' : ''}>${p.name}</option>`).join('')}</select>`}
           ${dev && !self ? `<select class="input sm" data-role="${u.id}" aria-label="Роль">${[['user', 'Участник'], ['admin', 'Модератор'], ['dev', 'Разработчик']].map(([k, n]) => `<option value="${k}" ${u.role === k ? 'selected' : ''}>${n}</option>`).join('')}</select>` : ''}
           ${!self && u.role !== 'dev' && (dev || u.role !== 'admin') ? `<button class="btn sm ghost danger" data-delu="${u.id}">${ic.trash}Удалить</button>` : ''}</span></span></div>`;
     }).join('') || '<div class="empty"><p>Никого не нашли.</p></div>';
     $$('[data-ver]').forEach((b) => (b.onclick = async () => { try { await api('/admin/users/' + b.dataset.ver, { body: { verified: b.dataset.v === '1' } }); toast(b.dataset.v === '1' ? 'Галочка выдана' : 'Галочка снята'); loadUsers(); } catch (e) { toast(e.message); } }));
+    $$('[data-uplan]').forEach((sel) => (sel.onchange = async () => { try { await api('/admin/users/' + sel.dataset.uplan, { body: { plan: sel.value } }); toast('Подписка изменена'); loadUsers(); } catch (e) { toast(e.message); } }));
     $$('[data-role]').forEach((sel) => (sel.onchange = async () => { try { await api('/admin/users/' + sel.dataset.role, { body: { role: sel.value } }); toast('Роль изменена'); loadUsers(); } catch (e) { toast(e.message); } }));
     $$('[data-delu]').forEach((b) => (b.onclick = confirmTwice(async () => { try { await api('/admin/users/' + b.dataset.delu, { method: 'DELETE' }); toast('Аккаунт удалён'); loadUsers(); } catch (e) { toast(e.message); } }, 'Нажмите ещё раз: аккаунт и все его публикации удалятся')));
   };
@@ -2245,38 +2251,29 @@ async function pageCredits() {
     <p class="hint" style="margin-top:16px">Если вы автор фото и хотите его убрать, напишите модератору в чате «Срочная помощь».</p></div>`;
 }
 
-/* ================= бизнес-план ================= */
-const fmtKZT = (n) => Math.round(n).toLocaleString('ru-RU').replace(/,/g, ' ') + ' ₸';
-function pageBusiness() {
-  const sec = (h, body) => `<section class="section"><h2 style="margin-bottom:10px">${h}</h2>${body}</section>`;
-  const li = (a) => `<ul style="margin:0;padding-left:20px;display:flex;flex-direction:column;gap:6px">${a.map((x) => `<li>${x}</li>`).join('')}</ul>`;
-  const fld = (id, label, v, hint) => `<div class="field"><label for="${id}">${label}</label><input class="input" id="${id}" inputmode="numeric" value="${v}">${hint ? `<p class="hint">${hint}</p>` : ''}</div>`;
-  view().innerHTML = `<div class="narrow biz">
-    <div class="page-head"><div><h1>Бизнес-план Cosplaygram</h1>
-      <p class="muted">Как платформа будет зарабатывать и расти. Цены и проценты — наше предложение для старта, уточним их после запуска.</p></div></div>
-    ${sec('Что мы делаем', '<p>Cosplaygram — социальная сеть для косплееров: лента костюмов и процесса создания, мастера с заказами и отзывами, фестивали с итогами, форум и чаты по странам. Уникальная фишка — 125 персонажей: сайт перекрашивается в стиль выбранного героя. Уже работает на cosplaygram.kz, сервер в Казахстане.</p>')}
-    ${sec('Проблема', li(['Работы теряются в общих соцсетях, процесс создания почти не видно', 'Мастеров (швей, парики, реквизит, фото) ищут через чаты и знакомых', 'Анонсы и итоги фестивалей разбросаны по десяткам групп']))}
-    ${sec('Рынок', `<p>По данным Technavio, мировой рынок косплей-костюмов вырастет на <b>2,44 млрд долларов</b> за 2025–2030 годы, среднегодовой рост — <b>7,5%</b>. Это только костюмы — без фотосессий, фестивалей и услуг мастеров.</p><p class="hint" style="margin-top:6px">Источник: Technavio, «Global Cosplay Costumes Market 2025–2030».</p>`)}
-    ${sec('Для кого', li(['<b>Косплееры</b> — показывают работы, находят мастеров и фестивали (бесплатно)', '<b>Мастера</b> — получают заказы и отзывы', '<b>Организаторы фестивалей</b> — афиша, участники, итоги', '<b>Бренды</b> — магазины тканей, париков, линз и реквизита']))}
-    ${sec('Как зарабатываем', li(['<b>7% комиссия</b> с заказов у мастеров через платформу', '<b>«Мастер Про» — 1 990 ₸ в месяц</b>: выше в поиске, статистика, значок', '<b>Продвижение фестивалей — от 5 000 ₸</b>, позже продажа билетов', '<b>Реклама и спецпроекты брендов</b>', '<b>Премиум-оформление — 990 ₸</b>: свои темы персонажей, рамки профиля']))}
-    ${sec('Посчитайте сами', `<p class="muted" style="margin-bottom:12px">Поменяйте числа — доход пересчитается. Значения по умолчанию — пример, не прогноз.</p>
-      <form class="form" id="bizF" onsubmit="return false"><div class="row">${fld('bz-o', 'Заказов в месяц', 300)}${fld('bz-c', 'Средний чек, ₸', 25000)}${fld('bz-p', 'Комиссия, %', 7)}</div>
-      <div class="row">${fld('bz-m', 'Мастеров с «Про»', 50, '1 990 ₸ в месяц')}${fld('bz-a', 'Рекламных интеграций', 2, 'по 100 000 ₸')}${fld('bz-t', 'Покупок оформления', 100, 'по 990 ₸')}${fld('bz-e', 'Продвижений фестивалей', 6, 'по 10 000 ₸')}</div></form>
-      <div class="box pad" style="margin-top:14px" id="bizR"></div>`)}
-    ${sec('Расходы', li(['Сервер в Казахстане и домен cosplaygram.kz', 'Apple Developer Program — 99 $ в год (для App Store)', 'Google Play — разовый взнос 25 $', 'Продвижение: стенды на фестивалях, мерч, амбассадоры', 'Модерация контента']))}
-    ${sec('Продвижение', li(['Косплей-фестивали Казахстана: стенд, QR-код, конкурс', 'Амбассадоры — известные косплееры', 'TikTok и Instagram: процесс создания костюмов', '«Костюм месяца» и конкурсы с призами', 'Партнёрства с магазинами тканей и париков']))}
-    ${sec('План развития', li(['<b>Сейчас</b> — запуск в Казахстане, первые участники и мастера', '<b>Дальше</b> — приложения в App Store и Google Play', 'Онлайн-оплата заказов внутри платформы', 'Выход в страны СНГ', 'Продажа билетов на фестивали и международный рост']))}
-    ${sec('Риски и решения', li(['Авторские права → только фото участников и свободные фото', 'Спам и нарушения → жалобы, модерация, подтверждённые профили', 'Мало участников на старте → фестивали и амбассадоры', 'Большие соцсети → то, чего у них нет: стили персонажей и мастера']))}
-  </div>`;
-  const calc = () => {
-    const v = (id) => Math.max(0, Number(String($('#' + id).value).replace(/[^\d.,]/g, '').replace(',', '.')) || 0);
-    const rows = [['Комиссия с заказов', v('bz-o') * v('bz-c') * v('bz-p') / 100], ['«Мастер Про»', v('bz-m') * 1990], ['Реклама', v('bz-a') * 100000], ['Оформление', v('bz-t') * 990], ['Продвижение фестивалей', v('bz-e') * 10000]];
-    const sum = rows.reduce((s, r) => s + r[1], 0);
-    $('#bizR').innerHTML = rows.map(([k, n]) => `<div style="display:flex;justify-content:space-between;gap:12px;padding:4px 0"><span class="muted">${k}</span><b class="num">${fmtKZT(n)}</b></div>`).join('') +
-      `<div class="hr" style="margin:8px 0"></div><div style="display:flex;justify-content:space-between;gap:12px;align-items:baseline"><b>Доход в месяц</b><b class="num display" style="font-size:1.6rem;color:var(--accent)">${fmtKZT(sum)}</b></div><p class="hint" style="margin-top:4px">В год: ${fmtKZT(sum * 12)}</p>`;
-  };
-  $('#bizF').oninput = calc;
-  calc();
+/* ================= подписки ================= */
+const PLANS = [
+  { id: 'free', name: 'Обычная', price: 0, tag: 'Для всех косплееров', feats: ['Лента, публикации и истории', 'Процесс создания по шагам', '125 стилей персонажей', 'Фестивали, форум и чаты', 'До 3 услуг для заказов'] },
+  { id: 'pro', name: 'Про', price: 1990, tag: 'Для активных косплееров и мастеров', feats: ['Всё из Обычной', 'Значок PRO рядом с именем', 'Свои темы персонажей без ограничений', 'Статистика просмотров профиля и работ', 'До 15 услуг, выше в поиске мастеров'] },
+  { id: 'max', name: 'Макс', price: 4990, tag: 'Для мастеров, которые живут заказами', feats: ['Всё из Про', 'Золотой значок MAX', 'Первые места в поиске мастеров', 'Продвижение работы на главной раз в неделю', 'Без ограничений на услуги, приоритетная поддержка'] },
+];
+const planOf = (u) => PLANS.find((x) => x.id === (u?.plan || 'free')) || PLANS[0];
+function pagePlans() {
+  const cur = state.me ? planOf(state.me).id : null;
+  view().innerHTML = `<div class="plans-page"><div class="page-head"><div><h1>Подписки</h1>
+    <p class="muted">Пользоваться Cosplaygram можно бесплатно. Про и Макс дают мастерам и активным косплеерам больше заметности.</p></div></div>
+    <div class="plans">${PLANS.map((p) => `<article class="plan ${p.id}${cur === p.id ? ' cur' : ''}">
+      <div class="plan-h"><h2>${p.name}${p.id !== 'free' ? ` <span class="pmark ${p.id}">${p.id.toUpperCase()}</span>` : ''}</h2><p class="muted small">${p.tag}</p></div>
+      <p class="plan-p"><b class="num">${p.price ? p.price.toLocaleString('ru-RU').replace(/,/g, ' ') + ' ₸' : '0 ₸'}</b><span class="muted">${p.price ? ' в месяц' : ' навсегда'}</span></p>
+      <ul>${p.feats.map((f) => `<li>${ic.check}<span>${f}</span></li>`).join('')}</ul>
+      ${cur === p.id ? '<button class="btn block" disabled>Ваша подписка</button>' : p.id === 'free' ? (state.me ? '' : '<button class="btn block" data-act="register">Начать бесплатно</button>') : `<button class="btn primary block" data-plan="${p.id}">Подключить ${p.name}</button>`}
+    </article>`).join('')}</div>
+    <p class="hint" style="margin-top:16px">Оплата подписки появится совсем скоро. Пока Про и Макс может включить модератор.</p></div>`;
+  $$('[data-plan]').forEach((b) => (b.onclick = () => {
+    if (!state.me) return openAuth('register');
+    try { localStorage.setItem('cg-plan-wish', b.dataset.plan); } catch {}
+    toast('Оплата появится совсем скоро — загляните сюда чуть позже.');
+  }));
 }
 
 /* ================= роутер ================= */
@@ -2294,7 +2291,7 @@ async function route() {
   renderChrome();
   window.scrollTo(0, 0);
   if (parts[0] === 'credits') { await pageCredits(); document.title = 'Авторы фото — Cosplaygram'; return; }
-  if (parts[0] === 'business') { pageBusiness(); document.title = 'Бизнес-план — Cosplaygram'; return; }
+  if (parts[0] === 'plans') { pagePlans(); document.title = 'Подписки — Cosplaygram'; return; }
   // Гостю открыты профили, работы, мероприятия и форум — чтобы ссылки из Instagram и Telegram открывались
   const GUEST = ['u', 'p', 'events', 'forum'];
   if (!state.me && !GUEST.includes(parts[0])) {

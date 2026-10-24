@@ -683,3 +683,18 @@ body { background-image: var(--motifs); background-attachment: fixed; }
 :root[data-motifs="off"] .cover, :root[data-motifs="off"] .cd-head, :root[data-motifs="off"] .char .art { background: var(--pattern), var(--bg); }
 
 @media (max-width: 520px) { .hide-xs { display: none !important; } }
+
+/* подписки */
+.pmark { display: inline-flex; align-items: center; margin-inline-start: .35em; padding: 1px 6px; border-radius: 4px; font: 800 .62em/1.4 var(--font-body); letter-spacing: .06em; vertical-align: .15em; background: var(--accent); color: var(--on-accent); }
+.pmark.max { background: linear-gradient(135deg, #F7D774, #D9A441); color: #2A1C00; }
+.plans { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; align-items: stretch; }
+@media (max-width: 860px) { .plans { grid-template-columns: 1fr; } }
+.plan { background: var(--surface); border-radius: var(--r-lg); padding: 22px; display: flex; flex-direction: column; gap: 14px; box-shadow: 0 0 0 1px var(--line); min-width: 0; }
+.plan.pro { box-shadow: 0 0 0 2px var(--accent); }
+.plan.max { box-shadow: 0 0 0 2px #D9A441; }
+.plan.cur { background: var(--surface-2); }
+.plan-h h2 { font-family: var(--font-display); font-weight: 500; font-size: 1.6rem; text-transform: none; letter-spacing: 0; }
+.plan-p b { font-family: var(--font-display); font-size: 2rem; font-weight: 500; }
+.plan ul { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 9px; flex: 1; }
+.plan li { display: flex; gap: 9px; align-items: flex-start; font-size: .94rem; }
+.plan li svg { width: 18px; height: 18px; flex: none; color: var(--accent); margin-top: 2px; }

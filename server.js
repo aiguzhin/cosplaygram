@@ -157,7 +157,7 @@ async function main() {
   const imgUrl = (id) => (!id ? null : id.startsWith('/') ? id : `/img/${id}`);
 
   // ---------- представления ----------
-  const userCols = 'u.id, u.username, u.name, u.city, u.specialty, u.bio, u.avatar_id, u.color, u.role, u.demo, u.created_at, u.theme, u.country, u.verified, u.socials, u.orders_open';
+  const userCols = 'u.id, u.username, u.name, u.city, u.specialty, u.bio, u.avatar_id, u.color, u.role, u.demo, u.created_at, u.theme, u.country, u.verified, u.socials, u.orders_open, u.plan';
   const userView = (r, prefix = '') => {
     const g = (k) => r[prefix + k];
     if (!g('id')) return null;
@@ -165,11 +165,11 @@ async function main() {
       id: g('id'), username: g('username'), name: g('name'), city: g('city'), specialty: g('specialty'),
       bio: g('bio'), avatar: imgUrl(g('avatar_id')), color: g('color'), role: g('role'), demo: g('demo'),
       createdAt: g('created_at'), theme: g('theme') || '', country: g('country') || '',
-      verified: !!g('verified'), ordersOpen: !!g('orders_open'), socials: (() => { try { return JSON.parse(g('socials') || '{}'); } catch { return {}; } })(),
+      verified: !!g('verified'), ordersOpen: !!g('orders_open'), plan: ['pro', 'max'].includes(g('plan')) ? g('plan') : 'free', socials: (() => { try { return JSON.parse(g('socials') || '{}'); } catch { return {}; } })(),
     };
   };
   const authorCols = (a = 'u', p = 'a_') =>
-    ['id', 'username', 'name', 'city', 'specialty', 'bio', 'avatar_id', 'color', 'role', 'demo', 'created_at', 'theme', 'country', 'verified', 'socials', 'orders_open']
+    ['id', 'username', 'name', 'city', 'specialty', 'bio', 'avatar_id', 'color', 'role', 'demo', 'created_at', 'theme', 'country', 'verified', 'socials', 'orders_open', 'plan']
       .map((c) => `${a}.${c} AS ${p}${c}`).join(', ');
 
   async function loadPosts(where, params, meId, { limit = 30, comments = 2 } = {}) {
@@ -1350,6 +1350,11 @@ async function main() {
     if (!t) throw new HttpError(404, 'Участник не найден');
     if (t.role === 'dev' && req.user.role !== 'dev') throw new HttpError(403, 'Разработчика может менять только разработчик');
     if ('verified' in req.body) await q('UPDATE users SET verified = $2 WHERE id = $1', [t.id, !!req.body.verified]);
+    // Подписка (Обычная / Про / Макс): пока оплаты нет, её включает модератор
+    if ('plan' in req.body) {
+      if (!['free', 'pro', 'max'].includes(req.body.plan)) throw new HttpError(400, 'Неизвестная подписка');
+      await q('UPDATE users SET plan = $2 WHERE id = $1', [t.id, req.body.plan]);
+    }
     if ('role' in req.body) {
       if (req.user.role !== 'dev') throw new HttpError(403, 'Роли назначает только разработчик');
       if (t.id === req.user.id) throw new HttpError(400, 'Свою роль менять нельзя');
