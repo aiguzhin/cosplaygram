@@ -2,10 +2,11 @@
    Цвета, шрифт заголовков и узор приходят из темы выбранного персонажа (themes.js).
    Макет: шапка · лента-сетка · нижняя панель на телефоне · листы (sheets) вместо модалок на телефоне. */
 :root {
-  --bg: #0D0E1C; --surface: #16182D; --surface-2: #1F2240; --line: #2B2F50;
-  --ink: #F1EEF8; --muted: #A4A3C3; --accent: #F2B33D; --on-accent: #1B1404; --accent-soft: rgba(242,179,61,.16); --accent-2: #8C9BFF;
+  --bg: #0B0A0F; --surface: #151419; --surface-2: #1E1C23; --line: #2A272F;
+  --ink: #F6F1EA; --muted: #A39C9E; --accent: #FF2E4D; --on-accent: #FFFFFF; --accent-soft: rgba(255,46,77,.16); --accent-2: #F6F1EA;
   --pattern: repeating-linear-gradient(135deg, rgba(242,179,61,.18) 0 1.5px, transparent 1.5px 11px);
-  --font-display: "Yeseva One", Georgia, serif;
+  --font-display: "Dela Gothic One", "Arial Black", sans-serif;
+  --font-brand: "Dela Gothic One", "Arial Black", sans-serif;
   --font-body: "Geologica", "Segoe UI", system-ui, -apple-system, sans-serif;
   --danger: #F0506E;
   --shadow: 0 20px 50px rgba(0,0,0,.5);
@@ -681,3 +682,114 @@ body { background-image: var(--motifs); background-attachment: fixed; }
 .char .art { background: var(--motifs), var(--pattern), var(--bg); }
 :root[data-motifs="off"] body { background-image: none; }
 :root[data-motifs="off"] .cover, :root[data-motifs="off"] .cd-head, :root[data-motifs="off"] .char .art { background: var(--pattern), var(--bg); }
+
+/* =====================================================================
+   «Сцена»: взрослый вид Cosplaygram (октябрь 2026)
+   Острые углы, плакатные заголовки капсом, кнопки как бирки, фото во всю карточку,
+   лёгкое плёночное зерно. Цвета и шрифт заголовков по-прежнему берутся из темы персонажа.
+   ===================================================================== */
+:root { --r: 4px; --r-lg: 6px; }
+body::after {
+  content: ""; position: fixed; inset: 0; z-index: 90; pointer-events: none; opacity: .06; mix-blend-mode: overlay;
+  background-image: url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+h1 { text-transform: uppercase; font-weight: 400; line-height: .98; letter-spacing: 0; }
+h2 { text-transform: uppercase; letter-spacing: .07em; font-size: .86rem; font-weight: 700; }
+.sheet .sh-head h2, .picker .head h2, .display { text-transform: uppercase; letter-spacing: 0; }
+:focus-visible { border-radius: 2px; }
+
+/* логотип: маска кицунэ + название тем же плакатным шрифтом в любой теме */
+.logo { gap: 10px; }
+.logo-mark { width: 30px; height: 30px; }
+.logo-word { font-family: var(--font-brand); font-size: 1.02rem; letter-spacing: .02em; text-transform: uppercase; line-height: 1; }
+@media (max-width: 520px) { .logo-word { font-size: .86rem; } .logo { gap: 7px; } .logo-mark { width: 26px; height: 26px; } .hide-xs { display: none !important; } }
+@media (max-width: 360px) { .logo-word { display: none; } }
+
+/* кнопки — как бирки: прямые углы, капс, разрядка */
+.btn, .btn.sm, .btn.lg { border-radius: 3px; text-transform: uppercase; letter-spacing: .07em; font-weight: 700; }
+.btn { font-size: .78rem; }
+.btn.sm { font-size: .7rem; }
+.btn.lg { font-size: .84rem; }
+.btn.primary { transition: transform .12s, box-shadow .12s, filter .15s; }
+@media (hover: hover) {
+  .btn.primary:hover { filter: none; transform: translate(-2px, -2px); box-shadow: 3px 3px 0 var(--ink); }
+  .btn:not(.primary):not(.ghost):hover { filter: none; background: color-mix(in srgb, var(--surface-2) 70%, var(--ink) 12%); }
+}
+.btn.ghost { box-shadow: inset 0 0 0 1px var(--line); }
+.header .btn.ghost, .menu .btn.ghost { box-shadow: none; }
+.iconbtn, .me-btn { border-radius: 4px; }
+.plus, .bottombar .create span.pl { border-radius: 4px !important; }
+.input { border-radius: 3px; border-color: var(--line); background: color-mix(in srgb, var(--surface-2) 60%, transparent); }
+.input:focus { background: var(--surface); }
+.chip { border-radius: 3px; background: transparent; box-shadow: inset 0 0 0 1px var(--line); text-transform: uppercase; letter-spacing: .08em; font-size: .7rem; font-weight: 700; min-height: 34px; }
+.chip.on { background: var(--accent); color: var(--on-accent); box-shadow: none; }
+.chip.tag { text-transform: none; letter-spacing: 0; font-weight: 500; font-size: .78rem; }
+.pill { border-radius: 2px; text-transform: uppercase; letter-spacing: .06em; }
+.box, .sheet, .menu, .land-cta, .toast, .card-img, .tile, .strip figure { border-radius: var(--r-lg); }
+.tile { border-radius: 2px; }
+.badge { border-radius: 3px; }
+.topnav a { text-transform: uppercase; letter-spacing: .07em; font-size: .74rem; font-weight: 700; }
+.bottombar a, .bottombar button { text-transform: uppercase; letter-spacing: .05em; font-size: .58rem !important; font-weight: 700 !important; }
+
+/* карточки персонажей: фото на всю карточку, имя поверх капсом, цвета темы — тонкой полосой снизу */
+.char { border-radius: 4px; box-shadow: none; background: #08070A; color: #fff; }
+.char .art { aspect-ratio: 3 / 4 !important; }
+.char .art img { transition: transform .5s cubic-bezier(.2,.7,.2,1), filter .3s; filter: saturate(.92) contrast(1.04); }
+.char .art::after { content: ""; position: absolute; inset: 0; z-index: 0; background: linear-gradient(180deg, transparent 45%, rgba(6,5,8,.55) 70%, rgba(6,5,8,.92)); pointer-events: none; }
+.char .meta { position: absolute; left: 0; right: 0; bottom: 0; z-index: 1; padding: 12px 12px 14px; gap: 4px; }
+.char .nm { font-family: var(--font-display); text-transform: uppercase; color: #fff; font-size: 1rem; letter-spacing: .01em; line-height: 1.02; }
+.char .fr { color: rgba(255,255,255,.66); font-size: .62rem; text-transform: uppercase; letter-spacing: .09em; line-height: 1.35; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.char .sw, .char.has-photo .sw { position: absolute; top: auto; left: 0; right: 0; bottom: 0; z-index: 2; display: flex; gap: 0; height: 3px; }
+.char .sw i { flex: 1; width: auto; height: 3px; border-radius: 0; box-shadow: none; }
+.char .art .cr { top: 8px; bottom: auto; left: 8px; right: 40px; font-size: .55rem; opacity: .75; }
+.char .art .cnt, .char.has-photo .art .cnt { top: auto; bottom: auto; top: 8px; left: auto; right: 8px; border-radius: 2px; color: #fff; background: rgba(0,0,0,.55); }
+.char.has-photo .art .cr ~ .cnt { top: 8px; }
+.char .ok { border-radius: 3px; top: 8px; left: 8px; right: auto; }
+.char.on { box-shadow: 0 0 0 2px var(--accent); transform: none; }
+.char.on .art .cnt { left: auto; }
+@media (hover: hover) { .char:hover .art img { transform: scale(1.05); filter: saturate(1.05) contrast(1.06); } .char:hover { box-shadow: 0 0 0 1px var(--accent); } }
+@media (max-width: 520px) { .char .meta { padding: 10px 10px 12px; } .char .nm { font-size: .9rem; } }
+.char-new { background: var(--surface); color: var(--ink); }
+.char-new .art { border-radius: 4px; }
+.char-new .art::after { display: none; }
+.char-new .meta { position: static; }
+.char-new .nm { color: var(--ink); }
+.char-new .fr { color: var(--muted); }
+
+/* стартовый экран: плакатный заголовок, бегущая строка с персонажами */
+.land { gap: 26px; }
+.land .kicker { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; font-size: .7rem; font-weight: 700; text-transform: uppercase; letter-spacing: .2em; color: var(--muted); margin-bottom: 14px; }
+.land .kicker b { font-family: var(--font-brand); font-weight: 400; color: var(--accent); letter-spacing: .4em; font-size: .78rem; }
+.land h1 { font-size: clamp(2.7rem, 10vw, 6.6rem); line-height: .9; max-width: 11ch; }
+.land h1 em { font-style: normal; color: var(--accent); }
+.land .lead { font-size: 1rem; margin-top: 18px; }
+.marq { position: relative; overflow: hidden; border-block: 1px solid var(--line); padding: 12px 0; -webkit-mask-image: linear-gradient(90deg, transparent, #000 8%, #000 92%, transparent); mask-image: linear-gradient(90deg, transparent, #000 8%, #000 92%, transparent); }
+.marq-in { display: flex; gap: 30px; width: max-content; animation: marq 70s linear infinite; font-family: var(--font-brand); text-transform: uppercase; font-size: clamp(1.1rem, 2.6vw, 1.7rem); line-height: 1; white-space: nowrap; }
+.marq-in span { color: transparent; -webkit-text-stroke: 1px color-mix(in srgb, var(--ink) 55%, transparent); }
+.marq-in span:nth-child(4n+1) { color: var(--ink); -webkit-text-stroke: 0; }
+.marq-in i { font-style: normal; color: var(--accent); }
+@keyframes marq { to { transform: translateX(-50%); } }
+@media (prefers-reduced-motion: reduce) { .marq-in { animation: none; } }
+.land-cta { border-radius: 4px; }
+.land-cta .t b { text-transform: uppercase; }
+.perks { border-top: 1px solid var(--line); padding-top: 22px; gap: 22px; }
+.perks b { font-family: var(--font-brand); font-weight: 400; text-transform: uppercase; font-size: .92rem; letter-spacing: .01em; }
+.perks b .link { font-size: inherit; }
+
+/* остальные экраны в том же духе */
+@media (max-width: 860px) { .sheet, .sheet.wide { border-radius: 8px 8px 0 0; } .grab { border-radius: 1px; width: 34px; height: 3px; } }
+.carousel .step { border-radius: 3px; }
+.carousel .step b { text-transform: uppercase; }
+.carousel .nav { border-radius: 3px; }
+.detail .title, .spot h1 { text-transform: uppercase; line-height: 1; }
+.spot .kick, .next-ev .d { text-transform: uppercase; letter-spacing: .08em; font-size: .78rem; font-weight: 700; }
+.spot .facts b { font-family: var(--font-brand); font-weight: 400; }
+.next-ev, .spot .pic { border-radius: 4px; }
+.card-img { border-radius: 4px; }
+.card-t { text-transform: uppercase; letter-spacing: .02em; font-size: .86rem; font-weight: 700; }
+.like { border-radius: 3px; }
+.wip-item .ring { background: conic-gradient(var(--accent), var(--accent-2), var(--accent)); }
+.section-title h2, .page-head h2 { font-size: .86rem; }
+.page-head h1 { font-size: clamp(2rem, 6vw, 3.4rem); }
+.guest-bar { border-radius: 4px !important; }
+.overlay { background: rgba(5, 4, 8, .72); }

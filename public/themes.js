@@ -28,6 +28,7 @@
 
   // Компактное описание: остальное считается автоматически (поверхности, текст, контраст кнопок).
   function T(id, name, from, cat, mode, bg, accent, accent2, font, pattern) {
+    if (font === 'Comfortaa') font = 'Unbounded';
     const dark = mode === 'dark';
     const ink = dark ? mix('#FFFFFF', accent, 0.06) : mix('#14141F', accent, 0.08);
     const surface = dark ? mix(bg, '#FFFFFF', 0.05) : '#FFFFFF';
@@ -40,8 +41,8 @@
   }
 
   const THEMES = [
-    T('classic', 'Классика Cosplaygram', 'Золотая нить на тёмной сцене', '', 'dark', '#0D0E1C', '#F2B33D', '#8C9BFF', 'Yeseva One', 'stitch'),
-    T('classic-light', 'Классика, светлая', 'Мастерская при дневном свете', '', 'light', '#F4F3F8', '#A86B00', '#3646C9', 'Yeseva One', 'stitch'),
+    T('classic', 'Классика Cosplaygram', 'Тёмная сцена и алый свет', '', 'dark', '#0B0A0F', '#FF2E4D', '#F6F1EA', 'Dela Gothic One', 'stitch'),
+    T('classic-light', 'Классика, светлая', 'Бумага, тушь и алый', '', 'light', '#F3EFE8', '#E0123A', '#0B0A0F', 'Dela Gothic One', 'stitch'),
 
     // ---------- Аниме ----------
     T('chuya', 'Тюя Накахара', 'Великий из бродячих псов', 'anime', 'dark', '#120D0E', '#E2672E', '#8E1F2F', 'Cormorant Garamond', 'stripes'),
@@ -184,7 +185,7 @@
   const has = (id) => !!byId[id];
 
   // Свои персонажи участников: тема из фото их косплея (id начинается с «my-»)
-  const FONTS = ['Unbounded', 'Cormorant Garamond', 'Yeseva One', 'Comfortaa', 'JetBrains Mono'];
+  const FONTS = ['Unbounded', 'Dela Gothic One', 'Cormorant Garamond', 'Yeseva One', 'JetBrains Mono'];
   const PATTERNS = ['dots', 'stars', 'diamond', 'check', 'stripes', 'grid', 'rain', 'waves', 'rings', 'stitch'];
   function add(d) {
     const t = Object.assign(
@@ -227,11 +228,13 @@
     const set = Array.from((t.custom && t.raw && t.raw.motifs) || MOTIFS[t.id] || (t.custom ? '🧵✨📸' : '🧵🪡✂️'));
     // эмодзи из нескольких символов (🏴‍☠️, 🐈‍⬛) — разбиваем по графемам
     const items = typeof Intl !== 'undefined' && Intl.Segmenter ? [...new Intl.Segmenter('ru', { granularity: 'grapheme' }).segment(set.join(''))].map((x) => x.segment) : set;
-    const key = items.join('') + op;
+    const key = items.join('') + op + t.accent;
+    const n = parseInt(t.accent.slice(1), 16), ch = (s) => (((n >> s) & 255) / 255).toFixed(3);
     if (motifCache[key]) return motifCache[key];
     const spots = [[34, 40, -14, 26], [128, 22, 12, 20], [196, 92, -6, 28], [72, 120, 18, 22], [160, 176, -20, 24], [24, 196, 8, 20], [112, 232, -10, 26], [210, 236, 16, 20]];
     const txt = spots.map(([x, y, r, s], i) => `<text x="${x}" y="${y}" font-size="${s}" transform="rotate(${r} ${x} ${y})" text-anchor="middle">${items[i % items.length]}</text>`).join('');
-    const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="240" height="260"><g opacity="${op}" font-family="Apple Color Emoji,Segoe UI Emoji,Noto Color Emoji,sans-serif">${txt}</g></svg>`;
+    // эмодзи перекрашиваются в силуэты цвета акцента — узор выглядит как трафарет, а не как стикеры
+    const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="240" height="260"><defs><filter id="m"><feColorMatrix type="matrix" values="0 0 0 0 ${ch(16)} 0 0 0 0 ${ch(8)} 0 0 0 0 ${ch(0)} 0 0 0 1 0"/></filter></defs><g opacity="${op}" filter="url(#m)" font-family="Apple Color Emoji,Segoe UI Emoji,Noto Color Emoji,sans-serif">${txt}</g></svg>`;
     return (motifCache[key] = `url("data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}")`);
   }
 
@@ -250,8 +253,8 @@
       '--accent-soft': hexA(t.accent, dark ? 0.16 : 0.11),
       '--accent-2': t.accent2,
       '--pattern': pattern(t),
-      '--motifs': motifs(t, dark ? 0.13 : 0.16),
-      '--motifs-strong': motifs(t, dark ? 0.32 : 0.36),
+      '--motifs': motifs(t, dark ? 0.07 : 0.08),
+      '--motifs-strong': motifs(t, dark ? 0.2 : 0.22),
       '--font-display': `"${t.font}", Georgia, serif`,
       '--shadow': dark ? '0 20px 50px rgba(0,0,0,.5)' : '0 20px 50px rgba(20,20,40,.14)',
       'color-scheme': t.mode,

@@ -575,7 +575,7 @@ function renderChrome() {
        <a class="iconbtn" href="#/notifications" aria-label="Уведомления">${ic.bell}${badge(state.unread)}</a>
        <button class="iconbtn plus desk-only" data-act="create" aria-label="Опубликовать">${ic.plus}</button>
        <button class="me-btn" id="meBtn" aria-haspopup="true" aria-label="Меню профиля">${ava(me, 32)}</button>`
-    : `<button class="iconbtn lang-btn" data-act="lang" aria-label="Язык: ${esc(CGLang.name(CGLang.current()))}">${ic.globe}<span class="lang-code notranslate" translate="no">${CGLang.current().split('-')[0].toUpperCase()}</span></button><button class="btn ghost sm" data-act="login">Войти</button><button class="btn primary sm" data-act="register">Регистрация</button>`;
+    : `<button class="iconbtn lang-btn" data-act="lang" aria-label="Язык: ${esc(CGLang.name(CGLang.current()))}">${ic.globe}<span class="lang-code notranslate" translate="no">${CGLang.current().split('-')[0].toUpperCase()}</span></button><button class="btn ghost sm hide-xs" data-act="login">Войти</button><button class="btn primary sm" data-act="register">Регистрация</button>`;
   const bn = $('#bottomNav');
   bn.hidden = !me;
   bn.innerHTML = !me ? '' : `
@@ -1356,9 +1356,12 @@ function openStory(gi, ii = 0) {
 /* ================= стартовый экран ================= */
 function pageLanding() {
   const sel = CG.stored() || 'classic';
+  const names = CG.THEMES.filter((t) => t.cat).slice(0, 18).map((t) => `<span>${esc(t.name)}</span><i>✦</i>`).join('');
   view().innerHTML = `<section class="land">
-    <div><h1>Кто вы сегодня?</h1>
+    <div><p class="kicker"><b class="notranslate" translate="no">コスプレグラム</b><span>Платформа косплееров · ${C.LIST.length} стран</span></p>
+      <h1>Кто вы <em>сегодня?</em></h1>
       <p class="lead">Выберите персонажа из аниме, манги, книг, фильмов или игр — Cosplaygram оденется в его стиль. Дальше: ваши костюмы, процесс создания, мастера и мероприятия рядом.</p></div>
+    <div class="marq" aria-hidden="true"><div class="marq-in">${names}${names}</div></div>
     <div id="land" data-sel="${sel}">${charTabs()}<div class="char-grid" style="margin-top:12px"></div></div>
     <div class="land-cta"><div class="t"><span class="small muted">Ваш стиль</span><br><b id="lnN">${esc(CG.get(sel).name)}</b></div>
       <div class="acts"><button class="btn" data-act="login">Войти</button><button class="btn primary" data-act="register">Зарегистрироваться</button></div></div>
