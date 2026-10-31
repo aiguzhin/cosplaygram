@@ -1712,7 +1712,7 @@ function chatThemePicker(thr, conv, canShare) {
 const REACTIONS = ['❤️', '😂', '😮', '😢', '😡', '👍', '🔥', '👏'];
 const REACT_ICON = '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M8.5 14.5c.9 1.2 2.1 1.8 3.5 1.8s2.6-.6 3.5-1.8"/><circle cx="9" cy="10" r=".6" fill="currentColor"/><circle cx="15" cy="10" r=".6" fill="currentColor"/></svg>';
 function reactsHtml(list) {
-  return (list || []).map((x) => `<button type="button" class="rc ${x.mine ? 'mine' : ''}" data-rc="${x.e}" aria-label="${x.e} ${x.n}${x.mine ? ', ваша реакция' : ''}">${x.e}${x.n > 1 ? `<span>${x.n}</span>` : ''}</button>`).join('');
+  return (list || []).map((x) => `<button type="button" class="rc ${x.mine ? 'mine' : ''}" data-rc="${esc(x.e)}" aria-label="${esc(x.e)} ${x.n}${x.mine ? ', ваша реакция' : ''}">${esc(x.e)}${x.n > 1 ? `<span>${x.n}</span>` : ''}</button>`).join('');
 }
 function drawReacts(ml, map) {
   for (const el of ml.querySelectorAll('.msg[data-mid]')) {
@@ -1729,18 +1729,59 @@ async function sendReact(msgEl, emoji) {
   try {
     const r = await api(`/messages/${encodeURIComponent(msgEl.dataset.mid)}/react`, { body: { emoji: value } });
     box.innerHTML = reactsHtml(r.reactions);
-    if (value) { const b = box.querySelector(`.rc[data-rc="${value}"]`); b?.classList.add('pop'); }
+    if (value) { [...box.querySelectorAll('.rc')].find((b) => b.dataset.rc === value)?.classList.add('pop'); rememberEmoji(value); }
   } catch (err) { toast(err.message); }
 }
+// Полный выбор эмодзи (кнопка «+» в реакциях)
+const EMOJI_CATS = [
+  ['😀', 'Смайлы', '😀😃😄😁😆😅🤣😂🙂🙃🫠😉😊😇🥰😍🤩😘😗😚😙🥲😋😛😜🤪😝🤑🤗🤭🫢🫣🤫🤔🫡🤐🤨😐😑😶🫥😏😒🙄😬😮‍💨🤥😌😔😪🤤😴😷🤒🤕🤢🤮🤧🥵🥶🥴😵😵‍💫🤯🤠🥳🥸😎🤓🧐😕🫤😟🙁☹️😮😯😲😳🥺🥹😦😧😨😰😥😢😭😱😖😣😞😓😩😫🥱😤😡😠🤬😈👿💀☠️💩🤡👹👺👻👽👾🤖😺😸😹😻😼😽🙀😿😾🙈🙉🙊'],
+  ['👍', 'Жесты', '👋🤚🖐️✋🖖🫱🫲🫳🫴👌🤌🤏✌️🤞🫰🤟🤘🤙👈👉👆🖕👇☝️🫵👍👎✊👊🤛🤜👏🙌🫶👐🤲🤝🙏✍️💅🤳💪🦾🦵🦶👂👃🧠🫀👀👁️👅👄🫦'],
+  ['❤️', 'Сердца', '❤️🧡💛💚💙💜🖤🤍🤎🩷🩵🩶❤️‍🔥❤️‍🩹💔❣️💕💞💓💗💖💘💝💟♥️💋💯💢💥💫💦💨🕳️💬💭💤✨⭐🌟🔥🎉🎊'],
+  ['🎭', 'Косплей', '🎭🎨🧵🪡🧶👘👗👑💍👠👢🎀🪭🪮💄💇🦋🪽🗡️⚔️🛡️🏹🪄🔮📸🎥🎬🎤🎧🎮🕹️🎲🃏🀄🎴🏮⛩️🗾🍙🍡🍜🍣🍥🥟🍵🧋🎎🎏🎐'],
+  ['🦊', 'Животные', '🦊🐱🐶🐰🐻🐼🐨🐯🦁🐮🐷🐸🐵🐔🐧🐦🐤🦆🦅🦉🦇🐺🐗🐴🦄🐝🪲🐛🦋🐌🐞🐢🐍🦎🐙🦑🦀🐠🐟🐬🐳🦈🐉🐲🦖🌸🌺🌻🌹🌷🌼💐🍀🌿🌵🌙☀️🌈⚡❄️☃️🌊'],
+  ['🍕', 'Еда', '🍎🍊🍋🍌🍉🍇🍓🫐🍒🍑🥭🍍🥥🥝🍅🥑🍆🥕🌽🌶️🥐🍞🧀🥚🍳🥓🍗🍖🌭🍔🍟🍕🥪🌮🌯🥗🍝🍲🍛🍱🍤🍰🎂🧁🍩🍪🍫🍬🍭🍿☕🍺🥂🍷🧃🥤'],
+  ['⚽', 'Разное', '⚽🏀🏐🎾🏓🥊🏆🥇🥈🥉🎯🎳🚗🚀✈️🛸🏠🏰🗼🎡🎢💻📱⌚📷💡📚✏️📌📎✂️🔒🔑🎁🎈🪅💰💎⏰⌛🔔📣✅❌⭕❓❗‼️⁉️💤🆗🆒🆕🔝🇰🇿🇷🇺🇺🇿🇰🇬🇯🇵🇰🇷🇨🇳🇺🇸🏳️‍🌈'],
+];
+const splitEmoji = (str) => [...new Intl.Segmenter('ru', { granularity: 'grapheme' }).segment(str)].map((x) => x.segment);
+function recentEmoji() { try { return JSON.parse(localStorage.getItem('cg-emoji') || '[]').slice(0, 8); } catch { return []; } }
+function rememberEmoji(e) {
+  if (REACTIONS.includes(e)) return;
+  try { localStorage.setItem('cg-emoji', JSON.stringify([e, ...recentEmoji().filter((x) => x !== e)].slice(0, 8))); } catch {}
+}
+function openEmojiSheet(onPick, cur) {
+  const rec = recentEmoji();
+  const cats = rec.length ? [['🕘', 'Недавние', rec.join('')], ...EMOJI_CATS] : EMOJI_CATS;
+  const o = openOverlay(sheet('Выберите реакцию', `
+    <div class="em-tabs" role="tablist">${cats.map(([icon, name], i) => `<button type="button" role="tab" data-emtab="${i}" aria-label="${name}" title="${name}">${icon}</button>`).join('')}</div>
+    <div class="em-body">${cats.map(([, name, list], i) => `<section data-emsec="${i}"><h3>${name}</h3><div class="em-grid">${splitEmoji(list).map((e) => `<button type="button" class="${e === cur ? 'on' : ''}" data-em="${esc(e)}" aria-label="${esc(e)}">${esc(e)}</button>`).join('')}</div></section>`).join('')}</div>`, 'em-sheet'));
+  const body = o.querySelector('.em-body');
+  const tabs = [...o.querySelectorAll('[data-emtab]')];
+  const markTab = () => {
+    const top = body.scrollTop + 10;
+    let on = 0;
+    o.querySelectorAll('[data-emsec]').forEach((sec, i) => { if (sec.offsetTop - body.offsetTop <= top) on = i; });
+    tabs.forEach((t, i) => t.classList.toggle('on', i === on));
+  };
+  body.addEventListener('scroll', markTab, { passive: true });
+  markTab();
+  o.querySelector('.sh-body').onclick = (e) => {
+    const t = e.target.closest('[data-emtab]');
+    if (t) { const sec = o.querySelector(`[data-emsec="${t.dataset.emtab}"]`); body.scrollTo({ top: sec.offsetTop - body.offsetTop, behavior: 'smooth' }); return; }
+    const b = e.target.closest('[data-em]');
+    if (b) { closeOverlay(); onPick(b.dataset.em); }
+  };
+}
 function closeReactPick() { $('.react-pick')?.remove(); }
-function openReactPick(msgEl) {
+function openReactPick(msgEl, byKeyboard = false) {
   closeReactPick();
   if (!state.me) return toast('Войдите, чтобы ставить реакции');
   const cur = msgEl.querySelector('.rc.mine')?.dataset.rc;
   const bar = document.createElement('div');
   bar.className = 'react-pick';
   bar.setAttribute('role', 'menu');
-  bar.innerHTML = REACTIONS.map((e) => `<button type="button" role="menuitem" class="${e === cur ? 'on' : ''}" data-pick="${e}" aria-label="${e}">${e}</button>`).join('');
+  const quick = [...new Set([...REACTIONS, ...recentEmoji()])];
+  bar.innerHTML = `<div class="rp-scroll">${quick.map((e) => `<button type="button" role="menuitem" class="${e === cur ? 'on' : ''}" data-pick="${esc(e)}" aria-label="${esc(e)}">${esc(e)}</button>`).join('')}
+    <button type="button" role="menuitem" class="rp-more" data-more aria-label="Все эмодзи"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg></button></div>`;
   document.body.append(bar);
   const r = msgEl.querySelector('.bubble').getBoundingClientRect();
   const w = bar.offsetWidth, h = bar.offsetHeight;
@@ -1750,8 +1791,15 @@ function openReactPick(msgEl) {
   if (y < 8) y = r.bottom + 8;
   bar.style.left = x + 'px';
   bar.style.top = y + 'px';
-  bar.onclick = (e) => { const b = e.target.closest('[data-pick]'); if (b) { closeReactPick(); sendReact(msgEl, b.dataset.pick); } };
-  bar.querySelector('button')?.focus({ preventScroll: true });
+  bar.onclick = (e) => {
+    if (e.target.closest('[data-more]')) { closeReactPick(); return openEmojiSheet((em) => sendReact(msgEl, em), cur); }
+    const b = e.target.closest('[data-pick]');
+    if (b) { closeReactPick(); sendReact(msgEl, b.dataset.pick); }
+  };
+  const sc = bar.querySelector('.rp-scroll');
+  sc.addEventListener('scroll', () => sc.classList.toggle('end', sc.scrollLeft + sc.clientWidth >= sc.scrollWidth - 2), { passive: true });
+  sc.addEventListener('wheel', (e) => { if (Math.abs(e.deltaY) > Math.abs(e.deltaX)) { sc.scrollLeft += e.deltaY; e.preventDefault(); } }, { passive: false });
+  if (byKeyboard) bar.querySelector('button')?.focus({ preventScroll: true });
   setTimeout(() => {
     const off = (e) => { if (!bar.contains(e.target)) { closeReactPick(); document.removeEventListener('pointerdown', off, true); } };
     document.addEventListener('pointerdown', off, true);
@@ -1763,7 +1811,7 @@ function bindReacts(ml) {
   ml.addEventListener('click', (e) => {
     const msg = e.target.closest('.msg[data-mid]');
     if (!msg) return;
-    if (e.target.closest('[data-react]')) return openReactPick(msg);
+    if (e.target.closest('[data-react]')) return openReactPick(msg, e.detail === 0);
     const rc = e.target.closest('[data-rc]');
     if (rc) { if (rc.classList.contains('mine')) sendReact(msg, rc.dataset.rc); else openReactPick(msg); return; }
     if (!e.target.closest('.bubble') || longFired) { longFired = false; return; }

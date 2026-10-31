@@ -467,9 +467,10 @@ select.input { background-image: linear-gradient(45deg, transparent 50%, var(--m
 .msg:hover .react-btn, .react-btn:focus-visible { opacity: 1; }
 .react-btn:hover { background: var(--surface-2); color: var(--text); }
 @media (hover: none) { .react-btn { display: none; } }
-.react-pick { position: fixed; z-index: 1000; display: flex; gap: 2px; padding: 6px; border-radius: 999px; background: var(--surface); border: 1px solid var(--line); box-shadow: 0 8px 28px rgba(0,0,0,.25); animation: rpick .18s ease-out; }
+.react-pick { position: fixed; z-index: 1000; padding: 6px; border-radius: 999px; max-width: calc(100vw - 16px); background: var(--surface); border: 1px solid var(--line); box-shadow: 0 8px 28px rgba(0,0,0,.25); animation: rpick .18s ease-out; }
 .react-pick button { width: 40px; height: 40px; border: 0; border-radius: 50%; background: transparent; font-size: 1.45rem; line-height: 1; cursor: pointer; transition: transform .12s; }
-.react-pick button:hover, .react-pick button:focus-visible { transform: scale(1.25); background: var(--surface-2); }
+@media (hover: hover) { .react-pick button:hover { transform: scale(1.18); background: var(--surface-2); } }
+.react-pick button:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
 .react-pick button.on { background: var(--surface-2); }
 @keyframes rpick { from { opacity: 0; transform: translateY(6px) scale(.9); } to { opacity: 1; transform: none; } }
 @media (prefers-reduced-motion: reduce) { .rc.pop, .react-pick { animation: none; } }
@@ -750,3 +751,21 @@ body { background-image: var(--motifs); background-attachment: fixed; }
 .fr-empty { font-size: .8rem; margin: 0; }
 .room.dm-link { display: flex; align-items: center; gap: 6px; color: var(--text); font-weight: 600; }
 .room.dm-link svg { width: 16px; height: 16px; }
+
+/* 4 реакции видно, остальные — прокруткой вправо, в конце «+» */
+.rp-scroll { display: flex; gap: 2px; width: calc(4 * 40px + 3 * 2px + 14px); overflow-x: auto; scroll-snap-type: x mandatory; scrollbar-width: none; overscroll-behavior: contain; -webkit-mask-image: linear-gradient(90deg, #000 calc(100% - 16px), transparent); mask-image: linear-gradient(90deg, #000 calc(100% - 16px), transparent); }
+.rp-scroll.end { -webkit-mask-image: none; mask-image: none; }
+.rp-scroll::-webkit-scrollbar { display: none; }
+.rp-scroll button { flex: none; scroll-snap-align: start; }
+.react-pick .rp-more { display: grid; place-items: center; background: var(--surface-2); color: var(--text); font-size: 1rem; }
+@media (max-width: 420px) { .rp-scroll { width: calc(4 * 36px + 3 * 2px + 13px); } }
+/* полный выбор эмодзи */
+.em-sheet .sh-body { display: flex; flex-direction: column; padding-top: 0; }
+.em-tabs { display: flex; gap: 2px; overflow-x: auto; scrollbar-width: none; padding: 4px 0 8px; border-bottom: 1px solid var(--line); flex: none; }
+.em-tabs button { flex: 1 0 40px; height: 40px; border: 0; border-radius: 10px; background: none; font-size: 1.3rem; cursor: pointer; opacity: .55; }
+.em-tabs button.on { opacity: 1; background: var(--surface-2); }
+.em-body { overflow-y: auto; max-height: min(52vh, 420px); padding-top: 4px; }
+.em-body h3 { font-size: .8rem; font-weight: 600; color: var(--muted); margin: 12px 4px 6px; }
+.em-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(44px, 1fr)); }
+.em-grid button { height: 44px; border: 0; border-radius: 10px; background: none; font-size: 1.6rem; line-height: 1; cursor: pointer; }
+.em-grid button:hover, .em-grid button:focus-visible, .em-grid button.on { background: var(--surface-2); }

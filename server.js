@@ -24,6 +24,9 @@ const themeId = (t) => (/^[a-z0-9-]{2,24}$/.test(String(t || '')) ? String(t) : 
 // Комнаты чата: общая, срочная помощь и по одной на каждую страну (код страны строчными буквами)
 // Реакции на сообщения, как в Instagram: одна реакция от человека на сообщение
 const REACTIONS = ['❤️', '😂', '😮', '😢', '😡', '👍', '🔥', '👏'];
+// Любой один эмодзи (через «+»): только символы эмодзи, без букв, цифр и пробелов
+const isEmoji = (s) => s.length <= 16 && /\p{Extended_Pictographic}|\p{Regional_Indicator}/u.test(s) && !/[\p{L}\p{N}\s<>&"'`]/u.test(s)
+  && [...new Intl.Segmenter('ru', { granularity: 'grapheme' }).segment(s)].length === 1;
 // Темы оформления чата: общая для диалога (видят оба) и личная (видит только сам человек)
 const CHAT_THEMES = ['classic', 'kitsune', 'sakura', 'night', 'neon', 'ocean', 'forest', 'sunset', 'lavender', 'mono', 'gold', 'ice'];
 const ROOMS = ['general', 'help', ...COUNTRIES.LIST.map(([c]) => c.toLowerCase())];
@@ -1251,7 +1254,7 @@ async function main() {
   app.post('/api/messages/:id/react', auth, wrap(async (req, res) => {
     const id = req.params.id, me = req.user.id;
     const emoji = String(req.body.emoji || '');
-    if (emoji && !REACTIONS.includes(emoji)) throw new HttpError(400, 'Такой реакции нет');
+    if (emoji && !REACTIONS.includes(emoji) && !isEmoji(emoji)) throw new HttpError(400, 'Такой реакции нет');
     const inChat = await one('SELECT id FROM messages WHERE id = $1', [id]);
     if (!inChat) {
       const dm = await one('SELECT from_id, to_id FROM dms WHERE id = $1', [id]);
