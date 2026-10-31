@@ -141,6 +141,21 @@ CREATE TABLE IF NOT EXISTS dms (
 );
 CREATE INDEX IF NOT EXISTS dms_from ON dms(from_id, to_id, created_at);
 CREATE INDEX IF NOT EXISTS dms_to ON dms(to_id, read);
+CREATE TABLE IF NOT EXISTS msg_reactions (
+  msg_id TEXT NOT NULL,
+  user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  emoji TEXT NOT NULL,
+  created_at DOUBLE PRECISION NOT NULL,
+  PRIMARY KEY (msg_id, user_id)
+);
+CREATE TABLE IF NOT EXISTS chat_themes (
+  conv TEXT NOT NULL,
+  user_id TEXT NOT NULL DEFAULT '',
+  theme TEXT NOT NULL,
+  set_by TEXT,
+  updated_at DOUBLE PRECISION NOT NULL,
+  PRIMARY KEY (conv, user_id)
+);
 CREATE TABLE IF NOT EXISTS event_going (
   event_id TEXT NOT NULL REFERENCES events(id) ON DELETE CASCADE,
   user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -307,7 +322,7 @@ async function connect() {
 // Перенос всех данных из старой базы в новую (по порядку, чтобы не сломать связи между таблицами)
 const TABLES = ['users', 'sessions', 'images', 'posts', 'post_images', 'likes', 'saves', 'comments', 'follows', 'stories',
   'threads', 'replies', 'events', 'event_going', 'event_results', 'achievements', 'messages', 'notifications', 'reports',
-  'dms', 'char_covers', 'services', 'orders', 'reviews', 'identities', 'settings', 'custom_themes'];
+  'dms', 'msg_reactions', 'chat_themes', 'char_covers', 'services', 'orders', 'reviews', 'identities', 'settings', 'custom_themes'];
 async function copyAll(src, dst, log = console.log) {
   for (const t of TABLES) {
     const [ex] = await src.query('SELECT to_regclass($1) AS r', ['public.' + t]);

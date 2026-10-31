@@ -1601,15 +1601,25 @@ async function pageSaved() {
 /* ================= личные сообщения ================= */
 async function pageMessages(username) {
   view().innerHTML = `<div class="msgr ${username ? 'in-thread' : ''}"><div class="convs" id="convs"><div class="skel" style="height:60px;margin:12px"></div></div>
-    <section class="thread" id="thr">${username ? '' : '<div class="empty" style="margin:auto"><h2>Выберите диалог</h2><p>Или откройте профиль мастера и нажмите «Написать».</p></div>'}</section></div>`;
+    <section class="thread" id="thr">${username ? '' : '<div class="empty" style="margin:auto"><h2>Выберите диалог</h2><p>Напишите другу из списка или откройте профиль мастера и нажмите «Написать».</p></div>'}</section></div>`;
+  let friendsHtml = '';
+  const loadFriends = async () => {
+    try {
+      const { friends } = await api('/friends');
+      friendsHtml = `<div class="friends"><div class="fr-head"><b>Друзья</b><span class="muted">взаимные подписки</span></div>
+        ${friends.length ? `<div class="fr-row">${friends.map((f) => `<a class="fr ${f.username === username ? 'on' : ''}" href="#/messages/${encodeURIComponent(f.username)}" title="Написать ${esc(f.name)}">${ava(f, 52)}<span>${esc(f.name.split(' ')[0])}</span></a>`).join('')}</div>`
+          : '<p class="muted fr-empty">Подпишитесь на косплееров. Когда они подпишутся в ответ, они появятся здесь и им можно будет сразу написать.</p>'}</div>`;
+    } catch {}
+  };
+  await loadFriends();
   const drawConvs = async () => {
     try {
       const { conversations } = await api('/dm');
       const box = $('#convs');
       if (!box) return;
-      box.innerHTML = conversations.map((c) => `<a class="conv ${c.user.username === username ? 'on' : ''}" href="#/messages/${encodeURIComponent(c.user.username)}">${ava(c.user, 44)}
+      box.innerHTML = friendsHtml + (conversations.map((c) => `<a class="conv ${c.user.username === username ? 'on' : ''}" href="#/messages/${encodeURIComponent(c.user.username)}">${ava(c.user, 44)}
         <span class="t"><b>${esc(c.user.name)}<span>${ago(c.createdAt)}</span></b><p>${c.mine ? 'Вы: ' : ''}${esc(c.last)}</p></span>${c.unread && c.user.username !== username ? `<span class="dotn">${c.unread}</span>` : ''}</a>`).join('')
-        || '<div class="empty"><h2>Пока нет сообщений</h2><p>Напишите мастеру из его профиля.</p><a class="btn" href="#/people">Найти мастеров</a></div>';
+        || '<div class="empty"><h2>Пока нет сообщений</h2><p>Напишите другу выше или мастеру из его профиля.</p><a class="btn" href="#/people">Найти мастеров</a></div>');
     } catch {}
   };
   drawConvs();
@@ -1619,7 +1629,7 @@ async function pageMessages(username) {
   try { ({ user: other } = await api(`/dm/${encodeURIComponent(username)}?after=${Date.now()}`)); }
   catch { $('#thr').innerHTML = '<div class="empty" style="margin:auto"><h2>Такого косплеера нет</h2></div>'; return; }
   if (other.id === state.me.id) { $('#thr').innerHTML = '<div class="empty" style="margin:auto"><h2>Это вы</h2><p>Себе написать нельзя.</p></div>'; return; }
-  $('#thr').innerHTML = `<div class="th-head"><a class="iconbtn mob-only" href="#/messages" aria-label="Все диалоги">${ic.back}</a><div style="min-width:0">${who(other, other.specialty || other.city)}</div></div>
+  $('#thr').innerHTML = `<div class="th-head"><a class="iconbtn mob-only" href="#/messages" aria-label="Все диалоги">${ic.back}</a><div style="min-width:0;flex:1">${who(other, other.specialty || other.city)}</div><button type="button" class="iconbtn" id="ctBtn" aria-label="Тема чата">${ic.palette}</button></div>
     <div class="msgs" id="ml" aria-live="polite"></div>
     <form class="composer" id="mf"><textarea class="input" id="mt" rows="1" maxlength="2000" enterkeyhint="send" placeholder="Сообщение" aria-label="Сообщение"></textarea>
       <button class="btn primary" aria-label="Отправить">${ic.send}</button></form>`;
@@ -1628,12 +1638,155 @@ async function pageMessages(username) {
     send: (text) => api(`/dm/${encodeURIComponent(username)}`, { body: { text } }),
     mineOf: (m) => m.mine,
     after: () => { refreshBadges(); drawConvs(); },
+    thr: $('#thr'),
   });
+  $('#ctBtn').onclick = () => chatThemePicker($('#thr'), 'dm:' + other.username, true);
   if (!isMobile()) $('#mt').focus({ preventScroll: true });
 }
 
+// Темы чата: общая на диалог (видят оба) и личная (видите только вы, она главнее общей)
+const CHAT_THEMES = {
+  classic: { name: 'Обычная', bg: '', mine: '', other: '' },
+  kitsune: { name: 'Кицунэ', bg: 'radial-gradient(circle at 80% 0%, #3a0f1a, #0b0a0f 60%)', mine: '#ff2e4d', mineT: '#fff', other: '#211a22', otherT: '#f3efe8', dark: 1 },
+  sakura: { name: 'Сакура', bg: 'linear-gradient(160deg, #fff0f4, #ffd9e4)', mine: '#e8507a', mineT: '#fff', other: '#ffffff', otherT: '#4a2230' },
+  night: { name: 'Ночь', bg: 'linear-gradient(180deg, #0d1330, #1d1446)', mine: '#6c63ff', mineT: '#fff', other: '#262a52', otherT: '#e8e8ff', dark: 1 },
+  neon: { name: 'Неон', bg: 'radial-gradient(circle at 20% 10%, #2b0b3d, #07060c 65%)', mine: 'linear-gradient(135deg, #ff2fd0, #7b2dff)', mineT: '#fff', other: '#1a1526', otherT: '#c9f7ff', dark: 1 },
+  ocean: { name: 'Океан', bg: 'linear-gradient(180deg, #d7f3ff, #a9dcf5)', mine: '#0a84c6', mineT: '#fff', other: '#ffffff', otherT: '#0c3550' },
+  forest: { name: 'Лес', bg: 'linear-gradient(180deg, #e3f1df, #c4dfbb)', mine: '#2f7d4a', mineT: '#fff', other: '#ffffff', otherT: '#1f3a26' },
+  sunset: { name: 'Закат', bg: 'linear-gradient(170deg, #ffcf8a, #ff8a7a 55%, #b04a8c)', mine: '#7a1f5c', mineT: '#fff', other: 'rgba(255,255,255,.85)', otherT: '#4a1838' },
+  lavender: { name: 'Лаванда', bg: 'linear-gradient(180deg, #f1ebff, #dcd0ff)', mine: '#7b5cd6', mineT: '#fff', other: '#ffffff', otherT: '#33265c' },
+  mono: { name: 'Манга', bg: 'repeating-radial-gradient(circle at 0 0, #fff 0 6px, #f1f1f1 6px 7px)', mine: '#111', mineT: '#fff', other: '#fff', otherT: '#111', border: '#111' },
+  gold: { name: 'Золото', bg: 'radial-gradient(circle at 50% 0%, #2c2312, #0d0b07 70%)', mine: 'linear-gradient(135deg, #f6d27a, #b8862e)', mineT: '#1d1505', other: '#231d12', otherT: '#f3e6c4', dark: 1 },
+  ice: { name: 'Лёд', bg: 'linear-gradient(180deg, #f4fbff, #dceefa)', mine: 'linear-gradient(135deg, #64c8ff, #3a7bd5)', mineT: '#fff', other: '#ffffff', otherT: '#1b3550' },
+};
+function applyChatTheme(el, t) {
+  if (!el) return;
+  const id = (t && (t.mine || t.shared)) || '';
+  el.dataset.themeState = JSON.stringify(t || {});
+  const th = CHAT_THEMES[id];
+  if (!th || !th.bg) { delete el.dataset.ct; ['--ct-bg', '--ct-mine', '--ct-mine-t', '--ct-other', '--ct-other-t', '--ct-border'].forEach((v) => el.style.removeProperty(v)); return; }
+  el.dataset.ct = th.dark ? 'dark' : 'light';
+  el.style.setProperty('--ct-bg', th.bg);
+  el.style.setProperty('--ct-mine', th.mine);
+  el.style.setProperty('--ct-mine-t', th.mineT);
+  el.style.setProperty('--ct-other', th.other);
+  el.style.setProperty('--ct-other-t', th.otherT);
+  el.style.setProperty('--ct-border', th.border || 'transparent');
+}
+function chatThemePicker(thr, conv, canShare) {
+  if (!state.me) return toast('Войдите, чтобы менять тему');
+  let t = {};
+  try { t = JSON.parse(thr.dataset.themeState || '{}'); } catch {}
+  let scope = canShare ? (t.mine ? 'me' : 'all') : 'me';
+  const sw = (id, th) => `<button type="button" class="ct-sw" data-ct-pick="${id}" aria-label="${th.name}"><span class="ct-prev" style="background:${th.bg || 'var(--surface)'}"><i style="background:${th.other || 'var(--surface-2)'};${th.border ? 'border:1px solid ' + th.border : ''}"></i><i style="background:${th.mine || 'var(--accent)'}"></i></span>${th.name}</button>`;
+  const o = openOverlay(sheet('Тема чата', `
+    ${canShare ? `<div class="seg ct-scope" role="radiogroup" aria-label="Для кого тема">
+      <button type="button" role="radio" data-scope="all">Для нас обоих</button><button type="button" role="radio" data-scope="me">Только для меня</button></div>
+      <p class="muted ct-hint"></p>` : '<p class="muted">Эту тему видите только вы. Остальные видят чат как обычно.</p>'}
+    <div class="ct-grid">${Object.entries(CHAT_THEMES).map(([id, th]) => sw(id, th)).join('')}</div>`, 'ct-sheet'));
+  const mark = () => {
+    const cur = scope === 'all' ? t.shared || 'classic' : t.mine || '';
+    o.querySelectorAll('[data-ct-pick]').forEach((b) => b.classList.toggle('on', b.dataset.ctPick === cur));
+    o.querySelectorAll('[data-scope]').forEach((b) => { const on = b.dataset.scope === scope; b.classList.toggle('on', on); b.setAttribute('aria-checked', on); });
+    const h = o.querySelector('.ct-hint');
+    if (h) h.textContent = scope === 'all' ? 'Тема поменяется и у собеседника.' : t.mine ? 'Ваша тема главнее общей. Нажмите «Обычная», чтобы снова видеть общую.' : 'Эту тему увидите только вы, она будет главнее общей.';
+  };
+  mark();
+  o.querySelector('.sh-body').onclick = async (e) => {
+    const sc = e.target.closest('[data-scope]');
+    if (sc) { scope = sc.dataset.scope; mark(); return; }
+    const b = e.target.closest('[data-ct-pick]');
+    if (!b) return;
+    const id = b.dataset.ctPick === 'classic' ? '' : b.dataset.ctPick;
+    try {
+      const r = await api('/chat-theme', { body: { conv, theme: id, scope } });
+      t = r.theme;
+      applyChatTheme(thr, t);
+      mark();
+      toast(scope === 'all' ? 'Тема чата обновлена для вас обоих' : 'Тема чата обновлена');
+    } catch (err) { toast(err.message); }
+  };
+}
+
+// Реакции на сообщения, как в Instagram: двойное нажатие — ❤️, долгое нажатие или кнопка — выбор эмодзи
+const REACTIONS = ['❤️', '😂', '😮', '😢', '😡', '👍', '🔥', '👏'];
+const REACT_ICON = '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M8.5 14.5c.9 1.2 2.1 1.8 3.5 1.8s2.6-.6 3.5-1.8"/><circle cx="9" cy="10" r=".6" fill="currentColor"/><circle cx="15" cy="10" r=".6" fill="currentColor"/></svg>';
+function reactsHtml(list) {
+  return (list || []).map((x) => `<button type="button" class="rc ${x.mine ? 'mine' : ''}" data-rc="${x.e}" aria-label="${x.e} ${x.n}${x.mine ? ', ваша реакция' : ''}">${x.e}${x.n > 1 ? `<span>${x.n}</span>` : ''}</button>`).join('');
+}
+function drawReacts(ml, map) {
+  for (const el of ml.querySelectorAll('.msg[data-mid]')) {
+    const box = el.querySelector('.reacts');
+    const html = reactsHtml(map[el.dataset.mid]);
+    if (box && box.innerHTML !== html) box.innerHTML = html;
+  }
+}
+async function sendReact(msgEl, emoji) {
+  if (!state.me) return toast('Войдите, чтобы ставить реакции');
+  const box = msgEl.querySelector('.reacts');
+  const mine = box.querySelector('.rc.mine');
+  const value = mine && mine.dataset.rc === emoji ? '' : emoji;
+  try {
+    const r = await api(`/messages/${encodeURIComponent(msgEl.dataset.mid)}/react`, { body: { emoji: value } });
+    box.innerHTML = reactsHtml(r.reactions);
+    if (value) { const b = box.querySelector(`.rc[data-rc="${value}"]`); b?.classList.add('pop'); }
+  } catch (err) { toast(err.message); }
+}
+function closeReactPick() { $('.react-pick')?.remove(); }
+function openReactPick(msgEl) {
+  closeReactPick();
+  if (!state.me) return toast('Войдите, чтобы ставить реакции');
+  const cur = msgEl.querySelector('.rc.mine')?.dataset.rc;
+  const bar = document.createElement('div');
+  bar.className = 'react-pick';
+  bar.setAttribute('role', 'menu');
+  bar.innerHTML = REACTIONS.map((e) => `<button type="button" role="menuitem" class="${e === cur ? 'on' : ''}" data-pick="${e}" aria-label="${e}">${e}</button>`).join('');
+  document.body.append(bar);
+  const r = msgEl.querySelector('.bubble').getBoundingClientRect();
+  const w = bar.offsetWidth, h = bar.offsetHeight;
+  let x = msgEl.classList.contains('mine') ? r.right - w : r.left;
+  x = Math.max(8, Math.min(x, innerWidth - w - 8));
+  let y = r.top - h - 8;
+  if (y < 8) y = r.bottom + 8;
+  bar.style.left = x + 'px';
+  bar.style.top = y + 'px';
+  bar.onclick = (e) => { const b = e.target.closest('[data-pick]'); if (b) { closeReactPick(); sendReact(msgEl, b.dataset.pick); } };
+  bar.querySelector('button')?.focus({ preventScroll: true });
+  setTimeout(() => {
+    const off = (e) => { if (!bar.contains(e.target)) { closeReactPick(); document.removeEventListener('pointerdown', off, true); } };
+    document.addEventListener('pointerdown', off, true);
+  });
+  bar.addEventListener('keydown', (e) => { if (e.key === 'Escape') { closeReactPick(); msgEl.querySelector('[data-react]')?.focus(); } });
+}
+function bindReacts(ml) {
+  let timer = null, lastTap = 0, lastEl = null, longFired = false;
+  ml.addEventListener('click', (e) => {
+    const msg = e.target.closest('.msg[data-mid]');
+    if (!msg) return;
+    if (e.target.closest('[data-react]')) return openReactPick(msg);
+    const rc = e.target.closest('[data-rc]');
+    if (rc) { if (rc.classList.contains('mine')) sendReact(msg, rc.dataset.rc); else openReactPick(msg); return; }
+    if (!e.target.closest('.bubble') || longFired) { longFired = false; return; }
+    const t = Date.now();
+    if (lastEl === msg && t - lastTap < 320) { lastTap = 0; sendReact(msg, '❤️'); getSelection()?.removeAllRanges(); }
+    else { lastTap = t; lastEl = msg; }
+  });
+  ml.addEventListener('pointerdown', (e) => {
+    const b = e.target.closest('.bubble');
+    if (!b || e.pointerType === 'mouse') return;
+    longFired = false;
+    timer = setTimeout(() => { longFired = true; navigator.vibrate?.(10); openReactPick(b.closest('.msg')); }, 450);
+  });
+  const cancel = () => clearTimeout(timer);
+  ml.addEventListener('pointerup', cancel);
+  ml.addEventListener('pointercancel', cancel);
+  ml.addEventListener('pointermove', (e) => { if (Math.abs(e.movementY) > 4 || Math.abs(e.movementX) > 4) cancel(); });
+  ml.addEventListener('contextmenu', (e) => { if (e.target.closest('.bubble') && e.pointerType !== 'mouse' && longFired) e.preventDefault(); });
+  ml.addEventListener('scroll', closeReactPick, { passive: true });
+}
+
 // Общая лента сообщений для личных и чата: опрос раз в 3 секунды, отправка по Enter
-async function threadLoop({ load, send, mineOf, authorOf, after }) {
+async function threadLoop({ load, send, mineOf, authorOf, after, thr }) {
   const ml = $('#ml');
   let last = 0, lastDay = '', firstAfter = true;
   const add = (msgs) => {
@@ -1646,7 +1799,7 @@ async function threadLoop({ load, send, mineOf, authorOf, after }) {
       const dl = dayLabel(m.createdAt);
       if (dl !== lastDay) { html += `<div class="day">${dl}</div>`; lastDay = dl; }
       const a = authorOf?.(m);
-      html += `<div class="msg ${mineOf(m) ? 'mine' : ''}">${a ? `<a href="${userLink(a)}">${ava(a, 28)}</a>` : ''}<div class="bubble">${a ? `<span class="w">${esc(a.name)}</span>` : ''}${esc(m.text)}<time>${hhmm(m.createdAt)}</time></div></div>`;
+      html += `<div class="msg ${mineOf(m) ? 'mine' : ''}" data-mid="${esc(m.id)}">${a ? `<a href="${userLink(a)}">${ava(a, 28)}</a>` : ''}<div class="mcol"><div class="bubble">${a ? `<span class="w">${esc(a.name)}</span>` : ''}${esc(m.text)}<time>${hhmm(m.createdAt)}</time></div><div class="reacts"></div></div>${state.me ? `<button type="button" class="react-btn" data-react aria-label="Реакция">${REACT_ICON}</button>` : ''}</div>`;
     }
     ml.insertAdjacentHTML('beforeend', html);
     last = Math.max(last, ...fresh.map((m) => m.createdAt));
@@ -1657,11 +1810,15 @@ async function threadLoop({ load, send, mineOf, authorOf, after }) {
   const poll = async () => {
     if (!document.body.contains(ml)) return;
     try {
-      const got = add((await load(last)).messages);
+      const r = await load(last);
+      const got = add(r.messages);
+      if (r.reactions) drawReacts(ml, r.reactions);
+      if (r.theme && thr && JSON.stringify(r.theme) !== thr.dataset.themeState) applyChatTheme(thr, r.theme);
       if ((got || firstAfter) && after) after();
       firstAfter = false;
     } catch {}
   };
+  bindReacts(ml);
   await poll();
   if (!last) ml.innerHTML = '<div class="empty" id="mEmpty" style="margin:auto"><p>Здесь пока тихо. Напишите первым!</p></div>';
   clearInterval(state.timers.thread);
@@ -1695,10 +1852,10 @@ async function pageChat(params) {
   const mine = state.me?.country?.toLowerCase();
   const shown = [...new Set(['general', mine, room].filter((k) => ROOMS[k] && k !== 'help'))];
   const link = (k) => `<a class="room ${k === room ? 'on' : ''}" href="#/chat?r=${k}">${k === 'help' ? '# ' : ''}${ROOMS[k]}</a>`;
-  view().innerHTML = `<div class="msgr chat in-thread"><nav class="rooms" aria-label="Комнаты">${shown.map(link).join('')}
+  view().innerHTML = `<div class="msgr chat in-thread"><nav class="rooms" aria-label="Комнаты">${state.me ? `<a class="room dm-link" href="#/messages">${ic.mail} Личные</a>` : ''}${shown.map(link).join('')}
       <select class="input room-pick" id="roomPick" aria-label="Чат другой страны"><option value="">🌐 Другая страна…</option>${C.sorted().map(([c, n]) => `<option value="${c.toLowerCase()}">${C.flag(c)} ${n}</option>`).join('')}</select>${link('help')}</nav>
-    <section class="thread"><div class="msgs" id="ml" aria-live="polite"></div>
-      <form class="composer" id="mf"><textarea class="input" id="mt" rows="1" maxlength="1000" enterkeyhint="send" placeholder="Сообщение: ${esc(ROOMS[room].replace(/^\S+ /, ''))}" aria-label="Сообщение"></textarea>
+    <section class="thread" id="thr"><div class="msgs" id="ml" aria-live="polite"></div>
+      <form class="composer" id="mf">${state.me ? `<button type="button" class="iconbtn" id="ctBtn" aria-label="Тема чата">${ic.palette}</button>` : ''}<textarea class="input" id="mt" rows="1" maxlength="1000" enterkeyhint="send" placeholder="Сообщение: ${esc(ROOMS[room].replace(/^\S+ /, ''))}" aria-label="Сообщение"></textarea>
         <button class="btn primary" aria-label="Отправить">${ic.send}</button></form></section></div>`;
   $('.room.on')?.scrollIntoView({ inline: 'center', block: 'nearest' });
   $('#roomPick').onchange = (e) => { if (e.target.value) location.hash = '#/chat?r=' + e.target.value; };
@@ -1707,7 +1864,9 @@ async function pageChat(params) {
     send: (text) => api(`/chat/${room}`, { body: { text } }),
     mineOf: (m) => state.me && m.authorId === state.me.id,
     authorOf: (m) => (state.me && m.authorId === state.me.id ? null : m.author),
+    thr: $('#thr'),
   });
+  $('#ctBtn')?.addEventListener('click', () => chatThemePicker($('#thr'), 'room:' + room, false));
 }
 
 /* ================= уведомления ================= */

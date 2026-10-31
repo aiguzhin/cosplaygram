@@ -22,6 +22,10 @@ const CURRENCIES = ['KZT', 'RUB', 'UZS', 'KGS', 'USD', 'EUR'];
 const ORDER_STATUSES = ['new', 'accepted', 'declined', 'done', 'cancelled'];
 const themeId = (t) => (/^[a-z0-9-]{2,24}$/.test(String(t || '')) ? String(t) : '');
 // Комнаты чата: общая, срочная помощь и по одной на каждую страну (код страны строчными буквами)
+// Реакции на сообщения, как в Instagram: одна реакция от человека на сообщение
+const REACTIONS = ['❤️', '😂', '😮', '😢', '😡', '👍', '🔥', '👏'];
+// Темы оформления чата: общая для диалога (видят оба) и личная (видит только сам человек)
+const CHAT_THEMES = ['classic', 'kitsune', 'sakura', 'night', 'neon', 'ocean', 'forest', 'sunset', 'lavender', 'mono', 'gold', 'ice'];
 const ROOMS = ['general', 'help', ...COUNTRIES.LIST.map(([c]) => c.toLowerCase())];
 const KZ_CITIES = ['Алматы', 'Астана', 'Шымкент', 'Актобе', 'Караганда', 'Атырау', 'Актау', 'Павлодар', 'Костанай', 'Тараз', 'Уральск', 'Семей', 'Усть-Каменогорск', 'Кызылорда', 'Петропавловск', 'Туркестан'];
 
@@ -1184,7 +1188,8 @@ async function main() {
          ORDER BY created_at DESC LIMIT 200) x ORDER BY created_at`,
       [me, other.id, Number(req.query.after) || 0]);
     await q('UPDATE dms SET read = TRUE WHERE from_id = $1 AND to_id = $2 AND read = FALSE', [other.id, me]);
-    res.json({ user: userView(other), messages: rows.map((m) => ({ id: m.id, text: m.text, createdAt: m.created_at, mine: m.from_id === me })) });
+    const recent = (await q('SELECT id FROM dms WHERE (from_id = $1 AND to_id = $2) OR (from_id = $2 AND to_id = $1) ORDER BY created_at DESC LIMIT 200', [me, other.id])).map((r) => r.id);
+    res.json({ user: userView(other), messages: rows.map((m) => ({ id: m.id, text: m.text, createdAt: m.created_at, mine: m.from_id === me })), reactions: await reactsFor(recent, me), theme: await themesFor('dm:' + [me, other.id].sort().join(':'), me) });
   }));
   app.post('/api/dm/:username', auth, wrap(async (req, res) => {
     const other = await one('SELECT id, demo FROM users WHERE username = $1', [req.params.username.toLowerCase()]);
@@ -1205,7 +1210,12 @@ async function main() {
          WHERE m.room = $1 AND m.created_at > $2 ORDER BY m.created_at DESC LIMIT 100) x ORDER BY created_at`,
       [req.params.room, Number(req.query.after) || 0]
     );
-    res.json({ messages: rows.map((m) => ({ id: m.id, text: m.text, createdAt: m.created_at, authorId: m.author_id, author: userView(m, 'a_') })) });
+    const recent = (await q('SELECT id FROM messages WHERE room = $1 ORDER BY created_at DESC LIMIT 100', [req.params.room])).map((r) => r.id);
+    res.json({
+      messages: rows.map((m) => ({ id: m.id, text: m.text, createdAt: m.created_at, authorId: m.author_id, author: userView(m, 'a_') })),
+      reactions: await reactsFor(recent, req.user?.id),
+      theme: await themesFor('room:' + req.params.room, req.user?.id),
+    });
   }));
   app.post('/api/chat/:room', auth, wrap(async (req, res) => {
     if (!ROOMS.includes(req.params.room)) throw new HttpError(404, 'Нет такой комнаты');
@@ -1220,7 +1230,75 @@ async function main() {
     if (!m) throw new HttpError(404, 'Сообщение не найдено');
     if (m.author_id !== req.user.id && !isAdmin(req)) throw new HttpError(403, 'Нет прав удалить это сообщение');
     await q('DELETE FROM messages WHERE id = $1', [req.params.id]);
+    await q('DELETE FROM msg_reactions WHERE msg_id = $1', [req.params.id]);
     res.json({ ok: true });
+  }));
+
+  // Реакции к последним сообщениям ленты: {id: [{e, n, mine}]}
+  async function reactsFor(ids, me) {
+    if (!ids.length) return {};
+    const rows = await q('SELECT msg_id, emoji, user_id FROM msg_reactions WHERE msg_id = ANY($1) ORDER BY created_at', [ids]);
+    const out = {};
+    for (const r of rows) {
+      const list = (out[r.msg_id] ||= []);
+      let it = list.find((x) => x.e === r.emoji);
+      if (!it) list.push((it = { e: r.emoji, n: 0, mine: false }));
+      it.n++;
+      if (me && r.user_id === me) it.mine = true;
+    }
+    return out;
+  }
+  app.post('/api/messages/:id/react', auth, wrap(async (req, res) => {
+    const id = req.params.id, me = req.user.id;
+    const emoji = String(req.body.emoji || '');
+    if (emoji && !REACTIONS.includes(emoji)) throw new HttpError(400, 'Такой реакции нет');
+    const inChat = await one('SELECT id FROM messages WHERE id = $1', [id]);
+    if (!inChat) {
+      const dm = await one('SELECT from_id, to_id FROM dms WHERE id = $1', [id]);
+      if (!dm) throw new HttpError(404, 'Сообщение не найдено');
+      if (dm.from_id !== me && dm.to_id !== me) throw new HttpError(403, 'Это не ваш диалог');
+    }
+    const old = await one('SELECT emoji FROM msg_reactions WHERE msg_id = $1 AND user_id = $2', [id, me]);
+    await q('DELETE FROM msg_reactions WHERE msg_id = $1 AND user_id = $2', [id, me]);
+    if (emoji && (!old || old.emoji !== emoji)) {
+      await q('INSERT INTO msg_reactions (msg_id, user_id, emoji, created_at) VALUES ($1,$2,$3,$4)', [id, me, emoji, now()]);
+    }
+    res.json({ reactions: (await reactsFor([id], me))[id] || [] });
+  }));
+
+  // ----- темы чата и друзья -----
+  // Ключ беседы: room:<комната> или dm:<id1>:<id2> (id по порядку)
+  async function convKey(raw, me) {
+    const [kind, name] = String(raw || '').split(':');
+    if (kind === 'room' && ROOMS.includes(name)) return { key: 'room:' + name, shared: false };
+    if (kind === 'dm' && name) {
+      const other = await one('SELECT id FROM users WHERE username = $1', [name.toLowerCase()]);
+      if (!other || other.id === me) throw new HttpError(404, 'Косплеер не найден');
+      return { key: 'dm:' + [me, other.id].sort().join(':'), shared: true };
+    }
+    throw new HttpError(400, 'Неизвестный чат');
+  }
+  async function themesFor(key, me) {
+    const rows = await q("SELECT user_id, theme FROM chat_themes WHERE conv = $1 AND user_id IN ('', $2)", [key, me || '-']);
+    return { shared: rows.find((r) => r.user_id === '')?.theme || '', mine: rows.find((r) => r.user_id === me)?.theme || '' };
+  }
+  app.post('/api/chat-theme', auth, wrap(async (req, res) => {
+    const me = req.user.id;
+    const { key, shared } = await convKey(req.body.conv, me);
+    const theme = String(req.body.theme || '');
+    if (theme && !CHAT_THEMES.includes(theme)) throw new HttpError(400, 'Такой темы нет');
+    const scope = req.body.scope === 'all' ? '' : me;
+    if (scope === '' && !shared) throw new HttpError(403, 'Общую тему можно поставить только в личном диалоге');
+    await q('DELETE FROM chat_themes WHERE conv = $1 AND user_id = $2', [key, scope]);
+    if (theme) await q('INSERT INTO chat_themes (conv, user_id, theme, set_by, updated_at) VALUES ($1,$2,$3,$4,$5)', [key, scope, theme, me, now()]);
+    res.json({ theme: await themesFor(key, me) });
+  }));
+  // Друзья — взаимные подписки: вы подписаны на человека, и он на вас
+  app.get('/api/friends', auth, wrap(async (req, res) => {
+    const rows = await q(
+      `SELECT ${userCols} FROM follows a JOIN follows b ON b.follower_id = a.followee_id AND b.followee_id = a.follower_id
+       JOIN users u ON u.id = a.followee_id WHERE a.follower_id = $1 ORDER BY u.name LIMIT 300`, [req.user.id]);
+    res.json({ friends: rows.map((r) => userView(r)) });
   }));
 
   // ----- уведомления -----
