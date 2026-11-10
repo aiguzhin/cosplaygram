@@ -1,9 +1,5 @@
-databases:
-  - name: cosplaygram-db
-    plan: free
-    databaseName: cosplaygram
-    user: cosplaygram
-
+# На Render работает только пересылка старого адреса cosplaygram.onrender.com на cosplaygram.kz.
+# Сам сайт и база — на своём сервере в Казахстане (папка deploy/). База на Render не нужна.
 services:
   - type: web
     name: cosplaygram
@@ -15,7 +11,3 @@ services:
     envVars:
       - key: NODE_VERSION
         value: "20"
-      - key: DATABASE_URL
-        fromDatabase:
-          name: cosplaygram-db
-          property: connectionString

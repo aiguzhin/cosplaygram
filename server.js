@@ -77,7 +77,20 @@ class HttpError extends Error {
 }
 const wrap = (fn) => (req, res, next) => Promise.resolve(fn(req, res, next)).catch(next);
 
+// На Render живёт только старый адрес cosplaygram.onrender.com: он пересылает все ссылки на cosplaygram.kz.
+// База ему не нужна (бесплатная база Render удалена), поэтому там запускается только пересылка.
+// Render сам ставит переменную RENDER=true; на сервере в Казахстане её нет.
+function redirectOnly() {
+  const app = express();
+  const to = (process.env.CANONICAL_URL || 'https://cosplaygram.kz').replace(/\/+$/, '');
+  app.get('/healthz', (req, res) => res.type('text').send('ok'));
+  app.use((req, res) => res.redirect(301, to + req.originalUrl));
+  const port = process.env.PORT || 3000;
+  app.listen(port, () => console.log(`Пересылка на ${to} запущена на порту ${port}`));
+}
+
 async function main() {
+  if (process.env.RENDER === 'true' && process.env.FULL_APP !== '1') return redirectOnly();
   const db = await connect();
   const q = db.query;
   const one = async (sql, p) => (await q(sql, p))[0] || null;
