@@ -180,6 +180,22 @@ const ROLE_LABEL = { dev: 'Разработчик', admin: 'Модератор' 
 const vmark = (u) => (u?.verified || u?.role === 'dev' ? `<span class="vmark" title="Подтверждённый аккаунт" aria-label="Подтверждённый аккаунт">${ic.verified}</span>` : '') +
   (u?.plan === 'pro' || u?.plan === 'max' ? `<span class="pmark ${u.plan}" title="Подписка ${u.plan === 'max' ? 'Макс' : 'Про'}">${u.plan.toUpperCase()}</span>` : '');
 const rolePill = (u) => (ROLE_LABEL[u?.role] ? `<span class="pill role-${u.role}">${ROLE_LABEL[u.role]}</span>` : '');
+// Роль на сайте: каждый выбирает сам. Заказы принимают только мастера и фотографы
+const KINDS = {
+  cosplayer: { icon: '🎭', name: 'Косплеер', many: 'Косплееры', hint: 'Создаю образы и выступаю', sub: 'Создают образы и выступают на фестивалях.' },
+  master: { icon: '🧵', name: 'Мастер', many: 'Мастера', hint: 'Шью, делаю парики, реквизит или грим на заказ', sub: 'Шьют костюмы, делают парики, реквизит и грим на заказ.' },
+  photographer: { icon: '📸', name: 'Фотограф', many: 'Фотографы', hint: 'Снимаю косплей', sub: 'Снимают косплей: фотосессии и съёмка на фестивалях.' },
+  organizer: { icon: '🎪', name: 'Организатор', many: 'Организаторы', hint: 'Провожу фестивали и сходки', sub: 'Проводят фестивали, конкурсы и сходки.' },
+  fan: { icon: '⭐', name: 'Зритель', many: 'Зрители', hint: 'Смотрю и поддерживаю', sub: 'Смотрят, болеют и поддерживают косплееров.' },
+};
+const SELLERS = ['master', 'photographer'];
+const isSeller = (u) => SELLERS.includes(u?.kind);
+const kindOf = (u) => KINDS[u?.kind] || KINDS.cosplayer;
+const kindPill = (u) => `<span class="pill kind-pill">${kindOf(u).icon} ${kindOf(u).name}</span>`;
+const kindPick = (cur = 'cosplayer', id = 'kp') => `<fieldset class="kind-pick" id="${id}"><legend class="label">Кто вы на Cosplaygram?</legend>
+  <div class="kind-grid">${Object.entries(KINDS).map(([k, v]) => `<label class="kind-opt"><input type="radio" name="kind" value="${k}" ${k === cur ? 'checked' : ''}>
+    <span class="ko-i" aria-hidden="true">${v.icon}</span><span class="ko-t"><b>${v.name}</b><small>${v.hint}</small></span></label>`).join('')}</div>
+  <p class="hint">Роль можно сменить в настройках. Принимать заказы могут мастера и фотографы.</p></fieldset>`;
 const SOCIAL = { instagram: ['Instagram', 'https://instagram.com/'], tiktok: ['TikTok', 'https://www.tiktok.com/@'], telegram: ['Telegram', 'https://t.me/'], vk: ['VK', 'https://vk.com/'], youtube: ['YouTube', 'https://www.youtube.com/@'] };
 const ACH = { place: ['🏆', 'Призовое место'], jury: ['⚖️', 'Жюри'], guest: ['🎤', 'Приглашённый гость'], organizer: ['📣', 'Организатор'], other: ['⭐', 'Другое'] };
 const CUR = { KZT: '₸', RUB: '₽', UZS: 'сум', KGS: 'сом', USD: '$', EUR: '€' };
@@ -561,7 +577,7 @@ const NAV = [
   { k: 'events', href: '#/events', label: 'Мероприятия' },
   { k: 'forum', href: '#/forum', label: 'Форум' },
   { k: 'chat', href: '#/chat', label: 'Чат' },
-  { k: 'people', href: '#/people', label: 'Мастера' },
+  { k: 'people', href: '#/people', label: 'Люди' },
 ];
 const curKey = () => (location.hash.slice(2).split(/[/?]/)[0]) || '';
 const badge = (n) => (n ? `<span class="badge num">${n > 99 ? '99+' : n}</span>` : '');
@@ -607,7 +623,7 @@ function openMenu() {
     <div class="sep mob-only"></div>
     <a href="#/forum" class="mob-only">${ic.forum}Форум</a>
     <a href="#/chat" class="mob-only">${ic.chat}Чат</a>
-    <a href="#/people" class="mob-only">${ic.users}Мастера</a>
+    <a href="#/people" class="mob-only">${ic.users}Люди</a>
     <div class="sep"></div>
     <button class="mi" data-act="picker">${ic.palette}Сменить персонажа<span class="r">${esc(t.name)}</span></button>
     <a href="#/settings">${ic.gear}Настройки профиля</a>
@@ -693,6 +709,7 @@ function openAuth(mode = 'login', after) {
         <p class="hint">По почте и паролю вы будете входить. Другие участники её не видят.</p></div>` : ''}
       <div class="field"><label for="au-user">${reg ? 'Ник' : 'Почта или ник'}</label><input class="input" id="au-user" name="username" autocomplete="${reg ? 'nickname' : 'username'}" autocapitalize="none" autocorrect="off" spellcheck="false" required placeholder="${reg ? 'например, aru.cos' : 'name@mail.ru или aru.cos'}"></div>
       ${reg ? `<div class="field"><label for="au-name">Имя</label><input class="input" id="au-name" name="name" autocomplete="given-name" placeholder="Как вас называть"></div>
+        ${kindPick('cosplayer', 'au-kind')}
         <div class="field"><label for="au-spec">Ваше лучшее качество</label><input class="input" id="au-spec" name="specialty" maxlength="60" placeholder="Необязательно">
           <p class="hint">Крафт, вигмейкинг, грим, сценическое выступление, макияж и т. д.</p></div>
         <div class="row"><div class="field"><label for="au-country">Страна</label><select class="input" id="au-country" name="country" autocomplete="country">${countryOptions(C.guess())}</select></div>
@@ -819,6 +836,7 @@ function openSocialSignup(s, after) {
       <div class="field"><label for="sg-user">Ник</label><input class="input" id="sg-user" name="username" value="${esc(s.username || '')}" autocapitalize="none" autocorrect="off" spellcheck="false" required maxlength="30">
         <p class="hint">Латиницей, от 3 символов: буквы, цифры, точка или _.</p></div>
       <div class="field"><label for="sg-name">Имя</label><input class="input" id="sg-name" name="name" value="${esc(s.name || '')}" maxlength="60" placeholder="Как вас называть"></div>
+      ${kindPick('cosplayer', 'sg-kind')}
       <div class="field"><label for="sg-spec">Ваше лучшее качество</label><input class="input" id="sg-spec" name="specialty" maxlength="60" placeholder="Необязательно">
         <p class="hint">Крафт, вигмейкинг, грим, сценическое выступление, макияж и т. д.</p></div>
       <div class="row"><div class="field"><label for="sg-country">Страна</label><select class="input" id="sg-country" name="country">${countryOptions(C.guess())}</select></div>
@@ -1417,7 +1435,7 @@ async function pageFeed(params) {
   const next = events.find((e) => e.date >= todayLocal());
   const label = FILTERS.find(([k]) => k === f)[1];
   const empty = {
-    following: ['Здесь будут работы тех, на кого вы подписаны', 'Найдите мастеров и подпишитесь.', '<a class="btn" href="#/people">Найти мастеров</a>'],
+    following: ['Здесь будут работы тех, на кого вы подписаны', 'Найдите мастеров и подпишитесь.', '<a class="btn" href="#/people?kind=master">Найти мастеров</a>'],
     near: ['В вашей стране пока нет публикаций', 'Станьте первым — покажите свой костюм.', '<button class="btn primary" data-act="create">Опубликовать</button>'],
     process: ['Пока нет пошаговых публикаций', 'Покажите, как вы делали свой костюм.', '<button class="btn primary" data-act="create-process">Показать процесс</button>'],
   }[f] || [f ? `Пока нет работ в разделе «${label}»` : 'Пока нет публикаций', 'Станьте первым — покажите свой костюм.', '<button class="btn primary" data-act="create">Опубликовать</button>'];
@@ -1485,7 +1503,7 @@ async function pageProcess() {
 
 /* ================= поиск и мастера ================= */
 const personItem = (u) => `<a class="item" href="${userLink(u)}">${ava(u, 46)}<span style="min-width:0"><h3>${esc(u.name)}${vmark(u)}</h3>
-  <span class="meta">@${esc(u.username)}${u.specialty ? ' · ' + esc(u.specialty) : ''}${place(u) ? ' · ' + place(u) : ''}</span>
+  <span class="meta">${kindOf(u).icon} ${kindOf(u).name} · @${esc(u.username)}${u.specialty ? ' · ' + esc(u.specialty) : ''}${place(u) ? ' · ' + place(u) : ''}</span>
   ${u.ordersOpen || u.reviews ? `<span class="meta" style="display:block">${u.ordersOpen ? '<span class="pill accent">Принимает заказы</span> ' : ''}${u.reviews ? rateText(u.rating, u.reviews) : ''}</span>` : ''}</span>
   ${u.followers != null ? `<span class="count-b"><b class="num">${u.followers}</b>${plural(u.followers, 'подписчик', 'подписчика', 'подписчиков')}</span>` : `<span class="muted" style="width:18px;display:inline-flex">${ic.right}</span>`}</a>`;
 
@@ -1497,7 +1515,7 @@ async function pageSearch(params) {
   $('#sF').onsubmit = (e) => { e.preventDefault(); const v = $('#sq').value.trim(); location.hash = '#/search' + (v ? '?q=' + encodeURIComponent(v) : ''); };
   if (!q) { if (!isMobile()) $('#sq').focus(); $('#sR').innerHTML = '<p class="muted">Введите слово или выберите подсказку.</p>'; return; }
   const { users, posts } = await api('/search?q=' + encodeURIComponent(q));
-  $('#sR').innerHTML = (users.length ? `<div class="section"><h2 style="margin-bottom:6px">Мастера</h2><div class="list">${users.slice(0, 8).map(personItem).join('')}</div></div>` : '') +
+  $('#sR').innerHTML = (users.length ? `<div class="section"><h2 style="margin-bottom:6px">Люди</h2><div class="list">${users.slice(0, 8).map(personItem).join('')}</div></div>` : '') +
     (posts.length ? `<div class="section"><h2 style="margin-bottom:10px">Публикации · ${posts.length}</h2><div class="tiles">${posts.map(tile).join('')}</div></div>`
       : `<div class="empty"><h2>По запросу «${esc(q)}» ничего нет</h2><p>Попробуйте другое слово.</p></div>`);
   bindCards(view());
@@ -1506,15 +1524,18 @@ async function pageSearch(params) {
 async function pagePeople(params) {
   const country = C.valid(params.get('country'));
   const city = params.get('city') || '';
-  const { users } = await api('/users');
-  const href = (o) => { const q = new URLSearchParams(); if (o.country) q.set('country', o.country); if (o.city) q.set('city', o.city); const s = q.toString(); return '#/people' + (s ? '?' + s : ''); };
   const onlyOrders = params.get('orders') === '1';
+  const kind = KINDS[params.get('kind')] ? params.get('kind') : onlyOrders ? '' : '';
+  const { users } = await api('/users' + (kind ? '?kind=' + kind : ''));
+  const href = (o) => { const q = new URLSearchParams(); if (o.kind ?? kind) q.set('kind', o.kind ?? kind); if (o.country) q.set('country', o.country); if (o.city) q.set('city', o.city); const s = q.toString(); return '#/people' + (s ? '?' + s : ''); };
   const inCountry = users.filter((u) => (!country || u.country === country) && (!onlyOrders || u.ordersOpen));
+  const kindChips = `<div class="chips" style="margin-bottom:8px" role="group" aria-label="Роль"><a class="chip ${!kind ? 'on' : ''}" href="${href({ kind: '', country })}">Все</a>${Object.entries(KINDS).map(([k, v]) => `<a class="chip ${k === kind ? 'on' : ''}" href="${href({ kind: k, country })}">${v.icon} ${v.many}</a>`).join('')}</div>`;
   const cities = country ? [...new Set(inCountry.map((u) => u.city).filter(Boolean))] : [];
-  view().innerHTML = `<div class="narrow"><div class="page-head"><div><h1>Мастера</h1><p class="muted">Косплееры, швеи, реквизиторы, мастера париков и фотографы.</p></div>${state.me ? '<button class="btn sm" id="ppSugg">Рекомендации</button>' : ''}</div>
-    <input class="input" id="pq" type="search" placeholder="Имя, ник или специальность" aria-label="Найти мастера" style="margin-bottom:10px">
-    <div class="chips" style="margin-bottom:8px"><a class="chip ${onlyOrders ? 'on' : ''}" href="${onlyOrders ? href({ country }) : href({ country }) + (country ? '&' : '?') + 'orders=1'}">${ic.bag}Принимают заказы</a></div>
-    <div class="chips" style="margin-bottom:8px">${countryChips(users.map((u) => u.country), country, (c) => href({ country: c }) + (onlyOrders ? (c ? '&' : '?') + 'orders=1' : ''))}</div>
+  view().innerHTML = `<div class="narrow"><div class="page-head"><div><h1>${kind ? KINDS[kind].many : 'Люди'}</h1><p class="muted">${kind ? KINDS[kind].sub : 'Косплееры, мастера, фотографы, организаторы и зрители.'}</p></div>${state.me ? '<button class="btn sm" id="ppSugg">Рекомендации</button>' : ''}</div>
+    <input class="input" id="pq" type="search" placeholder="Имя, ник или специальность" aria-label="Найти человека" style="margin-bottom:10px">
+    ${kindChips}
+    ${!kind || SELLERS.includes(kind) ? `<div class="chips" style="margin-bottom:8px"><a class="chip ${onlyOrders ? 'on' : ''}" href="${onlyOrders ? href({ country }) : href({ country }) + (href({ country }).includes('?') ? '&' : '?') + 'orders=1'}">${ic.bag}Принимают заказы</a></div>` : ''}
+    <div class="chips" style="margin-bottom:8px">${countryChips(users.map((u) => u.country), country, (c) => { const h = href({ country: c }); return h + (onlyOrders ? (h.includes('?') ? '&' : '?') + 'orders=1' : ''); })}</div>
     ${cities.length > 1 ? `<div class="chips" style="margin-bottom:8px"><a class="chip ${!city ? 'on' : ''}" href="${href({ country })}">Все города</a>${cities.map((c) => `<a class="chip ${c === city ? 'on' : ''}" href="${href({ country, city: c })}">${esc(c)}</a>`).join('')}</div>` : ''}
     <div class="list" id="pl"></div></div>`;
   const draw = () => {
@@ -1528,10 +1549,37 @@ async function pagePeople(params) {
 }
 
 /* ================= профиль ================= */
+// Своя шапка профиля: загрузить, сменить или убрать
+function bindCover(done) {
+  const f = $('#cvF');
+  if (f) f.onchange = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    const lbl = document.querySelector('label[for="cvF"]');
+    lbl?.classList.add('busy');
+    try {
+      const image = await readImage(file, 1600);
+      const { user } = await api('/me/cover', { body: { image } });
+      state.me = user;
+      toast('Шапка профиля обновлена');
+      done();
+    } catch (err) { toast(err.message); lbl?.classList.remove('busy'); }
+  };
+  const del = $('#cvDel');
+  if (del) del.onclick = async () => {
+    try {
+      const { user } = await api('/me/cover', { method: 'DELETE' });
+      state.me = user;
+      toast('Шапка убрана');
+      done();
+    } catch (err) { toast(err.message); }
+  };
+}
+
 async function pageProfile(username) {
   let d;
   try { d = await api('/users/' + encodeURIComponent(username)); }
-  catch { view().innerHTML = '<div class="empty"><h2>Такого косплеера нет</h2><a class="btn" href="#/people">Все мастера</a></div>'; return; }
+  catch { view().innerHTML = '<div class="empty"><h2>Такого косплеера нет</h2><a class="btn" href="#/people">Все люди</a></div>'; return; }
   const { user: u, posts, stats } = d;
   const ach = d.achievements || [];
   const services = d.services || [], reviews = d.reviews || [], rating = d.rating || { count: 0 };
@@ -1541,9 +1589,10 @@ async function pageProfile(username) {
   const t = themeOf(u);
   const procN = posts.filter((p) => p.kind === 'process').length;
   view().innerHTML = `
-    <div class="cover ${t.photo ? 'has-photo' : ''}" style="${CG.styleAttr(t)}">${t.photo ? `<img class="cv-img" src="${esc(t.photo)}" alt="">` : ''}<div class="ch"><span>${t.custom ? 'Свой персонаж' : 'Персонаж'}</span><b>${esc(t.name)}</b><span>${esc(t.from)}</span></div></div>
+    <div class="cover ${u.cover ? 'has-photo own' : ''}" style="${CG.styleAttr(t)}">${u.cover ? `<img class="cv-img" src="${esc(u.cover)}" alt="Шапка профиля ${esc(u.name)}">` : ''}
+      ${mine ? `<div class="cv-acts"><label class="btn sm cv-btn" for="cvF">${ic.image}${u.cover ? 'Сменить шапку' : 'Поставить шапку'}</label><input type="file" id="cvF" accept="image/*" hidden>${u.cover ? `<button type="button" class="btn sm cv-btn" id="cvDel" aria-label="Убрать шапку">${ic.trash}</button>` : ''}</div>` : ''}</div>
     <div class="prof">${ava(u, 96)}<div class="nm"><h1>${esc(u.name)}${vmark(u)}</h1>
-      <div class="muted">@${esc(u.username)} ${rolePill(u)} ${u.ordersOpen ? '<span class="pill accent">Принимает заказы</span>' : ''}</div>
+      <div class="muted">@${esc(u.username)} ${kindPill(u)} ${rolePill(u)} ${u.ordersOpen ? '<span class="pill accent">Принимает заказы</span>' : ''}</div>
       ${rating.count ? `<div class="small" style="margin-top:2px">${stars(rating.avg)} <b>${String(rating.avg).replace('.', ',')}</b> <span class="muted">· ${rating.count} ${plural(rating.count, 'отзыв', 'отзыва', 'отзывов')}</span></div>` : ''}</div></div>
     <div class="prof-info">
       ${u.specialty || place(u) ? `<div style="font-weight:500">${[esc(u.specialty), place(u)].filter(Boolean).join(' · ')}</div>` : ''}
@@ -1554,7 +1603,7 @@ async function pageProfile(username) {
     <div class="prof-acts">${mine
       ? `<a class="btn" href="#/settings">${ic.edit}Настроить профиль</a><button class="btn" data-act="picker">${ic.palette}Сменить персонажа</button><button class="btn" id="shP">${ic.share}Поделиться</button>`
       : `<button class="btn ${following ? '' : 'primary'}" id="fol">${following ? 'Вы подписаны' : 'Подписаться'}</button><a class="btn" href="#/messages/${encodeURIComponent(u.username)}">${ic.mail}Написать</a><button class="btn ic" id="shP" aria-label="Поделиться профилем">${ic.share}</button><button class="btn ghost ic" data-report="user:${u.id}" aria-label="Пожаловаться">${ic.flag}</button>`}</div>
-    ${u.ordersOpen || services.length || reviews.length ? `<section class="ach"><div class="ach-h"><h2>${ic.bag}Услуги и цены</h2>${mine ? '<a class="btn sm" href="#/settings">Изменить</a>' : u.ordersOpen ? '<button class="btn sm primary" data-order="">Заказать</button>' : ''}</div>
+    ${u.ordersOpen || (isSeller(u) && services.length) || reviews.length ? `<section class="ach"><div class="ach-h"><h2>${ic.bag}Услуги и цены</h2>${mine ? '<a class="btn sm" href="#/settings">Изменить</a>' : u.ordersOpen ? '<button class="btn sm primary" data-order="">Заказать</button>' : ''}</div>
       ${!u.ordersOpen ? '<p class="muted small" style="margin-bottom:8px">Сейчас не принимает заказы.</p>' : ''}
       ${services.length ? `<div class="ach-list">${services.map((x) => `<div class="ach-item"><span class="at"><b>${esc(x.title)}</b><span>${priceText(x)}${x.days ? ` · ${x.days} дн.` : ''}${x.note ? ' · ' + esc(x.note) : ''}</span></span>${!mine && u.ordersOpen ? `<button class="btn sm" data-order="${x.id}">Заказать</button>` : ''}</div>`).join('')}</div>` : u.ordersOpen ? '<p class="muted small">Цены по договорённости — опишите задачу в заявке.</p>' : ''}
       ${reviews.length ? `<h3 style="margin:16px 0 8px">Отзывы · ${reviews.length}</h3><div class="ach-list">${reviews.map((v) => `<div class="review">${who(v.author, ago(v.createdAt), 30)}${stars(v.rating)}${v.title ? `<span class="muted small">Заказ: ${esc(v.title)}</span>` : ''}${v.text ? `<p>${esc(v.text)}</p>` : ''}</div>`).join('')}</div>` : ''}</section>` : ''}
@@ -1563,6 +1612,7 @@ async function pageProfile(username) {
         : '<p class="muted small">Добавьте призовые места, судейство и выступления на фестивалях: так вас быстрее найдут как мастера.</p>'}</section>` : ''}
     <div class="tabs-line" role="tablist"><button class="on" data-f="all">Работы · ${posts.length}</button><button data-f="process">Процесс · ${procN}</button>${mine ? '<button data-f="saved">Сохранённое</button>' : ''}</div>
     <div class="tiles" id="pG"></div>`;
+  if (mine) bindCover(() => pageProfile(username));
   const fill = async (f) => {
     let list = posts;
     if (f === 'process') list = posts.filter((p) => p.kind === 'process');
@@ -1619,7 +1669,7 @@ async function pageMessages(username) {
       if (!box) return;
       box.innerHTML = friendsHtml + (conversations.map((c) => `<a class="conv ${c.user.username === username ? 'on' : ''}" href="#/messages/${encodeURIComponent(c.user.username)}">${ava(c.user, 44)}
         <span class="t"><b>${esc(c.user.name)}<span>${ago(c.createdAt)}</span></b><p>${c.mine ? 'Вы: ' : ''}${esc(c.last)}</p></span>${c.unread && c.user.username !== username ? `<span class="dotn">${c.unread}</span>` : ''}</a>`).join('')
-        || '<div class="empty"><h2>Пока нет сообщений</h2><p>Напишите другу выше или мастеру из его профиля.</p><a class="btn" href="#/people">Найти мастеров</a></div>');
+        || '<div class="empty"><h2>Пока нет сообщений</h2><p>Напишите другу выше или мастеру из его профиля.</p><a class="btn" href="#/people?kind=master">Найти мастеров</a></div>');
     } catch {}
   };
   drawConvs();
@@ -2163,7 +2213,7 @@ async function pageOrders(params) {
   const tab = params.get('t') || (incoming.length || !outgoing.length ? 'in' : 'out');
   const list = tab === 'in' ? incoming : outgoing;
   view().innerHTML = `<div class="narrow"><div class="page-head"><div><h1>Заказы</h1><p class="muted">Заявки мастерам и от заказчиков.</p></div>
-      <a class="btn" href="#/people?orders=1">${ic.users}Найти мастера</a></div>
+      <a class="btn" href="#/people?kind=master&orders=1">${ic.users}Найти мастера</a></div>
     <div class="tabs-line" role="tablist"><a class="${tab === 'in' ? 'on' : ''}" href="#/orders?t=in">Мне заказали · ${incoming.length}</a><a class="${tab === 'out' ? 'on' : ''}" href="#/orders?t=out">Мои заказы · ${outgoing.length}</a></div>
     <div>${list.map((o) => {
       const other = tab === 'in' ? o.client : o.master;
@@ -2178,7 +2228,7 @@ async function pageOrders(params) {
           : `<form class="form rvF" data-id="${o.id}"><label class="label">Оцените работу мастера</label><div class="rate" role="radiogroup" aria-label="Оценка">${[1, 2, 3, 4, 5].map((i) => `<label><input type="radio" name="rating" value="${i}" ${i === 5 ? 'checked' : ''}><span>${ic.star}</span></label>`).join('')}</div>
             <textarea class="input" name="text" maxlength="1000" placeholder="Что понравилось, качество, сроки"></textarea><button class="btn primary sm" style="align-self:flex-start">Оставить отзыв</button></form>`) : ''}</div>`;
     }).join('') || `<div class="empty"><h2>${tab === 'in' ? 'Заявок пока нет' : 'Вы ещё ничего не заказывали'}</h2><p>${tab === 'in' ? 'Включите «Принимаю заказы» в настройках и добавьте услуги с ценами.' : 'Найдите мастера с отметкой «Принимает заказы».'}</p>
-      <a class="btn" href="${tab === 'in' ? '#/settings' : '#/people?orders=1'}">${tab === 'in' ? 'Настроить заказы' : 'Найти мастера'}</a></div>`}</div></div>`;
+      <a class="btn" href="${tab === 'in' ? '#/settings' : '#/people?kind=master&orders=1'}">${tab === 'in' ? 'Настроить заказы' : 'Найти мастера'}</a></div>`}</div></div>`;
   $$('[data-st]').forEach((b) => (b.onclick = async () => { try { await api(`/orders/${b.dataset.id}/status`, { body: { status: b.dataset.st } }); toast('Готово'); route(); } catch (e) { toast(e.message); } }));
   $$('.rvF').forEach((f) => (f.onsubmit = async (e) => { e.preventDefault(); try { await api(`/orders/${f.dataset.id}/review`, { body: Object.fromEntries(new FormData(f)) }); toast('Спасибо за отзыв!'); route(); } catch (x) { toast(x.message); } }));
 }
@@ -2204,7 +2254,7 @@ async function pageSettings() {
   let avatar = null;
   view().innerHTML = `<div class="narrow"><div class="page-head"><div><h1>Настройки</h1></div><a class="btn sm" href="${userLink(u)}">Мой профиль</a></div>
     <section class="section"><h2 style="margin-bottom:12px">Персонаж</h2>
-      <div class="cur-char">${charCard(t, true)}<div class="stack" style="gap:8px"><p class="muted">Сайт оформлен в стиле <b style="color:var(--ink)">${esc(t.name)}</b>. Обложка вашего профиля тоже в этом стиле.</p>
+      <div class="cur-char">${charCard(t, true)}<div class="stack" style="gap:8px"><p class="muted">Сайт оформлен в стиле <b style="color:var(--ink)">${esc(t.name)}</b>. Это тема сайта, в профиле её название не показывается. Шапку профиля можно поставить свою: откройте <a href="${userLink(u)}">свой профиль</a> и нажмите «Поставить шапку».</p>
         <div class="row" style="gap:8px;flex-wrap:wrap"><button class="btn" data-act="picker">${ic.palette}Сменить персонажа</button><button class="btn" data-act="mychar">${ic.plus}Свой персонаж</button></div>
         <label class="check"><input type="checkbox" id="motifsOn" ${document.documentElement.dataset.motifs === 'off' ? '' : 'checked'}> Элементы мира персонажа на фоне</label>
         <p class="hint">Есть косплей на персонажа, которого нет в каталоге? Сделайте свою тему из фото — с вашими цветами и вашим фото на обложке.</p></div></div>
@@ -2217,6 +2267,7 @@ async function pageSettings() {
         <div class="field"><label for="s-n">Имя</label><input class="input" id="s-n" name="name" value="${esc(u.name)}" maxlength="60" autocomplete="given-name"></div>
         <div class="row"><div class="field"><label for="s-co">Страна</label><select class="input" id="s-co" name="country">${countryOptions(u.country)}</select></div>
           <div class="field"><label for="s-c">Город</label><input class="input" id="s-c" name="city" value="${esc(u.city)}" maxlength="40"></div></div>
+        ${kindPick(u.kind || 'cosplayer', 's-kind')}
         <div class="field"><label for="s-s">Ваше лучшее качество</label><input class="input" id="s-s" name="specialty" value="${esc(u.specialty)}" maxlength="60" placeholder="Например, вигмейкинг">
           <p class="hint">Крафт, вигмейкинг, грим, сценическое выступление, макияж и т. д.</p></div>
         <div class="field"><label for="s-b">О себе</label><textarea class="input" id="s-b" name="bio" maxlength="300">${esc(u.bio)}</textarea></div>
@@ -2224,7 +2275,9 @@ async function pageSettings() {
           <div class="soc-grid">${Object.entries(SOCIAL).map(([k, [n]]) => `<div class="field"><label for="so-${k}">${n}</label><input class="input" id="so-${k}" name="so_${k}" value="${esc(u.socials?.[k] || '')}" maxlength="200" autocapitalize="none" spellcheck="false" placeholder="@ник"></div>`).join('')}</div></fieldset>
         <button class="btn primary" style="align-self:flex-start">Сохранить</button>
       </form></section>
-    <section class="section"><h2 style="margin-bottom:6px">Заказы</h2>
+    <section class="section" id="noSell" ${isSeller(u) ? 'hidden' : ''}><h2 style="margin-bottom:6px">Заказы</h2>
+      <p class="muted">Принимать заказы и добавлять услуги с ценами могут мастера и фотографы. Если вы шьёте, делаете парики, реквизит или снимаете на заказ, выберите роль «Мастер» или «Фотограф» выше и нажмите «Сохранить».</p></section>
+    <section class="section" id="sellSec" ${isSeller(u) ? '' : 'hidden'}><h2 style="margin-bottom:6px">Заказы</h2>
       <p class="muted" style="margin-bottom:10px">Шьёте, делаете парики, броню или фотосессии на заказ? Включите заказы и укажите цены — в профиле появится кнопка «Заказать».</p>
       <label class="check" style="margin-bottom:12px"><input type="checkbox" id="ordOpen" ${u.ordersOpen ? 'checked' : ''}> Принимаю заказы</label>
       <div class="ach-list" id="svL"></div>
@@ -2314,6 +2367,9 @@ async function pageSettings() {
       state.me = user;
       avatar = null;
       renderChrome();
+      $('#sellSec').hidden = !isSeller(user);
+      $('#noSell').hidden = isSeller(user);
+      $('#ordOpen').checked = user.ordersOpen;
       toast('Профиль сохранён');
     } catch (err) { toast(err.message); }
     b.disabled = false;
@@ -2521,7 +2577,7 @@ async function route() {
     $('#retry').onclick = route;
   }
   if (!state.me) view().insertAdjacentHTML('beforeend', `<div class="guest-bar"><span><b>Cosplaygram</b> — костюмы, мастера и фестивали</span><button class="btn primary sm" data-act="register">Присоединиться</button></div>`);
-  const titles = { orders: 'Заказы', process: 'Мастерская', search: 'Поиск', people: 'Мастера', saved: 'Сохранённое', settings: 'Настройки', notifications: 'Уведомления', messages: 'Сообщения', forum: 'Форум', events: 'Мероприятия', chat: 'Чат', admin: 'Модерация', p: 'Публикация', u: '@' + decodeURIComponent(parts[1] || '') };
+  const titles = { orders: 'Заказы', process: 'Мастерская', search: 'Поиск', people: 'Люди', saved: 'Сохранённое', settings: 'Настройки', notifications: 'Уведомления', messages: 'Сообщения', forum: 'Форум', events: 'Мероприятия', chat: 'Чат', admin: 'Модерация', p: 'Публикация', u: '@' + decodeURIComponent(parts[1] || '') };
   document.title = parts[0] ? `${titles[parts[0]] || ''} — Cosplaygram` : 'Cosplaygram';
 }
 

@@ -769,3 +769,27 @@ body { background-image: var(--motifs); background-attachment: fixed; }
 .em-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(44px, 1fr)); }
 .em-grid button { height: 44px; border: 0; border-radius: 10px; background: none; font-size: 1.6rem; line-height: 1; cursor: pointer; }
 .em-grid button:hover, .em-grid button:focus-visible, .em-grid button.on { background: var(--surface-2); }
+
+/* ----- выбор роли ----- */
+.kind-pick { border: 0; padding: 0; margin: 0; min-width: 0; }
+.kind-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 8px; margin: 6px 0; }
+.kind-opt { position: relative; display: flex; align-items: center; gap: 12px; padding: 12px 14px; border: 1.5px solid var(--line); border-radius: 14px; cursor: pointer; background: var(--surface); transition: border-color .15s, background .15s; }
+.kind-opt input { position: absolute; opacity: 0; pointer-events: none; }
+.kind-opt .ko-i { font-size: 1.6rem; line-height: 1; flex: none; }
+.kind-opt .ko-t { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.kind-opt .ko-t b { font-size: .95rem; }
+.kind-opt .ko-t small { font-size: .78rem; color: var(--muted); line-height: 1.3; }
+.kind-opt:hover { border-color: color-mix(in srgb, var(--accent) 50%, var(--line)); }
+.kind-opt:has(input:checked) { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 10%, var(--surface)); box-shadow: 0 0 0 1px var(--accent); }
+.kind-opt:has(input:focus-visible) { outline: 2px solid var(--accent); outline-offset: 2px; }
+.kind-pill { font-weight: 600; }
+@media (max-width: 420px) { .kind-grid { grid-template-columns: 1fr 1fr; } .kind-opt { padding: 10px; gap: 8px; } .kind-opt .ko-t small { display: none; } }
+
+/* ----- своя шапка профиля ----- */
+.cover .cv-acts { position: absolute; z-index: 2; right: 12px; top: 12px; display: flex; gap: 6px; }
+.cover .cv-btn { background: color-mix(in srgb, var(--bg) 72%, transparent); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); border-color: transparent; color: var(--ink); cursor: pointer; }
+.cover .cv-btn:hover { background: color-mix(in srgb, var(--bg) 88%, transparent); }
+.cover .cv-btn.busy { opacity: .6; pointer-events: none; }
+.cover.own::after { background: linear-gradient(180deg, transparent 55%, rgba(0,0,0,.35)); }
+.cover.own .cv-img { object-position: 50% 50%; }
+@media (min-width: 720px) { .cover { height: 200px; } }

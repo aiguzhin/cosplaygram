@@ -23,6 +23,10 @@ const ORDER_STATUSES = ['new', 'accepted', 'declined', 'done', 'cancelled'];
 const themeId = (t) => (/^[a-z0-9-]{2,24}$/.test(String(t || '')) ? String(t) : '');
 // Комнаты чата: общая, срочная помощь и по одной на каждую страну (код страны строчными буквами)
 // Реакции на сообщения, как в Instagram: одна реакция от человека на сообщение
+// Роли на сайте. Принимать заказы и добавлять услуги могут только мастера и фотографы
+const KINDS = ['cosplayer', 'master', 'photographer', 'organizer', 'fan'];
+const SELLERS = ['master', 'photographer'];
+const kindOf = (v, def = 'cosplayer') => (KINDS.includes(v) ? v : def);
 const REACTIONS = ['❤️', '😂', '😮', '😢', '😡', '👍', '🔥', '👏'];
 // Любой один эмодзи (через «+»): только символы эмодзи, без букв, цифр и пробелов
 const isEmoji = (s) => s.length <= 16 && /\p{Extended_Pictographic}|\p{Regional_Indicator}/u.test(s) && !/[\p{L}\p{N}\s<>&"'`]/u.test(s)
@@ -164,19 +168,19 @@ async function main() {
   const imgUrl = (id) => (!id ? null : id.startsWith('/') ? id : `/img/${id}`);
 
   // ---------- представления ----------
-  const userCols = 'u.id, u.username, u.name, u.city, u.specialty, u.bio, u.avatar_id, u.color, u.role, u.demo, u.created_at, u.theme, u.country, u.verified, u.socials, u.orders_open, u.plan';
+  const userCols = 'u.id, u.username, u.name, u.city, u.specialty, u.bio, u.avatar_id, u.color, u.role, u.demo, u.created_at, u.theme, u.country, u.verified, u.socials, u.orders_open, u.plan, u.kind, u.cover_id';
   const userView = (r, prefix = '') => {
     const g = (k) => r[prefix + k];
     if (!g('id')) return null;
     return {
       id: g('id'), username: g('username'), name: g('name'), city: g('city'), specialty: g('specialty'),
-      bio: g('bio'), avatar: imgUrl(g('avatar_id')), color: g('color'), role: g('role'), demo: g('demo'),
+      bio: g('bio'), avatar: imgUrl(g('avatar_id')), cover: imgUrl(g('cover_id')), color: g('color'), role: g('role'), demo: g('demo'),
       createdAt: g('created_at'), theme: g('theme') || '', country: g('country') || '',
-      verified: !!g('verified'), ordersOpen: !!g('orders_open'), plan: ['pro', 'max'].includes(g('plan')) ? g('plan') : 'free', socials: (() => { try { return JSON.parse(g('socials') || '{}'); } catch { return {}; } })(),
+      verified: !!g('verified'), kind: KINDS.includes(g('kind')) ? g('kind') : 'cosplayer', ordersOpen: !!g('orders_open') && SELLERS.includes(g('kind')), plan: ['pro', 'max'].includes(g('plan')) ? g('plan') : 'free', socials: (() => { try { return JSON.parse(g('socials') || '{}'); } catch { return {}; } })(),
     };
   };
   const authorCols = (a = 'u', p = 'a_') =>
-    ['id', 'username', 'name', 'city', 'specialty', 'bio', 'avatar_id', 'color', 'role', 'demo', 'created_at', 'theme', 'country', 'verified', 'socials', 'orders_open', 'plan']
+    ['id', 'username', 'name', 'city', 'specialty', 'bio', 'avatar_id', 'color', 'role', 'demo', 'created_at', 'theme', 'country', 'verified', 'socials', 'orders_open', 'plan', 'kind', 'cover_id']
       .map((c) => `${a}.${c} AS ${p}${c}`).join(', ');
 
   async function loadPosts(where, params, meId, { limit = 30, comments = 2 } = {}) {
@@ -350,10 +354,10 @@ async function main() {
     const role = DEVS.includes(username) ? 'dev' : ADMINS.includes(username) || real.n === 0 ? 'admin' : 'user';
     const id = newId();
     await q(
-      `INSERT INTO users (id, username, password, name, city, specialty, color, role, created_at, theme, country, verified, email)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)`,
+      `INSERT INTO users (id, username, password, name, city, specialty, color, role, created_at, theme, country, verified, email, kind)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14)`,
       [id, username, hashPassword(password), clean(req.body.name, 60) || username, clean(req.body.city, 40),
-        clean(req.body.specialty, 60), COLORS[Math.floor(Math.random() * COLORS.length)], role, now(), themeId(req.body.theme), COUNTRIES.valid(req.body.country), role === 'dev', email]
+        clean(req.body.specialty, 60), COLORS[Math.floor(Math.random() * COLORS.length)], role, now(), themeId(req.body.theme), COUNTRIES.valid(req.body.country), role === 'dev', email, kindOf(req.body.kind)]
     );
     if (req.body.avatar) await q('UPDATE users SET avatar_id = $2 WHERE id = $1', [id, await saveImage(req.body.avatar, id)]);
     remember('reg:' + req.ip);
@@ -393,14 +397,28 @@ async function main() {
     const b = req.body;
     const u = req.user;
     const avatarId = b.avatar ? await saveImage(b.avatar, u.id) : null;
+    const kind = 'kind' in b ? kindOf(b.kind, u.kind) : u.kind;
+    if ('ordersOpen' in b && b.ordersOpen && b.ordersOpen !== '0' && !SELLERS.includes(kind)) throw new HttpError(400, 'Принимать заказы могут мастера и фотографы. Смените роль в настройках');
     await q(
-      `UPDATE users SET name = $2, city = $3, specialty = $4, bio = $5, color = $6, avatar_id = COALESCE($7, avatar_id), theme = $8, country = $9, socials = $10, orders_open = $11 WHERE id = $1`,
+      `UPDATE users SET name = $2, city = $3, specialty = $4, bio = $5, color = $6, avatar_id = COALESCE($7, avatar_id), theme = $8, country = $9, socials = $10, orders_open = $11, kind = $12 WHERE id = $1`,
       [u.id, clean(b.name ?? u.name, 60) || u.username, clean(b.city ?? u.city, 40), clean(b.specialty ?? u.specialty, 60),
         clean(b.bio ?? u.bio, 300), COLORS.includes(b.color) ? b.color : u.color, avatarId, 'theme' in b ? themeId(b.theme) : u.theme, 'country' in b ? COUNTRIES.valid(b.country) : u.country,
         JSON.stringify(b.socials && typeof b.socials === 'object' ? cleanSocials(b.socials) : u.socials || {}),
-        'ordersOpen' in b ? !!b.ordersOpen && b.ordersOpen !== '0' : u.ordersOpen]
+        // заказы можно включить только мастеру или фотографу; при смене роли на другую они выключаются
+        SELLERS.includes(kind) && ('ordersOpen' in b ? !!b.ordersOpen && b.ordersOpen !== '0' : u.ordersOpen), kind]
     );
     res.json({ user: await meView(u.id) });
+  }));
+
+  // Шапка профиля: своя картинка или ничего (тогда шапка в цветах сайта)
+  app.post('/api/me/cover', auth, wrap(async (req, res) => {
+    const id = await saveImage(req.body.image, req.user.id);
+    await q('UPDATE users SET cover_id = $2 WHERE id = $1', [req.user.id, id]);
+    res.json({ user: await meView(req.user.id) });
+  }));
+  app.delete('/api/me/cover', auth, wrap(async (req, res) => {
+    await q('UPDATE users SET cover_id = NULL WHERE id = $1', [req.user.id]);
+    res.json({ user: await meView(req.user.id) });
   }));
 
   app.post('/api/me/password', auth, wrap(async (req, res) => {
@@ -542,10 +560,10 @@ async function main() {
     const role = DEVS.includes(username) ? 'dev' : ADMINS.includes(username) || real.n === 0 ? 'admin' : 'user';
     const id = newId();
     await q(
-      `INSERT INTO users (id, username, password, name, city, specialty, color, role, created_at, theme, country, verified)
-       VALUES ($1,$2,NULL,$3,$4,$5,$6,$7,$8,$9,$10,$11)`,
+      `INSERT INTO users (id, username, password, name, city, specialty, color, role, created_at, theme, country, verified, kind)
+       VALUES ($1,$2,NULL,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)`,
       [id, username, clean(req.body.name, 60) || t.name || username, clean(req.body.city, 40), clean(req.body.specialty, 60),
-        COLORS[Math.floor(Math.random() * COLORS.length)], role, now(), themeId(req.body.theme), COUNTRIES.valid(req.body.country), role === 'dev']
+        COLORS[Math.floor(Math.random() * COLORS.length)], role, now(), themeId(req.body.theme), COUNTRIES.valid(req.body.country), role === 'dev', kindOf(req.body.kind)]
     );
     await q('INSERT INTO identities (provider, subject, user_id, label, created_at) VALUES ($1,$2,$3,$4,$5)', [t.provider, t.subject, id, t.label || '', now()]);
     // почту из Google сразу сохраняем — по ней можно будет входить, если задать пароль
@@ -763,7 +781,9 @@ async function main() {
       `SELECT ${userCols}, (SELECT count(*)::int FROM follows f WHERE f.followee_id = u.id) AS followers,
          (SELECT round(avg(rating)::numeric, 1)::float FROM reviews v WHERE v.master_id = u.id) AS rating,
          (SELECT count(*)::int FROM reviews v WHERE v.master_id = u.id) AS reviews
-       FROM users u ORDER BY u.verified DESC, followers DESC, u.created_at DESC LIMIT 100`
+       FROM users u ${KINDS.includes(req.query.kind) ? 'WHERE u.kind = $1' : ''}
+       ORDER BY u.verified DESC, followers DESC, u.created_at DESC LIMIT 200`,
+      KINDS.includes(req.query.kind) ? [req.query.kind] : []
     );
     res.json({ users: rows.map((r) => ({ ...userView(r), followers: r.followers, rating: r.rating, reviews: r.reviews })) });
   }));
@@ -818,6 +838,7 @@ async function main() {
 
   // ----- услуги и заказы у мастеров -----
   app.post('/api/me/services', auth, wrap(async (req, res) => {
+    if (!SELLERS.includes(req.user.kind)) throw new HttpError(400, 'Услуги могут добавлять мастера и фотографы. Смените роль в настройках');
     const title = clean(req.body.title, 80);
     if (!title) throw new HttpError(400, 'Напишите, что вы делаете на заказ');
     const { n } = await one('SELECT count(*)::int AS n FROM services WHERE user_id = $1', [req.user.id]);
@@ -832,10 +853,10 @@ async function main() {
     res.json({ services: await q('SELECT id, title, price, currency, days, note FROM services WHERE user_id = $1 ORDER BY created_at', [req.user.id]) });
   }));
   app.post('/api/users/:username/orders', auth, wrap(async (req, res) => {
-    const m = await one('SELECT id, orders_open FROM users WHERE username = $1', [req.params.username.toLowerCase()]);
+    const m = await one('SELECT id, orders_open, kind FROM users WHERE username = $1', [req.params.username.toLowerCase()]);
     if (!m) throw new HttpError(404, 'Мастер не найден');
     if (m.id === req.user.id) throw new HttpError(400, 'Нельзя заказать у себя');
-    if (!m.orders_open) throw new HttpError(400, 'Мастер сейчас не принимает заказы');
+    if (!m.orders_open || !SELLERS.includes(m.kind)) throw new HttpError(400, 'Мастер сейчас не принимает заказы');
     const title = clean(req.body.title, 120);
     if (!title) throw new HttpError(400, 'Опишите, что нужно сделать');
     const { n } = await one("SELECT count(*)::int AS n FROM orders WHERE client_id = $1 AND master_id = $2 AND status = 'new'", [req.user.id, m.id]);

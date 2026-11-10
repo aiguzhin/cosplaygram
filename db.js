@@ -174,6 +174,11 @@ ALTER TABLE users ADD COLUMN IF NOT EXISTS socials TEXT NOT NULL DEFAULT '{}';
 ALTER TABLE events ADD COLUMN IF NOT EXISTS major BOOLEAN NOT NULL DEFAULT FALSE;
 ALTER TABLE images ADD COLUMN IF NOT EXISTS url TEXT NOT NULL DEFAULT '';
 ALTER TABLE users ADD COLUMN IF NOT EXISTS orders_open BOOLEAN NOT NULL DEFAULT FALSE;
+-- Кто человек на сайте: косплеер, мастер, фотограф, организатор или зритель. Заказы принимают только мастера и фотографы
+ALTER TABLE users ADD COLUMN IF NOT EXISTS kind TEXT NOT NULL DEFAULT '';
+-- Своя шапка профиля (картинка). Без неё шапка просто в цветах сайта
+ALTER TABLE users ADD COLUMN IF NOT EXISTS cover_id TEXT;
+UPDATE users SET kind = CASE WHEN orders_open THEN 'master' ELSE 'cosplayer' END WHERE kind = '';
 ALTER TABLE users ADD COLUMN IF NOT EXISTS email TEXT;
 ALTER TABLE users ADD COLUMN IF NOT EXISTS plan TEXT NOT NULL DEFAULT 'free';
 CREATE UNIQUE INDEX IF NOT EXISTS users_email ON users(email);
